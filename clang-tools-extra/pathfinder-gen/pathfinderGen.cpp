@@ -96,11 +96,15 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
             if (rtype->getDecl()->getNameAsString() == "variant") {
               auto targs = tstype2->template_arguments();
               std::vector<std::unique_ptr<Param>> types;
+              std::vector<std::string> enum_vec;
               for (auto targ: targs) {
-                types.push_back(std::move(parseTorchParam(targ.getAsType(), Ctx)));
+                auto p = parseTorchParam(targ.getAsType(), Ctx);
+                if (p->ptype == ENUM)
+                  enum_vec.push_back(p->enum_name);
+                types.push_back(std::move(p));
               }
               t->dump();
-              return std::make_unique<Param>(VARIANT, std::move(types));
+              return std::make_unique<Param>(VARIANT, std::move(types), enum_vec);
             }
           }
         }
@@ -109,6 +113,17 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
   }
 
   return None;
+}
+
+void push_back_unique(std::vector<std::pair<std::string,std::unique_ptr<Param>>>& vec, std::string name, std::unique_ptr<Param> param) {
+  bool exist = false;
+  for (auto&& p: vec) {
+    if (p.first == name)
+      exist = true;
+  }
+
+  if (!exist)
+    vec.push_back({name, std::move(param)});
 }
 
 Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &Ctx) {
@@ -133,7 +148,7 @@ Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &C
         field->dump();
         field->getInClassInitializer()->dump();
       } */
-      std::map<std::string,std::unique_ptr<Param>> api_option_types;
+      std::vector<std::pair<std::string,std::unique_ptr<Param>>> api_option_types;
       for (auto method: cdecl->methods()) {
         if (method->parameters().size() != 1)
           continue;
@@ -141,7 +156,8 @@ Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &C
         std::unique_ptr<Param> param = parseTorchParam(method->parameters()[0]->getType(), Ctx);
         if (param != nullptr) {
           param->set_default(param_name, cdecl);
-          api_option_types.insert({param_name, std::move(param)});
+          //api_option_types.push_back({param_name, std::move(param)});
+          push_back_unique(api_option_types, param_name, std::move(param));
         }
       }
       return
@@ -201,7 +217,7 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
 }
 
 DeclarationMatcher FuncMatcher =
-  functionDecl(hasName("torch::nn::functional::conv3d")).bind("func");
+  functionDecl(hasName("torch::nn::functional::conv2d")).bind("func");
 
 class FuncPrinter : public MatchFinder::MatchCallback {
 public :
@@ -209,59 +225,24 @@ public :
     ASTContext *Context = Result.Context;
     if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("func")){
       //FD->dump();
-      auto params = FD->parameters();
-      for (auto param: params) {
-        std::cout << "param: " << param->getNameAsString() << std::endl;
-        clang::QualType t = param->getType();
-        std::unique_ptr<Param> p = parseTorchParam(t, *Context);
-        if (p)
-          std::cout << p->to_string(0) << std::endl;
-
-
-
-
-        /* std::cout << "===================================================\n";
-        //param->dump();
-        //param->getType()->dump();
-        if (param->getType()->isLValueReferenceType()) {
-          auto lvrt = param->getType()->getAs<LValueReferenceType>();
-          lvrt->dump();
-          std::cout << "---------------------------------------------------\n";
-          if (lvrt->getPointeeType()->isTypedefNameType()) {
-            auto tdtype = lvrt->getPointeeType()->getAs<TypedefType>();
-            tdtype->dump();
-            std::cout << "---------------------------------------------------\n";
-            std::cout << tdtype->getDecl()->getNameAsString() << std::endl << tdtype->getDecl()->getQualifiedNameAsString() << std::endl;
-            std::cout << "---------------------------------------------------\n";
-            if (tdtype->isSugared()) {
-              std::cout << "name: " + tdtype->getDecl()->getNameAsString() << std::endl;
-              auto tst = tdtype->desugar()->getAs<TemplateSpecializationType>();
-              tst->dump();
-              std::cout << "---------------------------------------------------\n";
-              if (tst->isSugared()) {
-                if (tst->desugar()->isRecordType()) {
-                  auto rtype = tst->desugar()->getAs<RecordType>();
-                  auto cdecl = rtype->getAsCXXRecordDecl();
-                  std::cout << "===================================================\n";
-                  for (auto method: cdecl->methods()) {
-                    if (method->parameters().size() == 0)
-                      continue;
-                    std::cout << "---------------------------------------------------\n";
-                    std::cout << method->getNameInfo().getAsString() << std::endl;
-                    for (auto param: method->parameters()) {
-                      std::cout << "param: " << param->getNameAsString() << std::endl;
-                      clang::QualType t = param->getType();
-                      std::unique_ptr<Param> p = parseTorchParam(t, *Context);
-                      if (p)
-                        std::cout << p->to_string(0) << std::endl;
-                    }                    
-                  }
-                }
-              }
-            }
-          }
-        } */
+      auto param_decls = FD->parameters();
+      std::vector<std::unique_ptr<Param>> params;
+      for (auto param_decl: param_decls) {
+        std::cout << "param: " << param_decl->getNameAsString() << std::endl;
+        clang::QualType t = param_decl->getType();
+        params.push_back(parseTorchParam(t, *Context));
       }
+      //params = set_idx(std::move(params));
+      //set_idx(params);
+      for (auto&& param: params)
+        std::cout << param->to_string(0) << std::endl;
+
+      std::cout << "=========================================\n";
+
+      gen_pathfinder_fuzz_target(
+        "conv2d",
+        params,
+        std::cout);
     }
   }
 };
