@@ -38,7 +38,7 @@ class Param {
         expendingarray_size = x;
       else if (ptype == TENSOR) {
         tensor_rank = x;
-        std::cout << "tensor rank is: " << std::to_string(x) << std::endl;
+        //std::cout << "tensor rank is: " << std::to_string(x) << std::endl;
       }
     }
     Param(ParamType ptype_, std::vector<std::unique_ptr<Param>> variant_types_, std::vector<std::string> enum_vec)
@@ -54,7 +54,7 @@ class Param {
   private:
     ParamType ptype;
     std::string enum_name;
-    long expendingarray_size;
+    size_t expendingarray_size;
     std::vector<std::unique_ptr<Param>> variant_types;
     std::string api_option_name;
     std::vector<std::pair<std::string,std::unique_ptr<Param>>> api_option_types;
@@ -156,13 +156,13 @@ std::string Param::to_string(int depth) {
 }
 
 void Param::set_default(std::string param_name, CXXRecordDecl* cdecl) {
-  std::cout << "param name: " << param_name << std::endl;
+  // << "param name: " << param_name << std::endl;
   for (auto field: cdecl->fields()) {
     std::string field_name = field->getNameAsString();
-    std::cout << "field name: " << field_name << std::endl;
+    //std::cout << "field name: " << field_name << std::endl;
     if (param_name.length() + 1 == field_name.length() &&
         field_name.compare(0, field_name.length(), param_name + "_") == 0) {
-      field->dump();
+      //field->dump();
       auto e = field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
       switch (ptype) {
         case INTVECTOR:
@@ -181,7 +181,7 @@ void Param::set_default(std::string param_name, CXXRecordDecl* cdecl) {
         default: {
           if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
             unsigned long val = il->getValue().getZExtValue();
-            std::cout << "default value: " << std::to_string(val) << std::endl;
+            //std::cout << "default value: " << std::to_string(val) << std::endl;
             default_num = val;
           }
           break;
@@ -421,11 +421,12 @@ void gen_pathfinder_fuzz_target(
   os << "  torch::set_num_threads(1);\n\n";
 
   os << "  try {\n";
-  os << "    torch::TensorOptions toptions =\n";
-  os << "      torch::TensorOptions()\n";
-  os << "        .device(fuzzer_util::get_device(arg[0]))\n";
-  os << "        .dtype(fuzzer_util::get_dtype(arg[1]))\n";
-  os << "        .requires_grad(true);\n\n";
+  os << "    torch::TensorOptions toptions = torch::TensorOptions();\n";
+  //os << "    torch::TensorOptions toptions =\n";
+  //os << "      torch::TensorOptions()\n";
+  //os << "        .device(fuzzer_util::get_device(arg[0]))\n";
+  //os << "        .dtype(fuzzer_util::get_dtype(arg[1]))\n";
+  //os << "        .requires_grad(true);\n\n";
 
   std::vector<std::string> function_args;
   std::vector<std::tuple<Param*, std::string, std::string>> optional_tensor;

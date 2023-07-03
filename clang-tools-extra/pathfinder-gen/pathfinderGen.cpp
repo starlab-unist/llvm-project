@@ -4,8 +4,10 @@
 #include "clang/Tooling/Tooling.h"
 // Declares llvm::cl::extrahelp.
 #include "llvm/Support/CommandLine.h"
-#include "clang/ASTMatchers/ASTMatchers.h"
-#include "clang/ASTMatchers/ASTMatchFinder.h"
+
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Frontend/CompilerInstance.h"
 
 #include "param.h"
 #include <iostream>
@@ -13,14 +15,32 @@
 using namespace clang::tooling;
 using namespace llvm;
 using namespace clang;
-using namespace clang::ast_matchers;
 
-std::string target_api_name = "torch::nn::functional::conv2d";
+std::map<std::string, std::vector<size_t>> target_api = {
+  {"torch::nn::functional::conv1d",{3,3,1}},
+  {"torch::nn::functional::conv2d",{4,4,1}},
+  {"torch::nn::functional::conv3d",{5,5,1}},
+  {"torch::nn::functional::conv_transpose1d",{3,3,1}},
+  {"torch::nn::functional::conv_transpose2d",{4,4,1}},
+  {"torch::nn::functional::conv_transpose3d",{5,5,1}},
+};
+std::string current_target;
+std::vector<size_t> current_tensor_rank;
+size_t current_tensor_rank_idx;
+
+size_t get_rank() {
+  static const size_t DEFAULT_RANK = 3;
+  if (current_tensor_rank.size() <= current_tensor_rank_idx) {
+    return DEFAULT_RANK;
+  } else {
+    return current_tensor_rank[current_tensor_rank_idx++];
+  }
+}
 
 std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx, bool is_optional=false);
 
 Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx) {
-  std::cout << "Parse builtin\n";
+  //std::cout << "Parse builtin\n";
   if (const auto* builtin = t->getAs<BuiltinType>()) {
     if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
       //std::cout << "Builtin: " << builtin->getNameAsCString(Ctx.getPrintingPolicy()) << std::endl;
@@ -42,13 +62,13 @@ Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx
 }
 
 Optional<std::unique_ptr<Param>> parseEnum(clang::QualType t, ASTContext &Ctx) {
-  std::cout << "Parse enum\n";
+  //std::cout << "Parse enum\n";
   static std::string enum_prefix = "torch::enumtype::";
 
   if (const auto* rtype = t->getAs<RecordType>()) {
     std::string qualified_name = rtype->getDecl()->getQualifiedNameAsString();
     if (qualified_name.compare(0, enum_prefix.size(), enum_prefix) == 0) {
-      t->dump();
+      //t->dump();
       return std::make_unique<Param>(ENUM, rtype->getDecl()->getNameAsString());
     }
   }
@@ -57,7 +77,7 @@ Optional<std::unique_ptr<Param>> parseEnum(clang::QualType t, ASTContext &Ctx) {
 }
 
 Optional<std::unique_ptr<Param>> parseIntVector(clang::QualType t, ASTContext &Ctx) {
-  std::cout << "Parse int vector\n";
+  //std::cout << "Parse int vector\n";
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
     if (tstype->isSugared()) {
@@ -78,13 +98,13 @@ Optional<std::unique_ptr<Param>> parseIntVector(clang::QualType t, ASTContext &C
 }
 
 Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t, bool is_optional) {
-  std::cout << "Parse tensor\n";
+  //std::cout << "Parse tensor\n";
   if (const auto* elaborated = t->getAs<ElaboratedType>()) {
     if (elaborated->isSugared())
       if (const auto* rtype = elaborated->desugar()->getAs<RecordType>())
         if (rtype->getDecl()->getNameAsString() == "Tensor") {
-          std::cout << "target_api_name: " << target_api_name << std::endl;
-          if (target_api_name == "torch::nn::functional::conv2d") {
+          //std::cout << "target_api_name: " << target_api_name << std::endl;
+          /* if (current_target == "torch::nn::functional::conv2d") {
             std::cout << "$$$$$$$$$$$$$is true\n";
             if (is_optional) {
               std::cout << "$$$$$$$$$$$$$is true\n";
@@ -94,13 +114,14 @@ Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t, bool is_optional
             }
           } else {
             return std::make_unique<Param>(TENSOR);
-          }
+          } */
+          return std::make_unique<Param>(TENSOR, get_rank());
         }
   } else if (const auto* underlying = t.getTypePtrOrNull()) {
     if (const auto* rtype = underlying->getAs<RecordType>())
       if (rtype->getDecl()->getNameAsString() == "Tensor") {
-        std::cout << "target_api_name: " << target_api_name << std::endl;
-        if (target_api_name == "torch::nn::functional::conv2d") {
+        //std::cout << "target_api_name: " << target_api_name << std::endl;
+        /* if (current_target == "torch::nn::functional::conv2d") {
           std::cout << "$$$$$$$$$$$$$is true\n";
           if (is_optional) {
             std::cout << "$$$$$$$$$$$$$is true\n";
@@ -110,7 +131,8 @@ Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t, bool is_optional
           }
         } else {
           return std::make_unique<Param>(TENSOR);
-        }
+        } */
+        return std::make_unique<Param>(TENSOR, get_rank());
       }
   }
 
@@ -118,7 +140,7 @@ Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t, bool is_optional
 }
 
 Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTContext &Ctx) {
-  std::cout << "Parse expending array\n";
+  //std::cout << "Parse expending array\n";
   if (const auto* tstype = t->getAs<TemplateSpecializationType>()) {
     if (tstype->isSugared()) {
       if (const auto* rtype = tstype->desugar()->getAs<RecordType>()) {
@@ -127,7 +149,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
           assert(targ.size() == 1);
           int64_t expendingarray_size =
             targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
-          t->dump();
+          //t->dump();
           return std::make_unique<Param>(EXPENDINGARRAY, expendingarray_size);
         }
       }
@@ -138,8 +160,8 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
 }
 
 Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx) {
-  std::cout << "Parse variant\n";
-  t->dump();
+  //std::cout << "Parse variant\n";
+  //t->dump();
   //if (const auto* tstype = t->getAs<TemplateSpecializationType>()) {
     //if (tstype->isSugared()) {
       //if (const auto* etype = tstype->desugar()->getAs<ElaboratedType>()) {
@@ -158,7 +180,7 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
                     enum_vec.push_back(p->enum_name);
                   types.push_back(std::move(p));
                 }
-                t->dump();
+                //t->dump();
                 return std::make_unique<Param>(VARIANT, std::move(types), enum_vec);
               }
             }
@@ -183,7 +205,7 @@ void push_back_unique(std::vector<std::pair<std::string,std::unique_ptr<Param>>>
 }
 
 Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &Ctx) {
-  std::cout << "Parse API Option\n";
+  //std::cout << "Parse API Option\n";
   static std::string option_suffix = "Options";
   static std::set<std::string> seen;
 
@@ -197,8 +219,8 @@ Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &C
           api_option_name.length() - option_suffix.length(),
           option_suffix.length(), option_suffix) == 0) {
       seen.insert(api_option_name);
-      cdecl->dump();
-      std::cout << "===========================\n";
+      //cdecl->dump();
+      //std::cout << "===========================\n";
       /* for (auto field: cdecl->fields()) {
         field->dump();
         field->getInClassInitializer()->dump();
@@ -237,8 +259,8 @@ Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &C
       auto rtype = tstype->desugar()->getAs<RecordType>();
       auto cdecl = rtype->getAsCXXRecordDecl();
       assert(cdecl != nullptr);
-      cdecl->dump();
-      std::cout << "===========================\n";
+      //cdecl->dump();
+      //std::cout << "===========================\n";
       /* for (auto field: cdecl->fields()) {
         field->dump();
         field->getInClassInitializer()->dump();
@@ -288,85 +310,104 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx, bool 
   } else if (t->isRValueReferenceType()) {
     return parseTorchParam(t->getAs<RValueReferenceType>()->getPointeeType(), Ctx, is_optional);
   } else if (const auto* elaborated = t->getAs<ElaboratedType>()) {
-    std::cout << "elaborated~~\n";
+    //std::cout << "elaborated~~\n";
     if (elaborated->isSugared()) {
-      std::cout << "is sugared~~\n";
+      //std::cout << "is sugared~~\n";
       return parseTorchParam(elaborated->desugar(), Ctx, is_optional);
     }
   } else if (const auto* tdtype = t->getAs<TypedefType>()) {
-    std::cout << "typedeftype~~\n";
+    //std::cout << "typedeftype~~\n";
     if (tdtype->isSugared()) {
-      std::cout << "is sugared~~\n";
+      //std::cout << "is sugared~~\n";
       return parseTorchParam(tdtype->desugar(), Ctx, is_optional);
     }
   } else if (const auto* tstype = t->getAs<TemplateSpecializationType>()) {
-    std::cout << "templateSpecialized~~\n";
+    //std::cout << "templateSpecialized~~\n";
     if (tstype->isSugared()) {
-      std::cout << "is sugared~~\n";
+      //std::cout << "is sugared~~\n";
       return parseTorchParam(tstype->desugar(), Ctx, is_optional);
     }
   }
 
-  t->dump();
+  //t->dump();
   return nullptr;
 }
 
-DeclarationMatcher FuncMatcher =
-  functionDecl(hasName(target_api_name)).bind("func");
+class FindNamedClassVisitor
+  : public RecursiveASTVisitor<FindNamedClassVisitor> {
+public:
+  explicit FindNamedClassVisitor(ASTContext *Context)
+    : Context(Context) {}
 
-class FuncPrinter : public MatchFinder::MatchCallback {
-public :
-  virtual void run(const MatchFinder::MatchResult &Result) override {
-    ASTContext *Context = Result.Context;
-    if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("func")){
+  bool VisitFunctionDecl(FunctionDecl *Declaration) {
+    //if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("func")){
+    //if (Declaration->getQualifiedNameAsString() == target_api) {
+    if (target_api.find(Declaration->getQualifiedNameAsString()) != target_api.end()) {
       //FD->dump();
-      auto param_decls = FD->parameters();
+      current_target = Declaration->getQualifiedNameAsString();
+      current_tensor_rank = target_api.find(current_target)->second;
+      current_tensor_rank_idx = 0;
+      auto param_decls = Declaration->parameters();
       std::vector<std::unique_ptr<Param>> params;
       for (auto param_decl: param_decls) {
-        std::cout << "param: " << param_decl->getNameAsString() << std::endl;
+        //std::cout << "param: " << param_decl->getNameAsString() << std::endl;
         clang::QualType t = param_decl->getType();
         t->dump();
         std::unique_ptr<Param> p = parseTorchParam(t, *Context);
         if (p != nullptr)
           params.push_back(std::move(p));
       }
-      //params = set_idx(std::move(params));
-      //set_idx(params);
-      for (auto&& param: params)
-        std::cout << param->to_string(0) << std::endl;
+      //for (auto&& param: params)
+      //  std::cout << param->to_string(0) << std::endl;
 
-      std::cout << "=========================================\n";
+      //std::cout << "=========================================\n";
 
       gen_pathfinder_fuzz_target(
-        target_api_name,
+        current_target,
         params,
         std::cout);
+
+      std::cout << "=============================================================\n";
     }
+
+    return true;
+  }
+
+private:
+  ASTContext *Context;
+};
+
+class FindNamedClassConsumer : public clang::ASTConsumer {
+public:
+  explicit FindNamedClassConsumer(ASTContext *Context)
+    : Visitor(Context) {}
+
+  virtual void HandleTranslationUnit(clang::ASTContext &Context) {
+    Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+  }
+private:
+  FindNamedClassVisitor Visitor;
+};
+
+class FindNamedClassAction : public clang::ASTFrontendAction {
+public:
+  virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
+    clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
+    return std::make_unique<FindNamedClassConsumer>(&Compiler.getASTContext());
   }
 };
 
-// Apply a custom category to all command-line options so that they are the
-// only ones displayed.
 static llvm::cl::OptionCategory MyToolCategory("my-tool options");
-
-// CommonOptionsParser declares HelpMessage with a description of the common
-// command-line options related to the compilation database and input files.
-// It's nice to have this help message in all tools.
-static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
-
-// A help message for this specific tool can be added afterwards.
-static cl::extrahelp MoreHelp("\nMore help text...\n");
 
 int main(int argc, const char **argv) {
   CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
   ClangTool Tool(OptionsParser.getCompilations(),
                  OptionsParser.getSourcePathList());
 
-  //LoopPrinter Printer;
-  FuncPrinter Printer;
-  MatchFinder Finder;
-  //Finder.addMatcher(LoopMatcher, &Printer);
-  Finder.addMatcher(FuncMatcher, &Printer);
+  //return Tool.run(std::make_unique<FindNamedClassAction>().get());
+  return Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  return Tool.run(newFrontendActionFactory(&Finder).get());
+  //if (argc > 1) {
+  //  clang::tooling::runToolOnCode(std::make_unique<FindNamedClassAction>(), argv[1]);
+  //}
 }
