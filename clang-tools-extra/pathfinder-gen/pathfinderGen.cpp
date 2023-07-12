@@ -7,7 +7,9 @@
 #include "llvm/Support/CommandLine.h"
 
 #include "param.h"
+#include "util.h"
 #include <iostream>
+#include <fstream>
 
 using namespace clang::tooling;
 using namespace llvm;
@@ -18,16 +20,16 @@ typedef std::vector<long> tensor_rank;
 const std::set<std::vector<long>> same_ranks = {{0,0},{1,1},{2,2},{3,3},{4,4},{5,5}};
 
 std::map<std::string, std::set<tensor_rank>> target_api = {
-  /* {"torch::nn::functional::conv1d",{{3,3,1}}},
+  {"torch::nn::functional::conv1d",{{3,3,1}}},
   {"torch::nn::functional::conv2d",{{4,4,1}}},
   {"torch::nn::functional::conv3d",{{5,5,1}}},
   {"torch::nn::functional::conv_transpose1d",{{3,3,1}}},
   {"torch::nn::functional::conv_transpose2d",{{4,4,1}}},
   {"torch::nn::functional::conv_transpose3d",{{5,5,1}}},
   {"torch::nn::functional::unfold",{{4}}},
-  {"torch::nn::functional::fold",{{4}}}, */
+  {"torch::nn::functional::fold",{{4}}},
 
- /*  {"torch::nn::functional::avg_pool1d",{{3}}},
+  {"torch::nn::functional::avg_pool1d",{{3}}},
   {"torch::nn::functional::avg_pool2d",{{4}}},
   {"torch::nn::functional::avg_pool3d",{{5}}},
   {"torch::nn::functional::max_pool1d",{{3}}},
@@ -43,9 +45,9 @@ std::map<std::string, std::set<tensor_rank>> target_api = {
   {"torch::nn::functional::adaptive_max_pool3d",{{5}}},
   {"torch::nn::functional::adaptive_avg_pool1d",{{3}}},
   {"torch::nn::functional::adaptive_avg_pool2d",{{4}}},
-  {"torch::nn::functional::adaptive_avg_pool3d",{{5}}}, */
+  {"torch::nn::functional::adaptive_avg_pool3d",{{5}}},
 
-  /* {"torch::nn::functional::threshold",{{}}},
+  {"torch::nn::functional::threshold",{{}}},
   {"torch::nn::functional::threshold_",{{}}},
   {"torch::nn::functional::relu",{{}}},
   {"torch::nn::functional::relu_",{{}}},
@@ -78,8 +80,8 @@ std::map<std::string, std::set<tensor_rank>> target_api = {
   {"torch::nn::functional::sigmoid",{{}}},
   {"torch::nn::functional::hardsigmoid",{{}}},
   {"torch::nn::functional::silu",{{}}},
-  {"torch::nn::functional::batch_norm",{{-1,1,1,1,1}}}, */
-  /* {"torch::nn::functional::instance_norm",{{-1,1,1,1,1}}},
+  {"torch::nn::functional::batch_norm",{{-1,1,1,1,1}}},
+  {"torch::nn::functional::instance_norm",{{-1,1,1,1,1}}},
   {"torch::nn::functional::layer_norm",{{}}},
   {"torch::nn::functional::local_response_norm",{{}}},
   {"torch::nn::functional::normalize",{{}}},
@@ -122,13 +124,13 @@ std::map<std::string, std::set<tensor_rank>> target_api = {
   {"torch::nn::functional::triplet_margin_with_distance_loss",{{1,1,1},{2,2,2},{3,3,3},{4,4,4},{5,5,5}}},
   {"torch::nn::functional::pixel_shuffle",{{3},{4},{5}}},
   {"torch::nn::functional::pixel_unshuffle",{{3},{4},{5}}},
-  {"torch::nn::functional::pad",{{}}}, */
+  {"torch::nn::functional::pad",{{}}},
   {"torch::nn::functional::interpolate",{{}}},
-  /* {"torch::nn::functional::upsample",{{}}},
+  {"torch::nn::functional::upsample",{{}}},
   {"torch::nn::functional::upsample_nearest",{{}}},
   {"torch::nn::functional::upsample_bilinear",{{}}},
   {"torch::nn::functional::grid_sample",{{4,4},{5,5}}},
-  {"torch::nn::functional::affine_grid",{{3}}}, */
+  {"torch::nn::functional::affine_grid",{{3}}},
 };
 std::string current_target;
 tensor_rank current_tensor_rank;
@@ -171,7 +173,13 @@ Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx
         return std::make_unique<Param>(INT);
       } else if (t == "bool") {
         return std::make_unique<Param>(BOOL);
-      } else if (t == "float" || t == "double") {
+      } else {
+        //std::cout << "dd: " << t << std::endl;
+        assert(false);
+      }
+    } else if (builtin->isFloatingPoint()) {
+      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
+      if (t == "float" || t == "double") {
         return std::make_unique<Param>(FLOAT);
       } else {
         //std::cout << "dd: " << t << std::endl;
@@ -199,7 +207,7 @@ Optional<std::unique_ptr<Param>> parseEnum(clang::QualType t, ASTContext &Ctx) {
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseIntVector(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, ASTContext &Ctx) {
   //std::cout << "Parse int vector\n";
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
@@ -208,9 +216,12 @@ Optional<std::unique_ptr<Param>> parseIntVector(clang::QualType t, ASTContext &C
         if (rtype->getDecl()->getNameAsString() == "vector") {
           auto targs = tstype->template_arguments();
           if (targs.size() == 1) {
+            //targs[0].getAsType()->dump();
             auto p = parseTorchParam(targs[0].getAsType(), Ctx);
             if (p->ptype == INT)
               return std::make_unique<Param>(INTVECTOR);
+            if (p->ptype == FLOAT)
+              return std::make_unique<Param>(FLOATVECTOR);
           }
         }
       }
@@ -244,7 +255,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
   const RecordType* rtype;
   const TemplateSpecializationType* tstype;
   const SubstTemplateTypeParmType* sttptype;
-  if (tstype = dyn_cast<TemplateSpecializationType>(t)) {
+  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
     assert(tstype->isSugared());
     rtype = dyn_cast<RecordType>(tstype->desugar());
     if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
@@ -255,7 +266,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
       //t->dump();
       return std::make_unique<Param>(EXPANDINGARRAY, expandingarray_size);
     }
-  } else if (sttptype = dyn_cast<SubstTemplateTypeParmType>(t)) {
+  } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
     assert(sttptype->isSugared());
     //std::cout << "sttptype:\n" << std::endl;
     //sttptype->dump();
@@ -295,12 +306,14 @@ Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, ASTContext &Ct
     if (tstype->isSugared()) {
       if (const auto* rtype = dyn_cast<RecordType>(tstype->desugar())) {
         if (rtype->getDecl()->getNameAsString() == "optional") {
-          std::cout << "optional:\n";
+          //std::cout << "optional:\n";
           auto targ = tstype->template_arguments();
           assert(targ.size() == 1);
-          targ[0].getAsType()->dump();
+          //targ[0].getAsType()->dump();
           auto p = parseTorchParam(targ[0].getAsType(), Ctx);
-          return std::make_unique<Param>(OPTIONAL, std::move(p));
+          //TODO: dtype
+          if (p != nullptr)
+            return std::make_unique<Param>(OPTIONAL, std::move(p));
         }
       }
     }
@@ -364,7 +377,7 @@ void push_back_unique(std::vector<std::pair<std::string,std::unique_ptr<Param>>>
     vec.push_back({name, std::move(param)});
 }
 
-Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   if (option_class_done) return None;
 
   //std::cout << "Parse API Option\n";
@@ -403,7 +416,7 @@ Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &C
         rtype = dyn_cast<RecordType>(tdtype->desugar());
       }
     }
-  } else if (rtype = dyn_cast<RecordType>(t)) {
+  } else if ((rtype = dyn_cast<RecordType>(t))) {
     api_option_name = rtype->getDecl()->getQualifiedNameAsString();
     if (api_option_name.length() > option_suffix.length() &&
         api_option_name.compare(
@@ -418,38 +431,45 @@ Optional<std::unique_ptr<Param>> parseAPIOption(clang::QualType t, ASTContext &C
   const auto* cdecl = rtype->getAsCXXRecordDecl();
   assert(cdecl != nullptr);
   //std::cout << "cdecl\n";
-  cdecl->dump();
-  std::vector<std::pair<std::string,std::unique_ptr<Param>>> api_option_types;
+  //cdecl->dump();
+  std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
   for (auto method: cdecl->methods()) {
-    if (method->getNameAsString() == cdecl->getNameAsString())
+    std::string param_name = method->getNameAsString();
+    if (param_name == cdecl->getNameAsString())
+      continue;
+    if (param_name == "operator=")
       continue;
     if (method->parameters().size() != 1)
       continue;
     bool duplicate = false;
-    for (auto&& p: api_option_types) {
-      if (p.first == method->getNameAsString()) {
+    for (auto&& p: entries) {
+      if (p.first == param_name) {
         duplicate = true;
         break;
       }
     }
     if (duplicate)
       continue;
-    std::string param_name = method->getNameInfo().getAsString();
-    std::cout << "method name: " << param_name << std::endl;
-    std::cout << "param type:\n" << std::endl;
-    method->parameters()[0]->getType()->dump();
+    //std::string param_name = method->getNameInfo().getAsString();
+    //std::cout << "method name: " << param_name << std::endl;
+    //std::cout << "param type:\n" << std::endl;
+    //method->parameters()[0]->getType()->dump();
     std::unique_ptr<Param> param = parseTorchParam(method->parameters()[0]->getType(), Ctx);
     if (param != nullptr) {
+      if (param->ptype == TENSOR)
+        param = std::make_unique<Param>(
+          OPTIONAL,
+          std::move(param));
       param->set_default(param_name, cdecl);
-      //api_option_types.push_back({param_name, std::move(param)});
-      push_back_unique(api_option_types, param_name, std::move(param));
+      //entries.push_back({param_name, std::move(param)});
+      push_back_unique(entries, param_name, std::move(param));
     }
   }
   return
     std::make_unique<Param>(
-      API_OPTION,
+      MAP,
       api_option_name,
-      std::move(api_option_types));
+      std::move(entries));
 }
 
 std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
@@ -457,7 +477,7 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
     return std::move(builtin_opt.getValue());
   if (auto enum_opt = parseEnum(t, Ctx))
     return std::move(enum_opt.getValue());
-  if (auto int_vec_opt = parseIntVector(t, Ctx))
+  if (auto int_vec_opt = parseVector(t, Ctx))
     return std::move(int_vec_opt.getValue());
   if (auto tensor_opt = parseTensor(t))
     return std::move(tensor_opt.getValue());
@@ -467,7 +487,7 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
     return std::move(optional_opt.getValue());
   if (auto variant_opt = parseVariant(t, Ctx))
     return std::move(variant_opt.getValue());
-  if (auto api_option_opt = parseAPIOption(t, Ctx))
+  if (auto api_option_opt = parseMAP(t, Ctx))
     return std::move(api_option_opt.getValue());
 
   // simplify
@@ -499,6 +519,8 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
   return nullptr;
 }
 
+std::vector<std::pair<std::string, std::string>> file_buffer;
+
 class FindNamedClassVisitor
   : public RecursiveASTVisitor<FindNamedClassVisitor> {
 public:
@@ -511,6 +533,8 @@ public:
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it != target_api.end()) {
       current_target = Declaration->getQualifiedNameAsString();
+      std::string current_target_unqualified = Declaration->getNameAsString();
+      size_t api_id = 0;
       for (auto rank: api_it->second) {
         current_tensor_rank = rank;
         current_tensor_rank_idx = 0;
@@ -525,16 +549,14 @@ public:
           if (p != nullptr)
             params.push_back(std::move(p));
         }
-        //for (auto&& param: params)
-        //  std::cout << param->to_string(0) << std::endl;
 
-        //std::cout << "=========================================\n";
-
-        gen_pathfinder_fuzz_target(
-          current_target,
-          params,
-          std::cout);
-        std::cout << "=============================================================\n";
+        std::string filename =
+          "pathfinder_fuzz_target_" +
+          current_target_unqualified + "_" + std::to_string(api_id) +
+          ".cpp";
+        std::string code = gen_code(current_target, params);
+        file_buffer.push_back(std::make_pair(filename, code));
+        api_id++;
       }
     }
 
@@ -550,7 +572,7 @@ public:
   explicit FindNamedClassConsumer(ASTContext *Context)
     : Visitor(Context) {}
 
-  virtual void HandleTranslationUnit(clang::ASTContext &Context) {
+  virtual void HandleTranslationUnit(clang::ASTContext &Context) override {
     Visitor.TraverseDecl(Context.getTranslationUnitDecl());
   }
 private:
@@ -560,7 +582,7 @@ private:
 class FindNamedClassAction : public clang::ASTFrontendAction {
 public:
   virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
-    clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
+    clang::CompilerInstance &Compiler, llvm::StringRef InFile) override {
     return std::make_unique<FindNamedClassConsumer>(&Compiler.getASTContext());
   }
 };
@@ -572,10 +594,30 @@ int main(int argc, const char **argv) {
   ClangTool Tool(OptionsParser.getCompilations(),
                  OptionsParser.getSourcePathList());
 
-  //return Tool.run(std::make_unique<FindNamedClassAction>().get());
-  return Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
+  Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  //if (argc > 1) {
-  //  clang::tooling::runToolOnCode(std::make_unique<FindNamedClassAction>(), argv[1]);
-  //}
+  std::string cmake_contents;
+  for (auto p: file_buffer) {
+    std::string filename = p.first;
+    std::cout << filename << std::endl;
+    std::string code = p.second;
+    std::ofstream writeFile(filename);
+    if(writeFile.is_open()){
+      writeFile << code;
+      writeFile.close();
+      cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
+    } else {
+      assert(false);
+    }
+  }
+
+  std::ofstream writeFile("CMakeLists.txt");
+  if(writeFile.is_open()){
+    writeFile << cmake_contents;
+    writeFile.close();
+  } else {
+    assert(false);
+  }
+
+  return 0;
 }

@@ -16,4 +16,8 @@ void mk_fuzz_target_dir() {
   return S_ISDIR(St.st_mode);
 }
 
+std::string strip_ext(std::string filename) {
+  return filename.substr(0,filename.find_last_of("."));
+}
+
 #endif
