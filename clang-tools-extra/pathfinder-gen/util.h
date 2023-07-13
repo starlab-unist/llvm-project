@@ -5,15 +5,27 @@
 #include <sys/types.h>
 #include <string>
 
-const dir_id = 0;
+bool include(std::vector<std::string>& vec, std::string name) {
+  for (auto n: vec) {
+    if (n == name)
+      return true;
+  }
 
-void mk_fuzz_target_dir() {
-  std::string dir_name = 
+  return false;
+}
 
-  struct stat St;
-  if (stat(Path.c_str(), &St))
-    return false;
-  return S_ISDIR(St.st_mode);
+bool include(std::vector<std::pair<std::string,std::unique_ptr<Param>>>& vec, std::string name) {
+  for (auto&& p: vec) {
+    if (p.first == name)
+      return true;
+  }
+
+  return false;
+}
+
+void push_back_unique(std::vector<std::pair<std::string,std::unique_ptr<Param>>>& vec, std::string name, std::unique_ptr<Param> param) {
+  if (!include(vec, name))
+    vec.push_back({name, std::move(param)});
 }
 
 std::string strip_ext(std::string filename) {

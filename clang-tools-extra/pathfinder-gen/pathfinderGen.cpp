@@ -249,6 +249,10 @@ Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t) {
   return None;
 }
 
+bool is_expandingarray(std::string name) {
+  return name == "ExpandingArray" || name == "ExpandingArrayWithOptionalElem";
+}
+
 Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTContext &Ctx) {
   //std::cout << "Parse expending array\n";
 
@@ -258,7 +262,8 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
   if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
     assert(tstype->isSugared());
     rtype = dyn_cast<RecordType>(tstype->desugar());
-    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
+    //if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
+    if (rtype != nullptr && is_expandingarray(rtype->getDecl()->getNameAsString())) {
       auto targ = tstype->template_arguments();
       assert(targ.size() == 1);
       int64_t expandingarray_size =
@@ -274,8 +279,8 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
     //sttptype->getReplacementType()->dump();
     if (const auto* rtype2 = dyn_cast<RecordType>(sttptype->getReplacementType())) {
       if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype2->getDecl())) {
-        if (//ctsdecl->getNameAsString() == "ExpendingArray" ||
-            ctsdecl->getNameAsString() == "ExpandingArrayWithOptionalElem") {
+        //if (ctsdecl->getNameAsString() == "ExpandingArrayWithOptionalElem") {
+        if (is_expandingarray(ctsdecl->getNameAsString())) {
           //ctsdecl->dump();
           const auto& targ = ctsdecl->getTemplateArgs();
           assert(targ.size() == 2);
@@ -366,17 +371,6 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
   return None;
 }
 
-void push_back_unique(std::vector<std::pair<std::string,std::unique_ptr<Param>>>& vec, std::string name, std::unique_ptr<Param> param) {
-  bool exist = false;
-  for (auto&& p: vec) {
-    if (p.first == name)
-      exist = true;
-  }
-
-  if (!exist)
-    vec.push_back({name, std::move(param)});
-}
-
 Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   if (option_class_done) return None;
 
@@ -432,12 +426,32 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   assert(cdecl != nullptr);
   //std::cout << "cdecl\n";
   //cdecl->dump();
+  std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params;
   std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
+  std::vector<std::string> ctor_param_names;
   for (auto method: cdecl->methods()) {
-    std::string param_name = method->getNameAsString();
-    if (param_name == cdecl->getNameAsString())
+    //method->dump();
+    if (const auto* cxxconstructordecl = dyn_cast<CXXConstructorDecl>(method)) {
+      bool is_special_ctor =
+        cxxconstructordecl->isDefaultConstructor() ||
+        cxxconstructordecl->isCopyOrMoveConstructor() ||
+        cxxconstructordecl->isSpecializationCopyingObject() ||
+        cxxconstructordecl->isInheritingConstructor();
+      if (!is_special_ctor) {
+        //cxxconstructordecl->dump();
+        for (const auto* param: cxxconstructordecl->parameters()) {
+          //param->dump();
+          //std::cout << param->getNameAsString() << std::endl;
+          ctor_param_names.push_back(param->getNameAsString());
+        }
+      }
       continue;
-    if (param_name == "operator=")
+    }
+    std::string param_name = method->getNameAsString();
+    //if (param_name == cdecl->getNameAsString())
+    //  continue;
+    //if (param_name == "operator=")
+    if (method->isCopyAssignmentOperator() || method->isMoveAssignmentOperator())
       continue;
     if (method->parameters().size() != 1)
       continue;
@@ -462,13 +476,17 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
           std::move(param));
       param->set_default(param_name, cdecl);
       //entries.push_back({param_name, std::move(param)});
-      push_back_unique(entries, param_name, std::move(param));
+      if (include(ctor_param_names, param_name))
+        push_back_unique(ctor_params, param_name, std::move(param));
+      else
+        push_back_unique(entries, param_name, std::move(param));
     }
   }
   return
     std::make_unique<Param>(
       MAP,
       api_option_name,
+      std::move(ctor_params),
       std::move(entries));
 }
 
@@ -596,10 +614,10 @@ int main(int argc, const char **argv) {
 
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  std::string cmake_contents;
+  std::string cmake_contents = "include(../pathfinder.cmake)\n\n";
   for (auto p: file_buffer) {
     std::string filename = p.first;
-    std::cout << filename << std::endl;
+    //std::cout << filename << std::endl;
     std::string code = p.second;
     std::ofstream writeFile(filename);
     if(writeFile.is_open()){

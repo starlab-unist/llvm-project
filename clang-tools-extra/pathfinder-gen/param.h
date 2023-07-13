@@ -13,11 +13,12 @@ using namespace clang;
 
 const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 5;
-const size_t DOUBLE_DICT_SIZE = 18;
+const size_t DOUBLE_DICT_SIZE = 20;
 
 size_t tensor_id;
 size_t int_vector_id;
 size_t float_vector_id;
+size_t array_id;
 size_t enum_id;
 
 enum ParamType {
@@ -85,8 +86,9 @@ class Param {
     Param(
       ParamType ptype_,
       std::string map_name_,
+      std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params_,
       std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries_)
-      : ptype(ptype_), map_name(map_name_), entries(std::move(entries_))
+      : ptype(ptype_), map_name(map_name_), ctor_params(std::move(ctor_params_)), entries(std::move(entries_))
     {
       assert(ptype == MAP);
       offset_size = 0;
@@ -137,6 +139,7 @@ class Param {
 
     // MAP
     std::string map_name;
+    std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params;
     std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
 
     //Optional<unsigned long> default_num = None;
@@ -181,6 +184,8 @@ size_t Param::set_offset(size_t offset) {
       }
       break;
     case MAP:
+      for (auto&& p: ctor_params)
+        offset = p.second->set_offset(offset);
       for (auto&& p: entries)
         offset = p.second->set_offset(offset);
       break;
@@ -195,9 +200,11 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
   for (auto field: cdecl->fields()) {
     std::string field_name = field->getNameAsString();
     //std::cout << "field name: " << field_name << std::endl;
+    //field->dump();
     if (param_name.length() + 1 == field_name.length() &&
-        field_name.compare(0, field_name.length(), param_name + "_") == 0)
+        field_name.compare(0, field_name.length(), param_name + "_") == 0) {
       e = field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
+    }
   }
 
   if (e !=nullptr) {
@@ -275,13 +282,15 @@ void Param::constraint(std::vector<std::string>& strs) {
     case VARIANT: {
       if (enums.size() > 0) {
         std::string arg = "arg[" + std::to_string(offset_start) + "]";
-        strs.push_back("0 <= arg[" + arg + "], arg[" + arg + "] < " + std::to_string(enums.size()));
+        strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(enums.size()));
       } else {
         expandingarray->constraint(strs);
       }
       break;
     }
     case MAP: {
+      for (auto&& p: ctor_params)
+        p.second->constraint(strs);
       for (auto&& p: entries)
         p.second->constraint(strs);
       break;
@@ -324,10 +333,8 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
   switch(ptype) {
     case INT:
     case BOOL:
-      //return std::make_tuple(empty_strvec(),empty_strvec(),"arg[" + std::to_string(offset_start) + "]");
       return to_triple(empty_strvec(),empty_strvec(),"arg[" + std::to_string(offset_start) + "]");
     case FLOAT:
-      //return std::make_tuple(empty_strvec(),empty_strvec(),"double_dict[arg[" + std::to_string(offset_start) + "]]");
       return to_triple(empty_strvec(),empty_strvec(),"double_dict[arg[" + std::to_string(offset_start) + "]]");
     case INTVECTOR: {
       std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
@@ -339,7 +346,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       }
       vec_init += "};";
       std::string vec_size_set = "std::vector<long>" + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      //return std::make_tuple({vec_init, vec_size_set},empty_strvec(),var_name);
       return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
     }
     case FLOATVECTOR: {
@@ -352,7 +358,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       }
       vec_init += "};";
       std::string vec_size_set = "std::vector<double>" + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      //return std::make_tuple({vec_init, vec_size_set},empty_strvec(),var_name);
       return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
     }
     case TENSOR: {
@@ -366,7 +371,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         }
         shape += "}";
         std::string tensor_init = "auto " + var_name + " = torch::randn(" + shape + ", toptions);";
-        //return std::make_tuple({tensor_init},empty_strvec(),var_name);
         return to_triple({tensor_init},empty_strvec(),var_name);
       } else {
         std::string shape_init = "std::vector<long> " + var_name + "_shape_ = {";
@@ -378,20 +382,20 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         shape_init += "};";
         std::string shape_set_rank = "std::vector<long> " + var_name + "_shape(&" + var_name + "_shape_[0],&" + var_name + "_shape_[arg[" + std::to_string(offset_start) + "]]);";
         std::string tensor_init = "auto " + var_name + " = torch::randn(" + var_name + "_shape, toptions);";
-        //return std::make_tuple({shape_init,shape_set_rank,tensor_init},empty_strvec(),var_name);
         return to_triple({shape_init,shape_set_rank,tensor_init},empty_strvec(),var_name);
       }
     }
     case EXPANDINGARRAY: {
-      std::string arr = "{";
+      std::string var_name = "array_" + std::to_string(array_id++);
+      std::string array_init = "std::initializer_list<long> " + var_name + " = {";
       for (size_t i = offset_start; i < offset_start + offset_size; i++) {
-        arr += "arg[" + std::to_string(i) + "]";
+        array_init += "arg[" + std::to_string(i) + "]";
         if (i != offset_start + offset_size - 1)
-          arr += ",";
+          array_init += ",";
       }
-      arr += "}";
-      //return std::make_tuple(empty_strvec(),empty_strvec(),arr);
-      return to_triple(empty_strvec(),empty_strvec(),arr);
+      array_init += "};";
+
+      return to_triple({array_init},empty_strvec(),var_name);
     }
     case OPTIONAL: {
       std::vector<std::string> option_check;
@@ -399,43 +403,69 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       auto t = base->to_code();
       std::vector<std::string> preparation = std::get<0>(t);
       std::string expr = std::get<2>(t);
-      //return std::make_tuple(preparation,option_check,expr);
       return to_triple(preparation,option_check,expr);
     }
     case VARIANT: {
       if (enums.size() > 0) {
         std::string var_name = "enum_" + std::to_string(enum_id++);
         std::vector<std::string> enum_init;
-        enum_init.push_back("std::vector<std::string> " + var_name + " = {");
+        enum_init.push_back("typedef");
+        enum_init.push_back("  c10::variant<");
+        for (size_t i = 0; i < enums.size(); i++) {
+          std::string enum_type = "    torch::enumtype::" + enums[i]->enum_name;
+          if (i != enums.size()-1)
+            enum_type += ",";
+          else
+            enum_type += ">";
+          enum_init.push_back(enum_type);
+        }
+        enum_init.push_back("  " + var_name + "_t;");
+        enum_init.push_back("std::vector<" + var_name + "_t> " + var_name + " = {");
         for (size_t i = 0; i < enums.size(); i++) {
           std::string enum_elem = "  torch::" + enums[i]->enum_name;
           if (i != enums.size()-1)
             enum_elem += ",";
           enum_init.push_back(enum_elem);
         }
-        enum_init.push_back("}");
-        //return std::make_tuple(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]");
+        enum_init.push_back("};");
         return to_triple(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]");
       } else {
         std::string exp = "{";
-        for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+        for (size_t i = expandingarray->offset_start; i < expandingarray->offset_start + expandingarray->offset_size; i++) {
           exp += "arg[" + std::to_string(i) + "]";
-          if (i != offset_start + offset_size - 1)
+          if (i != expandingarray->offset_start + expandingarray->offset_size - 1)
             exp += ",";
         }
         exp += "}";
-        //return std::make_tuple(empty_strvec(),empty_strvec(),exp);
         return to_triple(empty_strvec(),empty_strvec(),exp);
       }
     }
     case MAP: {
       std::vector<std::string> preparation;
-      std::vector<std::string> map_init;
-      map_init.push_back("auto foptions =");
-      map_init.push_back("  " + map_name + "()");
       std::vector<std::string> option_check;
+      std::vector<std::string> map_init;
 
-      std::string map_name;
+      std::string ctor_param_str;
+      for (auto&& p: ctor_params) {
+        auto t = p.second->to_code();
+        auto preparation_ = std::get<0>(t);
+        auto option_check_ = std::get<1>(t);
+        auto exp_ = std::get<2>(t);
+        assert(option_check.size() == 0);
+        if (preparation_.size() > 0) {
+          if (preparation.size() > 0)
+            preparation.push_back("");
+          preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
+        }
+        if (ctor_param_str.length() > 0)
+          ctor_param_str += ",";
+        ctor_param_str += exp_;
+      }
+
+      map_init.push_back("auto foptions =");
+      map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
+
+      //std::string map_name;
       for (auto&& p: entries) {
         auto t = p.second->to_code();
         auto preparation_ = std::get<0>(t);
@@ -460,7 +490,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         preparation.push_back("");
       preparation.insert(preparation.end(), map_init.begin(), map_init.end());
       preparation.insert(preparation.end(), option_check.begin(), option_check.end());
-      //return std::make_tuple(preparation,empty_strvec(),"foptions");
       return to_triple(preparation,empty_strvec(),"foptions");
     }
     default:
@@ -524,6 +553,8 @@ std::string gen_header() {
   code += "#include \"pathfinder.h\"\n";
   code += "#include \"fuzzer_util.h\"\n\n";
 
+  code += "using namespace fuzzer_util;\n\n";
+
   code += "extern \"C\" {\n\n";
 
   return code;
@@ -541,6 +572,7 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
   tensor_id = 0;
   int_vector_id = 0;
   float_vector_id = 0;
+  array_id = 0;
   enum_id = 0;
 
   size_t offset = 0;
