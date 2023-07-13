@@ -569,7 +569,6 @@ public:
         }
 
         std::string filename =
-          "pathfinder_fuzz_target_" +
           current_target_unqualified + "_" + std::to_string(api_id) +
           ".cpp";
         std::string code = gen_code(current_target, params);

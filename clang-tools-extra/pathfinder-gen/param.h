@@ -430,14 +430,15 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         enum_init.push_back("};");
         return to_triple(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]");
       } else {
-        std::string exp = "{";
+        /* std::string exp = "{";
         for (size_t i = expandingarray->offset_start; i < expandingarray->offset_start + expandingarray->offset_size; i++) {
           exp += "arg[" + std::to_string(i) + "]";
           if (i != expandingarray->offset_start + expandingarray->offset_size - 1)
             exp += ",";
         }
         exp += "}";
-        return to_triple(empty_strvec(),empty_strvec(),exp);
+        return to_triple(empty_strvec(),empty_strvec(),exp); */
+        return expandingarray->to_code();
       }
     }
     case MAP: {
@@ -445,25 +446,41 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       std::vector<std::string> option_check;
       std::vector<std::string> map_init;
 
-      std::string ctor_param_str;
-      for (auto&& p: ctor_params) {
-        auto t = p.second->to_code();
-        auto preparation_ = std::get<0>(t);
-        auto option_check_ = std::get<1>(t);
-        auto exp_ = std::get<2>(t);
-        assert(option_check.size() == 0);
-        if (preparation_.size() > 0) {
-          if (preparation.size() > 0)
-            preparation.push_back("");
-          preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
+      bool separate_init = false;
+      if (ctor_params.size() == 1 &&
+          ctor_params[0].second->ptype == VARIANT &&
+          ctor_params[0].second->enums.size() > 0) {
+        map_init.push_back(map_name + " foptions;");
+        map_init.push_back("if (arg[" + std::to_string(ctor_params[0].second->offset_start) + "] == 0) {");
+        map_init.push_back("  foptions = " + map_name + "(torch::" + ctor_params[0].second->enums[0]->enum_name + ");");
+        for (size_t i = 1; i < ctor_params[0].second->enums.size(); i++) {
+          map_init.push_back("} else if (arg[" + std::to_string(ctor_params[0].second->offset_start) + "] == " + std::to_string(i) + ") {");
+          map_init.push_back("  foptions = " + map_name + "(torch::" + ctor_params[0].second->enums[i]->enum_name + ");");
         }
-        if (ctor_param_str.length() > 0)
-          ctor_param_str += ",";
-        ctor_param_str += exp_;
+        map_init.push_back("}");
+        if (entries.size() > 0)
+          map_init.push_back("foptions");
+        separate_init = true;
+      } else {
+        std::string ctor_param_str;
+        for (auto&& p: ctor_params) {
+          auto t = p.second->to_code();
+          auto preparation_ = std::get<0>(t);
+          auto option_check_ = std::get<1>(t);
+          auto exp_ = std::get<2>(t);
+          assert(option_check.size() == 0);
+          if (preparation_.size() > 0) {
+            if (preparation.size() > 0)
+              preparation.push_back("");
+            preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
+          }
+          if (ctor_param_str.length() > 0)
+            ctor_param_str += ",";
+          ctor_param_str += exp_;
+        }
+        map_init.push_back("auto foptions =");
+        map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
       }
-
-      map_init.push_back("auto foptions =");
-      map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
 
       //std::string map_name;
       for (auto&& p: entries) {
@@ -481,7 +498,16 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
           option_check.push_back(option_check_[0]);
           option_check.push_back("  foptions." + p.first + "(" + exp_ + ");");
         } else {
-          map_init.push_back("    ." + p.first + "(" + exp_ + ")");
+          std::string param_set = "." + p.first + "(" + exp_ + ")";
+          if (separate_init) {
+            if (entries.size() == 1) {
+              map_init[map_init.size()-1] = map_init[map_init.size()-1] + param_set;
+            } else {
+              map_init.push_back("  " + param_set);
+            }
+          } else {
+            map_init.push_back("    " + param_set);
+          }
         }
       }
       if (map_init.size() > 0)
