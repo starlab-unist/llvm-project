@@ -559,6 +559,8 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   code += "));\n";
   code += "  } catch (::c10::Error& e) {\n";
   code += "    return -2;\n";
+  code += "  } catch (std::runtime_error& e) {\n";
+  code += "    return -2;\n";
   code += "  }\n\n";
 
   code += "  return 0;\n";
