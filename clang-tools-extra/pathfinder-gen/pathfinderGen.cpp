@@ -189,6 +189,20 @@ Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx
     /* if (builtin->isBool())
       return std::make_unique<Param>(BOOL); */
   }
+
+  return None;
+}
+
+Optional<std::unique_ptr<Param>> parseDtype(clang::QualType t, ASTContext &Ctx) {
+  if (const auto* etype = t->getAs<EnumType>()) {
+    //std::cout << "EnumType: " << etype->getDecl()->getNameAsString() << "\n";
+    //std::cout << "          " << etype->getDecl()->getQualifiedNameAsString() << "\n";
+    //etype->getDecl()->dump();
+    if (etype->getDecl()->getNameAsString() == "ScalarType") {
+      return std::make_unique<Param>(DTYPE);
+    }
+  }
+
   return None;
 }
 
@@ -251,6 +265,22 @@ Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t) {
 
 bool is_expandingarray(std::string name) {
   return name == "ExpandingArray" || name == "ExpandingArrayWithOptionalElem";
+}
+
+Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, ASTContext &Ctx) {
+  if (const auto* rtype = dyn_cast<RecordType>(t)) {
+    if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
+      if (ctsdecl->getNameAsString() == "ArrayRef") {
+        const auto& targ = ctsdecl->getTemplateArgs();
+        assert(targ.size() == 1);
+        assert(targ[0].getKind() == TemplateArgument::ArgKind::Type);
+        auto p = parseTorchParam(targ[0].getAsType(), Ctx);
+        if (p->ptype == INT)
+          return std::make_unique<Param>(INTARRAYREF);
+      }
+    }
+  }
+  return None;
 }
 
 Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTContext &Ctx) {
@@ -493,12 +523,16 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
 std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
   if (auto builtin_opt = parseBuiltin(t, Ctx))
     return std::move(builtin_opt.getValue());
+  if (auto dtype_opt = parseDtype(t, Ctx))
+    return std::move(dtype_opt.getValue());
   if (auto enum_opt = parseEnum(t, Ctx))
     return std::move(enum_opt.getValue());
   if (auto int_vec_opt = parseVector(t, Ctx))
     return std::move(int_vec_opt.getValue());
   if (auto tensor_opt = parseTensor(t))
     return std::move(tensor_opt.getValue());
+  if (auto intarrayref_opt = parseIntArrayRef(t, Ctx))
+    return std::move(intarrayref_opt.getValue());
   if (auto expandingarray_opt = parseExpandingArray(t, Ctx))
     return std::move(expandingarray_opt.getValue());
   if (auto optional_opt = parseOptional(t, Ctx))

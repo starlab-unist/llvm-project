@@ -14,6 +14,7 @@ using namespace clang;
 const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 5;
 const size_t DOUBLE_DICT_SIZE = 20;
+const size_t DTYPE_MAX = 11;
 
 size_t tensor_id;
 size_t int_vector_id;
@@ -25,10 +26,12 @@ enum ParamType {
   INT,
   BOOL,
   FLOAT,
+  DTYPE,
   ENUM,
+  TENSOR,
   INTVECTOR,
   FLOATVECTOR,
-  TENSOR,
+  INTARRAYREF,
   EXPANDINGARRAY,
   OPTIONAL,
   VARIANT,
@@ -38,10 +41,11 @@ enum ParamType {
 class Param {
   public:
     Param(ParamType ptype_): ptype(ptype_) {
-      assert(ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR);
-      if (ptype == INT || ptype == BOOL || ptype == FLOAT) {
+      assert(ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == DTYPE ||
+             ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF);
+      if (ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == DTYPE) {
         offset_size = 1;
-      } else if (ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR) {
+      } else if (ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF) {
         offset_size = 6;
       }
     }
@@ -153,6 +157,7 @@ class Param {
       std::vector<std::unique_ptr<Param>>& params,
       std::ostream& os);
     friend Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, ASTContext &Ctx);
+    friend Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, ASTContext &Ctx);
     friend Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, ASTContext &Ctx);
     friend Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx);
     friend Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx);
@@ -163,9 +168,11 @@ size_t Param::set_offset(size_t offset) {
     case INT:
     case BOOL:
     case FLOAT:
+    case DTYPE:
+    case TENSOR:
     case INTVECTOR:
     case FLOATVECTOR:
-    case TENSOR:
+    case INTARRAYREF:
     case EXPANDINGARRAY:
       offset_start = offset;
       offset += offset_size;
@@ -241,6 +248,23 @@ void Param::constraint(std::vector<std::string>& strs) {
       strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(DOUBLE_DICT_SIZE));
       break;
     }
+    case DTYPE: {
+      std::string arg = "arg[" + std::to_string(offset_start) + "]";
+      strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(DTYPE_MAX));
+      break;
+    }
+    case TENSOR: {
+      if (tensor_rank) {
+        for (size_t i = offset_start; i < offset_start + offset_size; i++)
+          strs.push_back("arg[" + std::to_string(i) + "] >= 1");
+      } else {
+        std::string rank = "arg[" + std::to_string(offset_start) + "]";
+        strs.push_back("0 <= " + rank + ", " + rank + " <= " + std::to_string(MAX_RANK));
+        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
+          strs.push_back("arg[" + std::to_string(i) + "] >= 1");
+      }
+      break;
+    }
     case INTVECTOR: {
       std::string size = "arg[" + std::to_string(offset_start) + "]";
       strs.push_back("0 <= " + size + ", " + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
@@ -255,16 +279,11 @@ void Param::constraint(std::vector<std::string>& strs) {
         strs.push_back("0 <= arg[" + std::to_string(i) + "], arg[" + std::to_string(i) + "] < " + std::to_string(DOUBLE_DICT_SIZE));
       break;
     }
-    case TENSOR: {
-      if (tensor_rank) {
-        for (size_t i = offset_start; i < offset_start + offset_size; i++)
-          strs.push_back("arg[" + std::to_string(i) + "] >= 1");
-      } else {
-        std::string rank = "arg[" + std::to_string(offset_start) + "]";
-        strs.push_back("0 <= " + rank + ", " + rank + " <= " + std::to_string(MAX_RANK));
-        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-          strs.push_back("arg[" + std::to_string(i) + "] >= 1");
-      }
+    case INTARRAYREF: {
+      std::string size = "arg[" + std::to_string(offset_start) + "]";
+      strs.push_back("0 <= " + size + ", " + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
+      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
+        strs.push_back("arg[" + std::to_string(i) + "] >= 0");
       break;
     }
     case EXPANDINGARRAY: {
@@ -336,30 +355,8 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       return to_triple(empty_strvec(),empty_strvec(),"arg[" + std::to_string(offset_start) + "]");
     case FLOAT:
       return to_triple(empty_strvec(),empty_strvec(),"double_dict[arg[" + std::to_string(offset_start) + "]]");
-    case INTVECTOR: {
-      std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
-      std::string vec_init = "std::vector<long> " + var_name + "_ = {";
-      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-        vec_init += "arg[" + std::to_string(i) + "]";
-        if (i != offset_start + offset_size - 1)
-          vec_init += ",";
-      }
-      vec_init += "};";
-      std::string vec_size_set = "std::vector<long>" + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
-    }
-    case FLOATVECTOR: {
-      std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
-      std::string vec_init = "std::vector<double> " + var_name + "_ = {";
-      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-        vec_init += "double_dict[arg[" + std::to_string(i) + "]]";
-        if (i != offset_start + offset_size - 1)
-          vec_init += ",";
-      }
-      vec_init += "};";
-      std::string vec_size_set = "std::vector<double>" + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
-    }
+    case DTYPE:
+      return to_triple(empty_strvec(),empty_strvec(),"get_dtype(arg[" + std::to_string(offset_start) + "])");
     case TENSOR: {
       std::string var_name = "tensor_" + std::to_string(tensor_id++);
       if (tensor_rank) {
@@ -385,9 +382,48 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         return to_triple({shape_init,shape_set_rank,tensor_init},empty_strvec(),var_name);
       }
     }
+    case INTVECTOR: {
+      std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
+      std::string vec_init = "std::vector<long> " + var_name + "_ = {";
+      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
+        vec_init += "arg[" + std::to_string(i) + "]";
+        if (i != offset_start + offset_size - 1)
+          vec_init += ",";
+      }
+      vec_init += "};";
+      std::string vec_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
+    }
+    case FLOATVECTOR: {
+      std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
+      std::string vec_init = "std::vector<double> " + var_name + "_ = {";
+      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
+        vec_init += "double_dict[arg[" + std::to_string(i) + "]]";
+        if (i != offset_start + offset_size - 1)
+          vec_init += ",";
+      }
+      vec_init += "};";
+      std::string vec_size_set = "std::vector<double> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
+    }
+    case INTARRAYREF: {
+      std::string var_name = "array_" + std::to_string(array_id++);
+      //std::string array_init = "std::initializer_list<long> " + var_name + "_ = {";
+      std::string array_init = "std::vector<long> " + var_name + "_ = {";
+      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
+        array_init += "arg[" + std::to_string(i) + "]";
+        if (i != offset_start + offset_size - 1)
+          array_init += ",";
+      }
+      array_init += "};";
+      //std::string array_size_set = "std::initializer_list<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string array_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      return to_triple({array_init, array_size_set},empty_strvec(),var_name);
+    }
     case EXPANDINGARRAY: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = "std::initializer_list<long> " + var_name + " = {";
+      //std::string array_init = "std::initializer_list<long> " + var_name + " = {";
+      std::string array_init = "std::vector<long> " + var_name + " = {";
       for (size_t i = offset_start; i < offset_start + offset_size; i++) {
         array_init += "arg[" + std::to_string(i) + "]";
         if (i != offset_start + offset_size - 1)
