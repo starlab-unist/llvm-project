@@ -103,7 +103,7 @@ class Param {
     void set_default(std::string param_name, const CXXRecordDecl* cdecl);
     size_t set_offset(size_t offset);
     void constraint(std::vector<std::string>& strs);
-    std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> to_code();
+    std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code();
   private:
     ParamType ptype;
 
@@ -341,22 +341,22 @@ std::vector<std::string> empty_strvec() {
   return std::vector<std::string>();
 }
 
-std::tuple<std::vector<std::string>, std::vector<std::string>, std::string>
-to_triple(std::vector<std::string> first, std::vector<std::string> second, std::string third) {
+std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>>
+to_quad(std::vector<std::string> first, std::vector<std::string> second, std::string third, std::vector<std::string> fourth) {
   return
-    std::make_tuple<std::vector<std::string>, std::vector<std::string>, std::string>(
-      std::move(first), std::move(second), std::move(third));
+    std::make_tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>>(
+      std::move(first), std::move(second), std::move(third), std::move(fourth));
 }
 
-std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Param::to_code() {
+std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code() {
   switch(ptype) {
     case INT:
     case BOOL:
-      return to_triple(empty_strvec(),empty_strvec(),"arg[" + std::to_string(offset_start) + "]");
+      return to_quad(empty_strvec(),empty_strvec(),"arg[" + std::to_string(offset_start) + "]",empty_strvec());
     case FLOAT:
-      return to_triple(empty_strvec(),empty_strvec(),"double_dict[arg[" + std::to_string(offset_start) + "]]");
+      return to_quad(empty_strvec(),empty_strvec(),"double_dict[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
     case DTYPE:
-      return to_triple(empty_strvec(),empty_strvec(),"get_dtype(arg[" + std::to_string(offset_start) + "])");
+      return to_quad(empty_strvec(),empty_strvec(),"get_dtype(arg[" + std::to_string(offset_start) + "])",empty_strvec());
     case TENSOR: {
       std::string var_name = "tensor_" + std::to_string(tensor_id++);
       if (tensor_rank) {
@@ -367,19 +367,22 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
             shape += ",";
         }
         shape += "}";
+        std::string tensor_guard = "if (is_too_big(" + shape + "))";
         std::string tensor_init = "auto " + var_name + " = torch::randn(" + shape + ", toptions);";
-        return to_triple({tensor_init},empty_strvec(),var_name);
+        return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       } else {
-        std::string shape_init = "std::vector<long> " + var_name + "_shape_ = {";
+        std::string shape = "{";
         for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-          shape_init += "arg[" + std::to_string(i) + "]";
+          shape += "arg[" + std::to_string(i) + "]";
           if (i != offset_start + offset_size - 1)
-            shape_init += ",";
+            shape += ",";
         }
-        shape_init += "};";
+        shape += "}";
+        std::string tensor_guard = "if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))";
+        std::string shape_init = "std::vector<long> " + var_name + "_shape_ = " + shape + ";";
         std::string shape_set_rank = "std::vector<long> " + var_name + "_shape(&" + var_name + "_shape_[0],&" + var_name + "_shape_[arg[" + std::to_string(offset_start) + "]]);";
         std::string tensor_init = "auto " + var_name + " = torch::randn(" + var_name + "_shape, toptions);";
-        return to_triple({shape_init,shape_set_rank,tensor_init},empty_strvec(),var_name);
+        return to_quad({shape_init,shape_set_rank,tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       }
     }
     case INTVECTOR: {
@@ -392,7 +395,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       }
       vec_init += "};";
       std::string vec_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
+      return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case FLOATVECTOR: {
       std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
@@ -404,7 +407,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       }
       vec_init += "};";
       std::string vec_size_set = "std::vector<double> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      return to_triple({vec_init, vec_size_set},empty_strvec(),var_name);
+      return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case INTARRAYREF: {
       std::string var_name = "array_" + std::to_string(array_id++);
@@ -418,7 +421,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       array_init += "};";
       //std::string array_size_set = "std::initializer_list<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
       std::string array_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
-      return to_triple({array_init, array_size_set},empty_strvec(),var_name);
+      return to_quad({array_init, array_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case EXPANDINGARRAY: {
       std::string var_name = "array_" + std::to_string(array_id++);
@@ -431,7 +434,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       }
       array_init += "};";
 
-      return to_triple({array_init},empty_strvec(),var_name);
+      return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
     }
     case OPTIONAL: {
       std::vector<std::string> option_check;
@@ -439,7 +442,8 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       auto t = base->to_code();
       std::vector<std::string> preparation = std::get<0>(t);
       std::string expr = std::get<2>(t);
-      return to_triple(preparation,option_check,expr);
+      std::vector<std::string> guard = std::get<3>(t);
+      return to_quad(preparation,option_check,expr,guard);
     }
     case VARIANT: {
       if (enums.size() > 0) {
@@ -464,7 +468,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
           enum_init.push_back(enum_elem);
         }
         enum_init.push_back("};");
-        return to_triple(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]");
+        return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
       } else {
         /* std::string exp = "{";
         for (size_t i = expandingarray->offset_start; i < expandingarray->offset_start + expandingarray->offset_size; i++) {
@@ -473,7 +477,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
             exp += ",";
         }
         exp += "}";
-        return to_triple(empty_strvec(),empty_strvec(),exp); */
+        return to_quad(empty_strvec(),empty_strvec(),exp); */
         return expandingarray->to_code();
       }
     }
@@ -481,6 +485,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
       std::vector<std::string> preparation;
       std::vector<std::string> option_check;
       std::vector<std::string> map_init;
+      std::vector<std::string> guard;
 
       bool separate_init = false;
       if (ctor_params.size() == 1 &&
@@ -504,6 +509,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
           auto preparation_ = std::get<0>(t);
           auto option_check_ = std::get<1>(t);
           auto exp_ = std::get<2>(t);
+          auto guard_ = std::get<3>(t);
           assert(option_check.size() == 0);
           if (preparation_.size() > 0) {
             if (preparation.size() > 0)
@@ -513,6 +519,8 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
           if (ctor_param_str.length() > 0)
             ctor_param_str += ",";
           ctor_param_str += exp_;
+          if (guard_.size() > 0) 
+            guard.insert(guard.end(), guard_.begin(), guard_.end());
         }
         map_init.push_back("auto foptions =");
         map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
@@ -524,6 +532,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         auto preparation_ = std::get<0>(t);
         auto option_check_ = std::get<1>(t);
         auto exp_ = std::get<2>(t);
+        auto guard_ = std::get<3>(t);
         if (preparation_.size() > 0) {
           if (preparation.size() > 0)
             preparation.push_back("");
@@ -545,6 +554,8 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
             map_init.push_back("    " + param_set);
           }
         }
+        if (guard_.size() > 0) 
+          guard.insert(guard.end(), guard_.begin(), guard_.end());
       }
       if (map_init.size() > 0)
         map_init[map_init.size()-1] = map_init[map_init.size()-1] + ";";
@@ -552,7 +563,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string> Para
         preparation.push_back("");
       preparation.insert(preparation.end(), map_init.begin(), map_init.end());
       preparation.insert(preparation.end(), option_check.begin(), option_check.end());
-      return to_triple(preparation,empty_strvec(),"foptions");
+      return to_quad(preparation,empty_strvec(),"foptions",guard);
     }
     default:
       assert(false);
@@ -563,21 +574,36 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   std::string code;
   code += "int PathFinderTestOneInput(const long* arg) {\n";
   code += "  torch::set_num_threads(1);\n\n";
-  code += "  try {\n";
+
+
+
+  
 
   std::vector<std::string> preparation;
   preparation.push_back("torch::TensorOptions toptions = torch::TensorOptions();");
   std::vector<std::string> positional_arg;
+  std::vector<std::string> guard;
   for (auto&& param: params) {
     auto t = param->to_code();
     auto preparation_ = std::get<0>(t);
     auto exp_ = std::get<2>(t);
+    auto guard_ = std::get<3>(t);
     if (preparation_.size() > 0) {
       preparation.push_back("");
       preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
     }
     positional_arg.push_back(exp_);
+    if (guard_.size() > 0)
+      guard.insert(guard.end(), guard_.begin(), guard_.end());
   }
+
+  for (auto line: guard) {
+    if (line != "")
+      code += "  " + line;
+    code += "\n";
+  }
+
+  code += "\n  try {\n";
   for (auto line: preparation) {
     if (line != "")
       code += "    " + line;
