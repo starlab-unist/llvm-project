@@ -14,7 +14,7 @@ using namespace clang;
 const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 5;
 const size_t DOUBLE_DICT_SIZE = 20;
-const size_t DTYPE_MAX = 11;
+const size_t DTYPE_MAX = 9;
 
 size_t tensor_id;
 size_t int_vector_id;
@@ -111,14 +111,6 @@ class Param {
     Optional<size_t> default_int = None;
     size_t offset_start;
     size_t offset_size;
-    //size_t start_idx = 0;
-    //size_t idx_size = 0;
-
-    // BOOL
-    //Optional<bool> default_bool = None;
-
-    // FLOAT
-    //Optional<double> default_float = None;
 
     // ENUM
     std::string enum_name;
@@ -135,21 +127,11 @@ class Param {
     // VARIANT
     std::vector<std::unique_ptr<Param>> enums;
     std::unique_ptr<Param> expandingarray;
-    //std::vector<std::unique_ptr<Param>> variant_types;
-    //bool variant_use_expanding_array = false;
-    //bool variant_use_enum = false;
-    //size_t variant_num_enums = 0;
-    //std::vector<std::string> variant_enum_vec;
 
     // MAP
     std::string map_name;
     std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params;
     std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
-
-    //Optional<unsigned long> default_num = None;
-    //Optional<double> default_float = None;
-    //Optional<std::string> default_enum = None;
-    //bool default_tensor = false;
 
     friend size_t set_idx(std::vector<std::unique_ptr<Param>>& params);
     friend void gen_pathfinder_fuzz_target(
@@ -182,7 +164,6 @@ size_t Param::set_offset(size_t offset) {
       offset = base->set_offset(offset+1);
       break;
     case VARIANT:
-      //offset_start = offset;
       if (enums.size() > 0) {
         offset_start = offset;
         offset += offset_size;
@@ -206,8 +187,6 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
   Expr* e = nullptr;
   for (auto field: cdecl->fields()) {
     std::string field_name = field->getNameAsString();
-    //std::cout << "field name: " << field_name << std::endl;
-    //field->dump();
     if (param_name.length() + 1 == field_name.length() &&
         field_name.compare(0, field_name.length(), param_name + "_") == 0) {
       e = field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
@@ -220,7 +199,6 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
       case EXPANDINGARRAY:
         if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
           unsigned long val = il->getValue().getZExtValue();
-          //std::cout << "default value: " << std::to_string(val) << std::endl;
           default_int = val;
         }
         break;
@@ -411,7 +389,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
     }
     case INTARRAYREF: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      //std::string array_init = "std::initializer_list<long> " + var_name + "_ = {";
       std::string array_init = "std::vector<long> " + var_name + "_ = {";
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
         array_init += "arg[" + std::to_string(i) + "]";
@@ -419,13 +396,11 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
           array_init += ",";
       }
       array_init += "};";
-      //std::string array_size_set = "std::initializer_list<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
       std::string array_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
       return to_quad({array_init, array_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case EXPANDINGARRAY: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      //std::string array_init = "std::initializer_list<long> " + var_name + " = {";
       std::string array_init = "std::vector<long> " + var_name + " = {";
       for (size_t i = offset_start; i < offset_start + offset_size; i++) {
         array_init += "arg[" + std::to_string(i) + "]";
@@ -470,14 +445,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         enum_init.push_back("};");
         return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
       } else {
-        /* std::string exp = "{";
-        for (size_t i = expandingarray->offset_start; i < expandingarray->offset_start + expandingarray->offset_size; i++) {
-          exp += "arg[" + std::to_string(i) + "]";
-          if (i != expandingarray->offset_start + expandingarray->offset_size - 1)
-            exp += ",";
-        }
-        exp += "}";
-        return to_quad(empty_strvec(),empty_strvec(),exp); */
         return expandingarray->to_code();
       }
     }
@@ -526,7 +493,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
       }
 
-      //std::string map_name;
       for (auto&& p: entries) {
         auto t = p.second->to_code();
         auto preparation_ = std::get<0>(t);
@@ -619,9 +585,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
     }
   }
   code += "));\n";
-  code += "  } catch (::c10::Error& e) {\n";
-  code += "    return -2;\n";
-  code += "  } catch (std::runtime_error& e) {\n";
+  code += "  } catch (std::exception& e) {\n";
   code += "    return -2;\n";
   code += "  }\n\n";
 
@@ -700,22 +664,16 @@ std::string Param::to_string(int depth) {
       break;
     case BOOL:
       str += str_mult(depth, indent) + "BOOL";
-      //if (default_bool)
-      //  str += ": default= " + std::to_string(default_num.getValue());
       str += "  // start idx: " + std::to_string(offset_start) + ", idx size: " + std::to_string(offset_size);
       str += "\n";
       break;
     case FLOAT:
       str += str_mult(depth, indent) + "FLOAT";
-      //if (default_num)
-      //  str += ": default= " + std::to_string(default_float.getValue());
       str += "  // start idx: " + std::to_string(offset_start) + ", idx size: " + std::to_string(offset_size);
       str += "\n";
       break;
     case ENUM:
       str += str_mult(depth, indent) + "ENUM: " + enum_name;
-      //if (default_enum)
-      //  str += ": default= " + default_enum.getValue();
       str += "\n";
       break;
     case INTVECTOR:
@@ -730,15 +688,11 @@ std::string Param::to_string(int depth) {
       break;
     case TENSOR:
       str += str_mult(depth, indent) + "TENSOR";
-      //if (default_tensor)
-      //  str += ": default=Tensor()";
       str += "  // start idx: " + std::to_string(offset_start) + ", idx size: " + std::to_string(offset_size);
       str += "\n";
       break;
     case EXPANDINGARRAY:
       str += str_mult(depth, indent) + "EXPANDINGARRAY " + std::to_string(expandingarray_size);
-      //if (default_num)
-      //  str += ": default= " + std::to_string(default_num.getValue());
       str += "  // start idx: " + std::to_string(offset_start) + ", idx size: " + std::to_string(offset_size);
       str += "\n";
       break;
@@ -769,524 +723,5 @@ std::string Param::to_string(int depth) {
   }
   return str;
 }
-
-/* void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
-  //std::cout << "param name: " << param_name << std::endl;
-  //cdecl->dump();
-  for (auto field: cdecl->fields()) {
-    std::string field_name = field->getNameAsString();
-    //std::cout << "field name: " << field_name << std::endl;
-    if (param_name.length() + 1 == field_name.length() &&
-        field_name.compare(0, field_name.length(), param_name + "_") == 0) {
-      //field->dump();
-      if (const auto* e = field->getInClassInitializer()->IgnoreUnlessSpelledInSource()){
-        //e->dump();
-        switch (ptype) {
-          case INTVECTOR:
-          case FLOATVECTOR:
-            break;
-          case TENSOR:
-            default_tensor = true;
-            break;
-          case ENUM:
-            assert(false); // TODO;
-            break;
-          case BOOL: {
-            auto b = dyn_cast<CXXBoolLiteralExpr>(e);
-            assert(b != nullptr);
-            break;
-          }
-          case FLOAT: {
-            if (const auto* fl = dyn_cast<FloatingLiteral>(e)) {
-              double val = fl->getValue().convertToDouble();
-              //std::cout << "default value: " << std::to_string(val) << std::endl;
-              default_float = val;
-            }
-            break;
-          }
-          default: {
-            if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
-              unsigned long val = il->getValue().getZExtValue();
-              //std::cout << "default value: " << std::to_string(val) << std::endl;
-              default_num = val;
-            }
-            break;
-          }
-        }
-      }
-    }
-  }
-} */
-
-/* size_t set_idx(std::vector<std::unique_ptr<Param>>& params) {
-  //size_t idx = 2;
-  size_t idx = 0;
-  for (auto&& param: params) {
-    switch (param->ptype) {
-      case INT:
-      case BOOL:
-        param->start_idx = idx;
-        param->idx_size = 1;
-        idx += param->idx_size;
-        break;
-      case TENSOR:
-        param->start_idx = idx;
-        if (param->tensor_rank) {
-          param->idx_size = param->tensor_rank.getValue();
-        } else {
-          param->idx_size = MAX_RANK + 1;
-        }
-        idx += param->idx_size;
-        break;
-      case API_OPTION: {
-        for (auto&& entry: param->api_option_types) {
-          switch (entry.second->ptype) {
-            case INT:
-            case BOOL:
-            case FLOAT:
-              entry.second->start_idx = idx;
-              entry.second->idx_size = 1;
-              idx += entry.second->idx_size;
-              break;
-            case INTVECTOR:
-            case FLOATVECTOR:
-              entry.second->start_idx = idx;
-              entry.second->idx_size = MAX_VECTOR_SIZE + 1;
-              idx += entry.second->idx_size;
-              break;
-            case TENSOR:
-              entry.second->start_idx = idx;
-              if (entry.second->tensor_rank) {
-                entry.second->idx_size = entry.second->tensor_rank.getValue()+1;
-                //std::cout << "idx size is: " << std::to_string(entry.second->idx_size) << std::endl;
-              } else {
-                entry.second->idx_size = MAX_RANK + 2;
-              }
-              idx += entry.second->idx_size;
-              break;
-            case EXPANDINGARRAY:
-              entry.second->start_idx = idx;
-              entry.second->idx_size = entry.second->expandingarray_size;
-              idx += entry.second->idx_size;
-              break;
-            case OPTIONAL: {
-              //entry.second->start_idx = idx;
-              switch (entry.second->base->ptype) {
-                case FLOAT:
-                  entry.second->start_idx = idx;
-                  entry.second->idx_size = 2;
-                  break;
-                default:
-                  assert(false);
-              }
-              break;
-            }
-            case VARIANT: {
-              size_t expandingarray_size_ = 0;
-              size_t num_enums = 0;
-              //entry.second->to_string();
-              for (auto&& param2: entry.second->variant_types) {
-                switch (param2->ptype) {
-                  case EXPANDINGARRAY:
-                    expandingarray_size_ = param2->expandingarray_size;
-                    break;
-                  case ENUM:
-                    num_enums++;
-                    //std::cout << "num_enum: " << std::to_string(num_enums) << std::endl;
-                    break;
-                  default:
-                    assert(false);
-                }
-              }
-              entry.second->start_idx = idx;
-              //std::cout << " expanding array size: " << std::to_string(expandingarray_size_) << std::endl;
-              //std::cout << " num enums: " << std::to_string(num_enums) << std::endl;
-              if (expandingarray_size_ > 0) {
-                entry.second->variant_use_expanding_array = true;
-                entry.second->idx_size = expandingarray_size_;
-                idx += entry.second->idx_size;
-              } else if (num_enums > 0) {
-                entry.second->variant_use_enum = true;
-                entry.second->idx_size = 1;
-                entry.second->variant_num_enums = num_enums;
-                idx += entry.second->idx_size;
-                //std::cout << entry.second->to_string() << std::endl;
-              } else {
-                assert(false);
-              }
-              break;
-            }
-            default:
-              std::cout << entry.second->to_string() << std::endl;
-              assert(false);
-          }
-        }
-        break;
-      }
-      default:
-        assert(false);
-    }
-  }
-  return idx;
-} */
-
-/* void gen_pathfinder_fuzz_target(
-  std::string target_api_name,
-  std::vector<std::unique_ptr<Param>>& params,
-  std::ostream& os)
-{
-  //const size_t NUM_DEVICE = 2;
-  //const size_t NUM_DTYPE = 11;
-
-  size_t num_args = set_idx(params);
-
-  os << "#include <stdint.h>\n";
-  os << "#include <stddef.h>\n";
-  os << "#include <c10/util/irange.h>\n";
-  os << "#include <cassert>\n";
-  os << "#include <cstdlib>\n";
-  os << "#include <torch/torch.h>\n";
-  os << "#include \"pathfinder.h\"\n";
-  os << "#include \"fuzzer_util.h\"\n\n";
-
-  os << "extern \"C\" {\n\n";
-
-  os << "void PathFinderSetup() {\n";
-  os << "  PathFinderSetArgSize(" << std::to_string(num_args) << ");\n";
-  os << "  PathFinderAddConstraint({\n";
-  //os << "    0 <= arg[0], arg[0] < " << std::to_string(NUM_DEVICE) << ",    // device\n";
-  //os << "    0 <= arg[1], arg[1] < " << std::to_string(NUM_DTYPE) << ",    // dtype\n";
-
-  for (auto&& param: params) {
-    switch (param->ptype) {
-      case INT: {
-        int min = param->default_num ? param->default_num.getValue() : 0;
-        os << "    arg[" << std::to_string(param->start_idx) << "] >= " << std::to_string(min) << ",\n";
-        break;
-      }
-      case BOOL: {
-        std::string arg = "arg[" + std::to_string(param->start_idx) + "]";
-        os << "    0 <= " << arg << ", " << arg << " <= 1,\n";
-        break;
-      }
-      case FLOAT: {
-        std::string arg = "arg[" + std::to_string(param->start_idx) + "]";
-        os << "    0 <= " << arg << ", " << arg << " < " << std::to_string(DOUBLE_DICT_SIZE) << ",\n";
-        break;
-      }
-      case TENSOR: {
-        if (param->tensor_rank) {
-          for (size_t i = param->start_idx; i < param->start_idx + param->idx_size; i++) {
-            os << "    arg[" << std::to_string(i) << "] >= 1,\n";
-          }
-        } else {
-          std::string rank = "arg[" + std::to_string(param->start_idx) + "]";
-          os << "    0 <= " << rank << ", " << rank << " <= " << std::to_string(MAX_RANK) << ",\n";
-          for (size_t i = param->start_idx + 1; i < param->start_idx + param->idx_size; i++) {
-            os << "    arg[" << std::to_string(i) << "] >= 1,\n";
-          }
-        }
-        break;
-      }
-      case API_OPTION: {
-        for (auto&& entry: param->api_option_types) {
-          switch (entry.second->ptype) {
-            case INT: {
-              int min = entry.second->default_num ? entry.second->default_num.getValue() : 0;
-              os << "    arg[" << std::to_string(entry.second->start_idx) << "] >= " << std::to_string(min) << ",\n";
-              break;
-            }
-            case BOOL: {
-              std::string arg = "arg[" + std::to_string(entry.second->start_idx) + "]";
-              os << "    0 <= " << arg << ", " << arg << " <= 1,\n";
-              break;
-            }
-            case FLOAT: {
-              std::string arg = "arg[" + std::to_string(entry.second->start_idx) + "]";
-              os << "    0 <= " << arg << ", " << arg << " < " << std::to_string(DOUBLE_DICT_SIZE) << ",\n";
-              break;
-            }
-            case INTVECTOR:{
-              std::string rank = "arg[" + std::to_string(entry.second->start_idx) + "]";
-              os << "    0 <= " << rank << ", " << rank << " <= " << std::to_string(MAX_VECTOR_SIZE) << ",\n";
-              for (size_t i = entry.second->start_idx + 1; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                os << "    arg[" << std::to_string(i) << "] >= 0,\n";
-              }
-              break;
-            }
-            case FLOATVECTOR:{
-              std::string rank = "arg[" + std::to_string(entry.second->start_idx) + "]";
-              os << "    0 <= " << rank << ", " << rank << " <= " << std::to_string(MAX_VECTOR_SIZE) << ",\n";
-              for (size_t i = entry.second->start_idx + 1; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                os << "    0 <= arg[" << std::to_string(i) << "], arg[" << std::to_string(i) << "] < " << std::to_string(DOUBLE_DICT_SIZE) << ",\n";
-              }
-              break;
-            }
-            case TENSOR:{
-              std::string is_some = "arg[" + std::to_string(entry.second->start_idx) + "]";
-              os << "    0 <= " << is_some << ", " << is_some << " <= 1,\n";
-              if (entry.second->tensor_rank) {
-                //std::cout << "TENSOR RANK iS: " << std::to_string(entry.second->tensor_rank.getValue()) << std::endl;
-                //std::cout << "entry.second->start_idx: " << std::to_string(entry.second->start_idx) << std::endl;
-                //std::cout << "entry.second->idx_size: " << std::to_string(entry.second->idx_size) << std::endl;
-                for (size_t i = entry.second->start_idx + 1; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                  os << "    arg[" << std::to_string(i) << "] >= 1,\n";
-                }
-              } else {
-                std::string rank = "arg[" + std::to_string(entry.second->start_idx+1) + "]";
-                os << "    1 <= " << rank << ", " << rank << " <= " << std::to_string(MAX_RANK) << ",\n";
-                for (size_t i = entry.second->start_idx + 2; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                  os << "    arg[" << std::to_string(i) << "] >= 1,\n";
-                }
-              }
-              break;
-            }
-            case EXPANDINGARRAY: {
-              for (size_t i = entry.second->start_idx; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                int min = entry.second->default_num ? entry.second->default_num.getValue() : 0;
-                os << "    arg[" << std::to_string(i) << "] >= " << std::to_string(min) << ",\n";
-              }
-              break;
-            }
-            case OPTIONAL: {
-              switch (entry.second->base->ptype) {
-                case FLOAT: {
-                  std::string is_some = "arg[" + std::to_string(entry.second->start_idx) + "]";
-                  std::string arg = "arg[" + std::to_string(entry.second->start_idx+1) + "]";
-                  os << "    0 <= " << is_some << ", " << is_some << " <= 1,\n";
-                  os << "    0 <= " << arg << ", " << arg << " < " << std::to_string(DOUBLE_DICT_SIZE) << ",\n";
-                  break;
-                }
-                default:
-                  assert(false);
-              }
-              break;
-            }
-            case VARIANT: {
-              if (entry.second->variant_use_expanding_array) {
-                for (size_t i = entry.second->start_idx; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                  int min = entry.second->default_num ? entry.second->default_num.getValue() : 0;
-                  os << "    arg[" << std::to_string(i) << "] >= " << std::to_string(min) << ",\n";
-                }
-              } else if (entry.second->variant_use_enum) {
-                //std::cout << entry.second->to_string() << std::endl;
-                std::string arg = "arg[" + std::to_string(entry.second->start_idx) + "]";
-                os << "    0 <= " << arg << ", " << arg << " < " << std::to_string(entry.second->variant_num_enums) << ",\n";
-              }
-              break;
-            }
-            default:
-              assert(false);
-          }
-        }
-        break;
-      }
-      default:
-        assert(false);
-    }
-  }
-  os << "  });\n";
-  os << "}\n\n";
-
-  os << "int PathFinderTestOneInput(const long* arg) {\n";
-  os << "  torch::set_num_threads(1);\n\n";
-
-  os << "  try {\n";
-  os << "    torch::TensorOptions toptions = torch::TensorOptions();\n\n";
-  //os << "    torch::TensorOptions toptions =\n";
-  //os << "      torch::TensorOptions()\n";
-  //os << "        .device(fuzzer_util::get_device(arg[0]))\n";
-  //os << "        .dtype(fuzzer_util::get_dtype(arg[1]))\n";
-  //os << "        .requires_grad(true);\n\n";
-
-  std::vector<std::string> function_args;
-  std::vector<std::tuple<Param*, std::string, std::string>> optional_tensor;
-  //size_t tensor_id = 0;
-  //size_t int_vector_id = 0;
-  std::vector<std::tuple<Param*, std::string, std::string>> optional_arg;
-  for (auto&& param: params) {
-    switch (param->ptype) {
-      case INT:
-      case BOOL:
-      case FLOAT:
-        function_args.push_back("arg[" + std::to_string(param->start_idx) + "]");
-        break;
-      case TENSOR: {
-        std::string var_name = "tensor_" + std::to_string(tensor_id++);
-        if (param->tensor_rank) {
-          //std::string shape = "std::vector<long> " + var_name + "_shape = {";
-          std::string shape = "{";
-          for (size_t i = param->start_idx; i < param->start_idx + param->idx_size; i++) {
-            shape += "arg[" + std::to_string(i) + "]";
-            if (i != param->start_idx + param->idx_size - 1)
-              shape += ",";
-          }
-          shape += "}";
-          //os << "    " << shape;
-          os << "    auto " << var_name << " = torch::randn(" << shape + ", toptions);\n\n";
-        } else {
-          std::string shape = "std::vector<long> " + var_name + "_shape_ = {";
-          for (size_t i = param->start_idx + 1; i < param->start_idx + param->idx_size; i++) {
-            shape += "arg[" + std::to_string(i) + "]";
-            if (i != param->start_idx + param->idx_size - 1)
-              shape += ",";
-          }
-          shape += "};\n";
-          os << "    " << shape;
-          os << "    std::vector<long> " << var_name + "_shape(&" + var_name + "_shape_[0],&" + var_name + "_shape_[arg[" + std::to_string(param->start_idx) + "]]);\n";
-          os << "    auto " << var_name << " = torch::randn(" << var_name + "_shape, toptions);\n\n";
-        }
-        function_args.push_back(var_name);
-        break;
-      }
-      case API_OPTION: {
-        std::vector<std::pair<std::string,std::string>> opt;
-        for (auto&& entry: param->api_option_types) {
-          std::string option_name = entry.first;
-          std::string option_arg;
-          switch (entry.second->ptype) {
-            case INT:
-            case BOOL:
-              option_arg = "arg[" + std::to_string(entry.second->start_idx) + "]";
-              break;
-            case FLOAT:
-              option_arg = "double_dict[arg[" + std::to_string(entry.second->start_idx) + "]]";
-              break;
-            case INTVECTOR:{
-              std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
-              std::string vec = "std::vector<long> " + var_name + "_ = {";
-              for (size_t i = entry.second->start_idx + 1; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                vec += "arg[" + std::to_string(i) + "]";
-                if (i != entry.second->start_idx + entry.second->idx_size - 1)
-                  vec += ",";
-              }
-              vec += "};\n";
-              os << "    " << vec;
-              os << "    std::vector<long> " << var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(entry.second->start_idx) + "]]);\n\n";
-              option_arg = var_name;
-              break;
-            }
-            case TENSOR:{
-              std::string var_name = "tensor_" + std::to_string(tensor_id++);
-              if (entry.second->tensor_rank) {
-                //std::string shape = "std::vector<long> " + var_name + "_shape = {";
-                std::string shape = "{";
-                for (size_t i = entry.second->start_idx + 1; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                  shape += "arg[" + std::to_string(i) + "]";
-                  if (i != entry.second->start_idx + entry.second->idx_size - 1)
-                    shape += ",";
-                }
-                shape += "}";
-                //os << "    " << shape;
-                os << "    auto " << var_name << " = torch::randn(" << shape + ", toptions);\n\n";
-              } else {
-                std::string shape = "std::vector<long> " + var_name + "_shape_ = {";
-                for (size_t i = entry.second->start_idx + 2; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                  shape += "arg[" + std::to_string(i) + "]";
-                  if (i != entry.second->start_idx + entry.second->idx_size - 1)
-                    shape += ",";
-                }
-                shape += "};\n";
-                os << "    " << shape;
-                os << "    std::vector<long> " << var_name + "_shape(&" + var_name + "_shape_[0],&" + var_name + "_shape_[arg[" + std::to_string(entry.second->start_idx+1) + "]]);\n";
-                os << "    auto " << var_name << " = torch::randn(" << var_name + "_shape, toptions);\n\n";
-              }
-              optional_tensor.push_back(std::make_tuple(entry.second.get(),option_name,var_name));
-              break;
-            }
-            case EXPANDINGARRAY: {
-              option_arg = "{";
-              for (size_t i = entry.second->start_idx; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                option_arg += "arg[" + std::to_string(i) + "]";
-                if (i != entry.second->start_idx + entry.second->idx_size - 1)
-                  option_arg += ",";
-              }
-              option_arg += "}";
-              break;
-            }
-            case OPTIONAL: {
-              switch (entry.second->base->ptype) {
-                case FLOAT: {
-                  optional_arg.push_back(std::make_tuple(entry.second->base.get(),option_name,"double_dict[arg[" + std::to_string(entry.second->base->start_idx+1) + "]]"));
-                  break;
-                }
-                default:
-                  assert(false);
-              }
-              break;
-            }
-            case VARIANT: {
-              if (entry.second->variant_use_expanding_array) {
-                option_arg = "{";
-                for (size_t i = entry.second->start_idx; i < entry.second->start_idx + entry.second->idx_size; i++) {
-                  option_arg += "arg[" + std::to_string(i) + "]";
-                  if (i != entry.second->start_idx + entry.second->idx_size - 1)
-                    option_arg += ",";
-                }
-                option_arg += "}";
-              } else if (entry.second->variant_use_enum) {
-                os << "    std::vector<std::string> enums = {\n";
-                for (size_t i = 0; i < entry.second->variant_enum_vec.size(); i++) {
-                  os << "      torch::" + entry.second->variant_enum_vec[i];
-                  if (i != entry.second->variant_enum_vec.size()-1)
-                    os << ",\n";
-                  else
-                    os << "};\n\n";
-                }
-                option_arg = "enums[arg[" + std::to_string(entry.second->start_idx) + "]]";
-              }
-              break;
-            }
-            default:
-              assert(false);
-          }
-          if (option_arg != "")
-            opt.push_back({option_name,option_arg});
-        }
-        os << "    auto foptions =\n";
-        os << "      " << param->api_option_name << "()\n";
-        for (size_t i = 0; i < opt.size(); i++) {
-          os << "        ." << opt[i].first << "(" << opt[i].second << ")";
-          if (i != opt.size()-1)
-            os << "\n";
-          else
-            os << ";\n";
-        }
-        function_args.push_back("foptions");
-        for (auto t: optional_tensor) {
-          os << "    if (arg[" << std::to_string(std::get<0>(t)->start_idx) << "])\n";
-          os << "      foptions." << std::get<1>(t) << "(" << std::get<2>(t) << ");\n";
-        }
-        for (auto a: optional_arg) {
-          os << "    if (arg[" << std::to_string(std::get<0>(a)->start_idx) << "])\n";
-          os << "      foptions." << std::get<1>(a) << "(" << std::get<2>(a) << ");\n";
-        }
-        os << "\n";
-        break;
-      }
-      default:
-        assert(false);
-    }
-  }
-
-  os << "    PathFinderExecuteTarget(\n";
-  os << "      auto result = " << target_api_name << "(";
-  for (size_t i = 0; i < function_args.size(); i++) {
-    os << function_args[i];
-    if (i != function_args.size()-1) {
-      os << ", ";
-    }
-  }
-  os << "));\n";
-  os << "  } catch (::c10::Error& e) {\n";
-  os << "    return -2;\n";
-  os << "  }\n\n";
-
-  os << "  return 0;\n";
-  os << "}\n\n";
-
-  os << "}  // extern \"C\"\n\n";
-
-} */
 
 #endif
