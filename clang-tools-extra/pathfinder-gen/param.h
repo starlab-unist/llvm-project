@@ -14,7 +14,6 @@ using namespace clang;
 const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 5;
 const size_t DOUBLE_DICT_SIZE = 20;
-const size_t DTYPE_MAX = 9;
 
 size_t tensor_id;
 size_t int_vector_id;
@@ -228,7 +227,7 @@ void Param::constraint(std::vector<std::string>& strs) {
     }
     case DTYPE: {
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(DTYPE_MAX));
+      strs.push_back("DtypeFirst <= " + arg + ", " + arg + " < DtypeLast");
       break;
     }
     case TENSOR: {
@@ -301,7 +300,9 @@ std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& p
   std::string code;
   code += "void PathFinderSetup() {\n";
   code += "  PathFinderSetArgSize(" + std::to_string(offset_size) + ");\n";
+  //code += "  PathFinderWeakArg(arg[0], Float32);\n";
   code += "  PathFinderAddConstraint({\n";
+  code += "    DtypeFirst <= arg[0], arg[0] <= DtypeLast,\n";
 
   std::vector<std::string> constraints;
   for (auto&& param: params)
@@ -346,7 +347,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(" + shape + "))";
-        std::string tensor_init = "auto " + var_name + " = torch::randn(" + shape + ", toptions);";
+        std::string tensor_init = "auto " + var_name + " = torch_tensor(arg[0], " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       } else {
         std::string shape = "{";
@@ -357,10 +358,8 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))";
-        std::string shape_init = "std::vector<long> " + var_name + "_shape_ = " + shape + ";";
-        std::string shape_set_rank = "std::vector<long> " + var_name + "_shape(&" + var_name + "_shape_[0],&" + var_name + "_shape_[arg[" + std::to_string(offset_start) + "]]);";
-        std::string tensor_init = "auto " + var_name + " = torch::randn(" + var_name + "_shape, toptions);";
-        return to_quad({shape_init,shape_set_rank,tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
+        std::string tensor_init = "auto " + var_name + " = torch_tensor(arg[0], arg[" + std::to_string(offset_start) + "], " + shape + ");";
+        return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       }
     }
     case INTVECTOR: {
@@ -546,7 +545,6 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   
 
   std::vector<std::string> preparation;
-  preparation.push_back("torch::TensorOptions toptions = torch::TensorOptions();");
   std::vector<std::string> positional_arg;
   std::vector<std::string> guard;
   for (auto&& param: params) {
@@ -555,7 +553,8 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
     auto exp_ = std::get<2>(t);
     auto guard_ = std::get<3>(t);
     if (preparation_.size() > 0) {
-      preparation.push_back("");
+      if (preparation.size() > 0)
+        preparation.push_back("");
       preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
     }
     positional_arg.push_back(exp_);
@@ -629,7 +628,8 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
   array_id = 0;
   enum_id = 0;
 
-  size_t offset = 0;
+  //size_t offset = 0;
+  size_t offset = 1; // offset 0 for dtype
   for (auto&& param: params)
     offset = param->set_offset(offset);
 

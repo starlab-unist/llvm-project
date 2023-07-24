@@ -647,7 +647,7 @@ int main(int argc, const char **argv) {
 
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  std::string cmake_contents = "include(../pathfinder.cmake)\n\n";
+  std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
   for (auto p: file_buffer) {
     std::string filename = p.first;
     //std::cout << filename << std::endl;
