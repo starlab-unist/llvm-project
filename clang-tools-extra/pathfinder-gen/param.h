@@ -188,19 +188,36 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
     std::string field_name = field->getNameAsString();
     if (param_name.length() + 1 == field_name.length() &&
         field_name.compare(0, field_name.length(), param_name + "_") == 0) {
+      std::cout << "filed: \n";
+      field->dump();
       e = field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
+      e->dump();
     }
   }
 
   if (e !=nullptr) {
     switch(ptype) {
       case INT:
-      case EXPANDINGARRAY:
+      case EXPANDINGARRAY: {
+        std::cout << "aaa\n";
         if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
+          assert(il != nullptr);
+          std::cout << "bbb\n";
           unsigned long val = il->getValue().getZExtValue();
           default_int = val;
+          std::cout << "default value: " << std::to_string(val) << std::endl;
         }
         break;
+      }
+      case VARIANT: {
+        if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
+          std::cout << "bbb\n";
+          unsigned long val = il->getValue().getZExtValue();
+          assert(expandingarray != nullptr);
+          expandingarray->default_int = val;
+        }
+        break;
+      }
       default:
         break;
     }

@@ -553,6 +553,38 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
   return None;
 }
 
+std::string get_specialized_name(const ClassTemplateSpecializationDecl* ctsdecl) {
+  std::cout << "get_specialized_name:\n";
+  ctsdecl->dump();
+  std::string name = ctsdecl->getQualifiedNameAsString() + "<";
+
+  const auto& targs = ctsdecl->getTemplateArgs();
+  for (size_t i = 0; i < targs.size(); i++) {
+    if (targs[i].getKind() == TemplateArgument::ArgKind::Type) {
+      auto t = targs[i].getAsType();
+      std::cout << "t: " << t.getAsString() << std::endl;
+      if (const auto* rtype = t->getAs<RecordType>()) {
+        if (const auto* ctsdecl2 = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl()))
+          name += get_specialized_name(ctsdecl2);
+      } else if (t->getAs<BuiltinType>() != nullptr) {
+        name += t.getAsString();
+      } else {
+        assert(false);
+      }
+    } else if (targs[i].getKind() == TemplateArgument::ArgKind::Integral) {
+      name += std::to_string(targs[i].getAsIntegral().getExtValue());
+    } else {
+      assert(false);
+    }
+
+    if (i != targs.size()-1)
+      name += ",";
+  }
+  name += ">";
+
+  return name;
+}
+
 Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   if (option_class_done) return None;
 
@@ -600,13 +632,25 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
           api_option_name.length() - option_suffix.length(),
           option_suffix.length(), option_suffix) == 0) {
       option_class_done = true;
+      if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
+        std::string name = get_specialized_name(ctsdecl);
+        std::cout << "============================================================\n";
+        std::cout << "specialized name: " << name << std::endl;
+        std::cout << "============================================================\n";
+        api_option_name = name;
+      }
     }
   }
 
   if (rtype == nullptr || !option_class_done) return None;
 
+  //std::cout << "============================================================\n";
+  //std::cout << "type: " << t.getAsString() << std::endl;
+  //std::cout << "============================================================\n";
+
   const auto* cdecl = rtype->getAsCXXRecordDecl();
   assert(cdecl != nullptr);
+  std::cout << "cdecl:\n";
   //std::cout << "cdecl\n";
   //cdecl->dump();
   std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params;
@@ -657,6 +701,8 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
         param = std::make_unique<Param>(
           OPTIONAL,
           std::move(param));
+      //std::cout << "cdecl:\n";
+      //cdecl->dump();
       param->set_default(param_name, cdecl);
       //entries.push_back({param_name, std::move(param)});
       if (include(ctor_param_names, param_name))
@@ -828,7 +874,7 @@ public:
                       //std::cout << param->getNameAsString() << std::endl;
                       //ctor_param_names.push_back(param->getNameAsString());
                       clang::QualType t = param->getType();
-                      //t->dump();
+                      t->dump();
                       //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
                         std::unique_ptr<Param> p = parseTorchParam(t, *Context);
                         if (p != nullptr)
@@ -884,7 +930,10 @@ public:
                             //std::cout << param->getNameAsString() << std::endl;
                             //ctor_param_names.push_back(param->getNameAsString());
                             clang::QualType t = param->getType();
-                            //t->dump();
+                            t->dump();
+                            //std::cout << "============================================================\n";
+                            //std::cout << "type: " << t.getAsString() << std::endl;
+                            //std::cout << "============================================================\n";
                             /* if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
                             std::cout << tdtype->getDecl()->getQualifiedNameAsString() << std::endl;
                             } else if (const auto* lvr = dyn_cast<LValueReferenceType>(t)) {
