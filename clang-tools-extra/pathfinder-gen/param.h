@@ -101,8 +101,8 @@ class Param {
     std::string to_string(int depth=0);
     void set_default(std::string param_name, const CXXRecordDecl* cdecl);
     size_t set_offset(size_t offset);
-    void constraint(std::vector<std::string>& strs);
-    std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code();
+    void constraint(std::vector<std::string>& strs, bool is_module);
+    std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code(std::string api_name, bool is_module);
   private:
     ParamType ptype;
 
@@ -207,10 +207,13 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
   }
 }
 
-void Param::constraint(std::vector<std::string>& strs) {
+void Param::constraint(std::vector<std::string>& strs, bool is_module) {
   switch(ptype) {
     case INT: {
-      int min = default_int ? default_int.getValue() : 0;
+      int min =
+        default_int ?
+        default_int.getValue() :
+        (is_module ? 1 : 0);
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
       strs.push_back(arg + " >= " + std::to_string(min));
       break;
@@ -264,7 +267,10 @@ void Param::constraint(std::vector<std::string>& strs) {
       break;
     }
     case EXPANDINGARRAY: {
-      int min = default_int ? default_int.getValue() : 0;
+      int min =
+        default_int ?
+        default_int.getValue() :
+        (is_module ? 1 : 0);
       for (size_t i = offset_start; i < offset_start + offset_size; i++)
         strs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
       break;
@@ -272,7 +278,7 @@ void Param::constraint(std::vector<std::string>& strs) {
     case OPTIONAL: {
       std::string is_some = "arg[" + std::to_string(offset_start) + "]";
       strs.push_back("0 <= " + is_some + ", " + is_some + " <= 1");
-      base->constraint(strs);
+      base->constraint(strs, is_module);
       break;
     }
     case VARIANT: {
@@ -280,15 +286,15 @@ void Param::constraint(std::vector<std::string>& strs) {
         std::string arg = "arg[" + std::to_string(offset_start) + "]";
         strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(enums.size()));
       } else {
-        expandingarray->constraint(strs);
+        expandingarray->constraint(strs, is_module);
       }
       break;
     }
     case MAP: {
       for (auto&& p: ctor_params)
-        p.second->constraint(strs);
+        p.second->constraint(strs, is_module);
       for (auto&& p: entries)
-        p.second->constraint(strs);
+        p.second->constraint(strs, is_module);
       break;
     }
     default:
@@ -296,7 +302,7 @@ void Param::constraint(std::vector<std::string>& strs) {
   }
 }
 
-std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& params) {
+std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
   std::string code;
   code += "void PathFinderSetup() {\n";
   code += "  PathFinderSetArgSize(" + std::to_string(offset_size) + ");\n";
@@ -306,7 +312,7 @@ std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& p
 
   std::vector<std::string> constraints;
   for (auto&& param: params)
-    param->constraint(constraints);
+    param->constraint(constraints, is_module);
   for (std::string constraint: constraints)
     code += "    " + constraint + ",\n";
 
@@ -327,7 +333,7 @@ to_quad(std::vector<std::string> first, std::vector<std::string> second, std::st
       std::move(first), std::move(second), std::move(third), std::move(fourth));
 }
 
-std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code() {
+std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code(std::string api_name, bool is_module) {
   switch(ptype) {
     case INT:
     case BOOL:
@@ -347,7 +353,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(" + shape + "))";
-        std::string tensor_init = "auto " + var_name + " = torch_tensor(arg[0], " + shape + ");";
+        std::string tensor_init = "auto " + var_name + " = torch_tensor(device, dtype, " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       } else {
         std::string shape = "{";
@@ -358,7 +364,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))";
-        std::string tensor_init = "auto " + var_name + " = torch_tensor(arg[0], arg[" + std::to_string(offset_start) + "], " + shape + ");";
+        std::string tensor_init = "auto " + var_name + " = torch_tensor(device, dtype, arg[" + std::to_string(offset_start) + "], " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       }
     }
@@ -400,7 +406,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
     }
     case EXPANDINGARRAY: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = "std::vector<long> " + var_name + " = {";
+      std::string array_init = "torch::ExpandingArray<" + std::to_string(expandingarray_size) + "> " + var_name + " = {";
       for (size_t i = offset_start; i < offset_start + offset_size; i++) {
         array_init += "arg[" + std::to_string(i) + "]";
         if (i != offset_start + offset_size - 1)
@@ -413,7 +419,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
     case OPTIONAL: {
       std::vector<std::string> option_check;
       option_check.push_back("if (arg[" + std::to_string(offset_start) + "])");
-      auto t = base->to_code();
+      auto t = base->to_code(api_name, is_module);
       std::vector<std::string> preparation = std::get<0>(t);
       std::string expr = std::get<2>(t);
       std::vector<std::string> guard = std::get<3>(t);
@@ -444,7 +450,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         enum_init.push_back("};");
         return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
       } else {
-        return expandingarray->to_code();
+        return expandingarray->to_code(api_name, is_module);
       }
     }
     case MAP: {
@@ -452,26 +458,27 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       std::vector<std::string> option_check;
       std::vector<std::string> map_init;
       std::vector<std::string> guard;
+      std::string options_var = is_module ? "moptions" : "foptions";
 
       bool separate_init = false;
       if (ctor_params.size() == 1 &&
           ctor_params[0].second->ptype == VARIANT &&
           ctor_params[0].second->enums.size() > 0) {
-        map_init.push_back(map_name + " foptions;");
+        map_init.push_back(map_name + " " + options_var + ";");
         map_init.push_back("if (arg[" + std::to_string(ctor_params[0].second->offset_start) + "] == 0) {");
-        map_init.push_back("  foptions = " + map_name + "(torch::" + ctor_params[0].second->enums[0]->enum_name + ");");
+        map_init.push_back("  " + options_var + " = " + map_name + "(torch::" + ctor_params[0].second->enums[0]->enum_name + ");");
         for (size_t i = 1; i < ctor_params[0].second->enums.size(); i++) {
           map_init.push_back("} else if (arg[" + std::to_string(ctor_params[0].second->offset_start) + "] == " + std::to_string(i) + ") {");
-          map_init.push_back("  foptions = " + map_name + "(torch::" + ctor_params[0].second->enums[i]->enum_name + ");");
+          map_init.push_back("  " + options_var + " = " + map_name + "(torch::" + ctor_params[0].second->enums[i]->enum_name + ");");
         }
         map_init.push_back("}");
         if (entries.size() > 0)
-          map_init.push_back("foptions");
+          map_init.push_back(options_var);
         separate_init = true;
       } else {
         std::string ctor_param_str;
         for (auto&& p: ctor_params) {
-          auto t = p.second->to_code();
+          auto t = p.second->to_code(api_name, is_module);
           auto preparation_ = std::get<0>(t);
           auto option_check_ = std::get<1>(t);
           auto exp_ = std::get<2>(t);
@@ -488,12 +495,12 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
           if (guard_.size() > 0) 
             guard.insert(guard.end(), guard_.begin(), guard_.end());
         }
-        map_init.push_back("auto foptions =");
+        map_init.push_back("auto " + options_var + " =");
         map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
       }
 
       for (auto&& p: entries) {
-        auto t = p.second->to_code();
+        auto t = p.second->to_code(api_name, is_module);
         auto preparation_ = std::get<0>(t);
         auto option_check_ = std::get<1>(t);
         auto exp_ = std::get<2>(t);
@@ -506,7 +513,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         if (option_check_.size() > 0) {
           assert(option_check_.size() == 1);
           option_check.push_back(option_check_[0]);
-          option_check.push_back("  foptions." + p.first + "(" + exp_ + ");");
+          option_check.push_back("  " + options_var + "." + p.first + "(" + exp_ + ");");
         } else {
           std::string param_set = "." + p.first + "(" + exp_ + ")";
           if (separate_init) {
@@ -524,31 +531,34 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       }
       if (map_init.size() > 0)
         map_init[map_init.size()-1] = map_init[map_init.size()-1] + ";";
+      //if (is_module) {
+      //  map_init.push_back("auto m = " + api_name + "(" + options_var + ");");
+      //  map_init.push_back("m->to(device);");
+      //  map_init.push_back("m->to(dtype);");
+      //}
       if (preparation.size() > 0)
         preparation.push_back("");
       preparation.insert(preparation.end(), map_init.begin(), map_init.end());
       preparation.insert(preparation.end(), option_check.begin(), option_check.end());
-      return to_quad(preparation,empty_strvec(),"foptions",guard);
+      return to_quad(preparation,empty_strvec(),options_var,guard);
     }
     default:
       assert(false);
   }
 }
 
-std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params) {
+std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
   std::string code;
   code += "int PathFinderTestOneInput(const long* arg) {\n";
-  code += "  torch::set_num_threads(1);\n\n";
-
-
-
-  
+  code += "  torch::set_num_threads(1);\n";
+  code += "  torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);\n";
+  code += "  torch::Dtype dtype(get_dtype(arg[0]));\n\n";
 
   std::vector<std::string> preparation;
   std::vector<std::string> positional_arg;
   std::vector<std::string> guard;
   for (auto&& param: params) {
-    auto t = param->to_code();
+    auto t = param->to_code(api_name, is_module);
     auto preparation_ = std::get<0>(t);
     auto exp_ = std::get<2>(t);
     auto guard_ = std::get<3>(t);
@@ -574,16 +584,32 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
       code += "    " + line;
     code += "\n";
   }
+  if (is_module) {
+    code += "\n    auto m = " + api_name + "(";
+    for (size_t i = 1; i < positional_arg.size(); i++) {
+      code += positional_arg[i];
+      if (i != positional_arg.size()-1) {
+        code += ", ";
+      }
+    }
+    code += ");\n";
+    code += "    m->to(device);\n";
+    code += "    m->to(dtype);\n";
+  }
 
   code += "\n    PathFinderExecuteTarget(\n";
-  code += "      auto result = " + api_name + "(";
-  for (size_t i = 0; i < positional_arg.size(); i++) {
-    code += positional_arg[i];
-    if (i != positional_arg.size()-1) {
-      code += ", ";
+  if (is_module) {
+    code += "      auto result = m->forward(tensor_0));\n";
+  } else {
+    code += "      auto result = " + api_name + "(";
+    for (size_t i = 0; i < positional_arg.size(); i++) {
+      code += positional_arg[i];
+      if (i != positional_arg.size()-1) {
+        code += ", ";
+      }
     }
+    code += "));\n";
   }
-  code += "));\n";
   code += "  } catch (std::exception& e) {\n";
   code += "    return -2;\n";
   code += "  }\n\n";
@@ -621,22 +647,21 @@ std::string gen_footer() {
   return code;
 }
 
-std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params) {
+std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
   tensor_id = 0;
   int_vector_id = 0;
   float_vector_id = 0;
   array_id = 0;
   enum_id = 0;
 
-  //size_t offset = 0;
-  size_t offset = 1; // offset 0 for dtype
+  size_t offset = 1; // offset 0 is reserved for dtype
   for (auto&& param: params)
     offset = param->set_offset(offset);
 
   std::string code;
   code += gen_header();
-  code += gen_setup(offset, params);
-  code += gen_api_call(api_name, params);
+  code += gen_setup(offset, params, is_module);
+  code += gen_api_call(api_name, params, is_module);
   code += gen_footer();
 
   return code;

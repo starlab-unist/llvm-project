@@ -19,7 +19,7 @@ typedef std::vector<long> tensor_rank;
 
 const std::set<std::vector<long>> same_ranks = {{0,0},{1,1},{2,2},{3,3},{4,4},{5,5}};
 
-std::map<std::string, std::set<tensor_rank>> target_api = {
+std::map<std::string, std::set<tensor_rank>> functional_common = {
   {"torch::nn::functional::conv1d",{{3,3,1}}},
   {"torch::nn::functional::conv2d",{{4,4,1}}},
   {"torch::nn::functional::conv3d",{{5,5,1}}},
@@ -132,6 +132,156 @@ std::map<std::string, std::set<tensor_rank>> target_api = {
   {"torch::nn::functional::grid_sample",{{4,4},{5,5}}},
   {"torch::nn::functional::affine_grid",{{3}}},
 };
+
+std::map<std::string, std::set<tensor_rank>> functional_additional = {
+  {"torch::nn::functional::_smooth_l1_loss",{{}}},
+  {"torch::nn::functional::_unpool_output_size",{{}}},
+  {"torch::nn::functional::adaptive_max_pool2d_with_indices",{{4}}},
+  {"torch::nn::functional::fractional_max_pool2d",{{4}}},
+  {"torch::nn::functional::fractional_max_pool2d_with_indices",{{4}}},
+  {"torch::nn::functional::fractional_max_pool3d",{{5}}},
+  {"torch::nn::functional::fractional_max_pool3d_with_indices",{{5}}},
+  {"torch::nn::functional::group_norm",{{2},{3},{4},{5}}},
+  {"torch::nn::functional::huber_loss",{same_ranks}},
+  {"torch::nn::functional::max_pool1d_with_indices",{{3}}},
+  {"torch::nn::functional::max_pool2d_with_indices",{{4}}},
+  {"torch::nn::functional::max_pool3d_with_indices",{{5}}},
+  {"torch::nn::functional::mish",{{}}},
+  {"torch::nn::functional::multi_head_attention_forward",{{}}},
+};
+
+std::map<std::string, std::set<tensor_rank>> nn_module = {
+  {"torch::nn::AdaptiveAvgPool1d",{{3}}},
+  /* {"torch::nn::AdaptiveAvgPool2d",{{}}},
+  {"torch::nn::AdaptiveAvgPool3d",{{}}},
+  {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{}}},
+  {"torch::nn::AdaptiveMaxPool1d",{{}}},
+  {"torch::nn::AdaptiveMaxPool2d",{{}}},
+  {"torch::nn::AdaptiveMaxPool3d",{{}}},
+  {"torch::nn::AlphaDropout",{{}}},
+  {"torch::nn::AvgPool1d",{{}}},
+  {"torch::nn::AvgPool2d",{{}}},
+  {"torch::nn::AvgPool3d",{{}}},
+  {"torch::nn::BatchNorm1d",{{}}},
+  {"torch::nn::BatchNorm2d",{{}}},
+  {"torch::nn::BatchNorm3d",{{}}},
+  {"torch::nn::BCELoss",{{}}},
+  {"torch::nn::BCEWithLogitsLoss",{{}}},
+  {"torch::nn::Bilinear",{{}}},
+  {"torch::nn::CELU",{{}}},
+  {"torch::nn::ConstantPad1d",{{}}},
+  {"torch::nn::ConstantPad2d",{{}}},
+  {"torch::nn::ConstantPad3d",{{}}},
+  {"torch::nn::Conv1d",{{}}}, */
+  {"torch::nn::Conv2d",{{4}}},
+  /* {"torch::nn::Conv3d",{{}}},
+  {"torch::nn::ConvTranspose1d",{{}}},
+  {"torch::nn::ConvTranspose2d",{{}}},
+  {"torch::nn::ConvTranspose3d",{{}}},
+  {"torch::nn::CosineEmbeddingLoss",{{}}},
+  {"torch::nn::CosineSimilarity",{{}}},
+  {"torch::nn::CrossEntropyLoss",{{}}},
+  {"torch::nn::CrossMapLRN2d",{{}}},
+  {"torch::nn::CTCLoss",{{}}},
+  {"torch::nn::Dropout",{{}}},
+  {"torch::nn::Dropout2d",{{}}},
+  {"torch::nn::Dropout3d",{{}}},
+  {"torch::nn::ELU",{{}}},
+  {"torch::nn::Embedding",{{}}},
+  {"torch::nn::EmbeddingBag",{{}}},
+  {"torch::nn::FeatureAlphaDropout",{{}}},
+  {"torch::nn::Flatten",{{}}},
+  {"torch::nn::Fold",{{}}},
+  {"torch::nn::FractionalMaxPool2d",{{}}},
+  {"torch::nn::FractionalMaxPool3d",{{}}},
+  {"torch::nn::ELU",{{}}},
+  {"torch::nn::GLU",{{}}},
+  {"torch::nn::GroupNorm",{{}}},
+  {"torch::nn::GRU",{{}}},
+  {"torch::nn::GRUCell",{{}}},
+  {"torch::nn::Hardshrink",{{}}},
+  {"torch::nn::Hardtanh",{{}}},
+  {"torch::nn::HingeEmbeddingLoss",{{}}},
+  {"torch::nn::HuberLoss",{{}}},
+  {"torch::nn::Identity",{{}}},
+  {"torch::nn::InstanceNorm1d",{{}}},
+  {"torch::nn::InstanceNorm2d",{{}}},
+  {"torch::nn::InstanceNorm3d",{{}}},
+  {"torch::nn::KLDivLoss",{{}}},
+  {"torch::nn::L1Loss",{{}}},
+  {"torch::nn::LayerNorm",{{}}},
+  {"torch::nn::LeakyReLU",{{}}},
+  {"torch::nn::Linear",{{}}},
+  {"torch::nn::LocalResponseNorm",{{}}},
+  {"torch::nn::LogSigmoid",{{}}},
+  {"torch::nn::LogSoftmax",{{}}},
+  {"torch::nn::LPPool1d",{{}}},
+  {"torch::nn::LPPool2d",{{}}},
+  {"torch::nn::LSTM",{{}}},
+  {"torch::nn::LSTMCell",{{}}},
+  {"torch::nn::MarginRankingLoss",{{}}},
+  {"torch::nn::MaxPool1d",{{}}},
+  {"torch::nn::MaxPool2d",{{}}},
+  {"torch::nn::MaxPool3d",{{}}},
+  {"torch::nn::MaxUnpool1d",{{}}},
+  {"torch::nn::MaxUnpool2d",{{}}},
+  {"torch::nn::MaxUnpool3d",{{}}},
+  {"torch::nn::Mish",{{}}},
+  {"torch::nn::MSELoss",{{}}},
+  {"torch::nn::MultiheadAttention",{{}}},
+  {"torch::nn::MultiLabelMarginLoss",{{}}},
+  {"torch::nn::MultiLabelSoftMarginLoss",{{}}},
+  {"torch::nn::MultiMarginLoss",{{}}},
+  {"torch::nn::NamedAnyModule",{{}}},
+  {"torch::nn::NLLLoss",{{}}},
+  {"torch::nn::PairwiseDistance",{{}}},
+  {"torch::nn::ParameterDict",{{}}},
+  {"torch::nn::ParameterList",{{}}},
+  {"torch::nn::PixelShuffle",{{}}},
+  {"torch::nn::PixelUnshuffle",{{}}},
+  {"torch::nn::PoissonNLLLoss",{{}}},
+  {"torch::nn::PReLU",{{}}},
+  {"torch::nn::ReflectionPad1d",{{}}},
+  {"torch::nn::ReflectionPad2d",{{}}},
+  {"torch::nn::ReflectionPad3d",{{}}},
+  {"torch::nn::ReLU",{{}}},
+  {"torch::nn::ReLU6",{{}}},
+  {"torch::nn::ReplicationPad1d",{{}}},
+  {"torch::nn::ReplicationPad2d",{{}}},
+  {"torch::nn::ReplicationPad3d",{{}}},
+  {"torch::nn::RNN",{{}}},
+  {"torch::nn::RNNCell",{{}}},
+  {"torch::nn::RReLU",{{}}},
+  {"torch::nn::SELU",{{}}},
+  {"torch::nn::Sequential",{{}}},
+  {"torch::nn::Sigmoid",{{}}},
+  {"torch::nn::SiLU",{{}}},
+  {"torch::nn::SmoothL1Loss",{{}}},
+  {"torch::nn::SoftMarginLoss",{{}}},
+  {"torch::nn::Softmax",{{}}},
+  {"torch::nn::Softmax2d",{{}}},
+  {"torch::nn::Softmin",{{}}},
+  {"torch::nn::Softplus",{{}}},
+  {"torch::nn::Softshrink",{{}}},
+  {"torch::nn::Softsign",{{}}},
+  {"torch::nn::Tanh",{{}}},
+  {"torch::nn::Tanhshrink",{{}}},
+  {"torch::nn::Threshold",{{}}},
+  {"torch::nn::Transformer",{{}}},
+  {"torch::nn::TransformerDecoder",{{}}},
+  {"torch::nn::TransformerDecoderLayer",{{}}},
+  {"torch::nn::TransformerEncoder",{{}}},
+  {"torch::nn::TransformerEncoderLayer",{{}}},
+  {"torch::nn::TripletMarginLoss",{{}}},
+  {"torch::nn::TripletMarginWithDistanceLoss",{{}}},
+  {"torch::nn::Unflatten",{{}}},
+  {"torch::nn::Unfold",{{}}},
+  {"torch::nn::Upsample",{{}}},
+  {"torch::nn::ZeroPad1d",{{}}},
+  {"torch::nn::ZeroPad2d",{{}}},
+  {"torch::nn::ZeroPad3d",{{}}}, */
+};
+
 std::string current_target;
 tensor_rank current_tensor_rank;
 size_t current_tensor_rank_idx;
@@ -294,8 +444,10 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
     rtype = dyn_cast<RecordType>(tstype->desugar());
     //if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
     if (rtype != nullptr && is_expandingarray(rtype->getDecl()->getNameAsString())) {
+      //rtype->dump();
       auto targ = tstype->template_arguments();
-      assert(targ.size() == 1);
+      if (targ.size() != 1)
+        return None;
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
       //t->dump();
@@ -405,6 +557,7 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   if (option_class_done) return None;
 
   //std::cout << "Parse API Option\n";
+  //t->dump();
   static std::string option_suffix = "Options";
   //static std::set<std::string> seen;
 
@@ -521,6 +674,8 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
 }
 
 std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
+  //std::cout << "parseTorchParam\n";
+  //t->dump();
   if (auto builtin_opt = parseBuiltin(t, Ctx))
     return std::move(builtin_opt.getValue());
   if (auto dtype_opt = parseDtype(t, Ctx))
@@ -580,11 +735,14 @@ public:
     : Context(Context) {}
 
   bool VisitFunctionDecl(FunctionDecl *Declaration) {
-    //if (const FunctionDecl *FD = Result.Nodes.getNodeAs<clang::FunctionDecl>("func")){
-    //if (Declaration->getQualifiedNameAsString() == target_api) {
+    //auto target_api = functional_common;
+    return true;
+
+    auto target_api = functional_additional;
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it != target_api.end()) {
       current_target = Declaration->getQualifiedNameAsString();
+      std::cout << current_target << std::endl;
       std::string current_target_unqualified = Declaration->getNameAsString();
       size_t api_id = 0;
       for (auto rank: api_it->second) {
@@ -605,10 +763,192 @@ public:
         std::string filename =
           current_target_unqualified + "_" + std::to_string(api_id) +
           ".cpp";
-        std::string code = gen_code(current_target, params);
+        bool is_module = false;
+        std::string code = gen_code(current_target, params, is_module);
         file_buffer.push_back(std::make_pair(filename, code));
         api_id++;
       }
+    }
+
+    return true;
+  }
+
+
+  bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
+    auto target_api = nn_module;
+    auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
+    if (api_it != target_api.end()) {
+      current_target = Declaration->getQualifiedNameAsString();
+      std::cout << current_target << std::endl;
+      std::string current_target_unqualified = Declaration->getNameAsString();
+      //size_t api_id = 0;
+      /* for (auto rank: api_it->second) {
+        current_tensor_rank = rank;
+        current_tensor_rank_idx = 0;
+        option_class_done = false;
+        std::vector<std::unique_ptr<Param>> params; */
+        
+        //Declaration->dump();
+
+        for (auto b: Declaration->bases()) {
+          if (const auto* elaborated = dyn_cast<ElaboratedType>(b.getType())) {
+            assert(elaborated->isSugared());
+            if (const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar())) {
+              assert(tstype->isSugared());
+              assert(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder");
+              auto targs = tstype->template_arguments();
+              assert(targs.size() == 1);
+              //targs[0].getAsType()->dump();
+              //std::cout << "=========================================================================\n";
+              //targs[0].getAsType()->getAs<RecordType>()->dump();
+              //std::cout << "=========================================================================\n";
+              //targs[0].getAsType()->getAs<RecordType>()->getDecl()->dump();
+              auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
+              //class_decl->dump();
+              size_t api_id = 0;
+              bool done = false;
+              for (auto ctor: class_decl->ctors()) {
+                bool is_special_ctor =
+                  ctor->isDefaultConstructor() ||
+                  ctor->isCopyOrMoveConstructor() ||
+                  ctor->isSpecializationCopyingObject() ||
+                  ctor->isInheritingConstructor();
+                if (!is_special_ctor) {
+                  done = true;
+                  //ctor->dump();
+                  //std::vector<std::unique_ptr<Param>> params;
+                  for (auto rank: api_it->second) {
+                    current_tensor_rank = rank;
+                    current_tensor_rank_idx = 0;
+                    option_class_done = false;
+                    std::vector<std::unique_ptr<Param>> params;
+                    params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+                    for (const auto* param: ctor->parameters()) {
+                      //param->dump();
+                      //std::cout << param->getNameAsString() << std::endl;
+                      //ctor_param_names.push_back(param->getNameAsString());
+                      clang::QualType t = param->getType();
+                      //t->dump();
+                      //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
+                        std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+                        if (p != nullptr)
+                          params.push_back(std::move(p));
+                        
+                      //}
+                    }
+                    std::string filename =
+                      current_target_unqualified + "_" + std::to_string(api_id) +
+                      ".cpp";
+                    bool is_module = true;
+                    std::string code = gen_code(current_target, params, is_module);
+                    file_buffer.push_back(std::make_pair(filename, code));
+                    api_id++;
+                  }
+                }
+              }
+              if (done)
+                continue;
+              class_decl->dump();
+              //exit(0);
+              for (auto b2: class_decl->bases()) {
+                //b2.getType()->dump();
+                std::cout << "=========================================================================\n";
+                if (const auto* tstype2 = dyn_cast<TemplateSpecializationType>(b2.getType())) {
+                  //tstype2->dump();
+                  assert(tstype2->isSugared());
+                  //std::cout << "=========================================================================\n";
+                  //tstype2->desugar()->dump();
+                  //std::cout << "=========================================================================\n";
+                  //tstype2->desugar()->getAs<RecordType>()->getDecl()->dump();
+                  if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl())) {
+                    std::cout << "ctsdecl: \n";
+                    //ctsdecl->dump();
+                    std::cout << "=========================================================================\n";
+                    for (auto ctor: ctsdecl->ctors()) {
+                      bool is_special_ctor =
+                        ctor->isDefaultConstructor() ||
+                        ctor->isCopyOrMoveConstructor() ||
+                        ctor->isSpecializationCopyingObject() ||
+                        ctor->isInheritingConstructor();
+                      if (!is_special_ctor) {
+                        //cxxconstructordecl->dump();
+                        //ctor->dump();
+                        for (auto rank: api_it->second) {
+                          current_tensor_rank = rank;
+                          current_tensor_rank_idx = 0;
+                          option_class_done = false;
+                          std::vector<std::unique_ptr<Param>> params;
+                          params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+                          for (const auto* param: ctor->parameters()) {
+                            //param->dump();
+                            //std::cout << param->getNameAsString() << std::endl;
+                            //ctor_param_names.push_back(param->getNameAsString());
+                            clang::QualType t = param->getType();
+                            //t->dump();
+                            /* if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
+                            std::cout << tdtype->getDecl()->getQualifiedNameAsString() << std::endl;
+                            } else if (const auto* lvr = dyn_cast<LValueReferenceType>(t)) {
+                            auto pt = lvr->getPointeeType();
+                            if (const auto* tst = dyn_cast<TemplateSpecializationType>(pt)) {
+                              tst->desugar()->getAs<RecordType>()->getDecl()->dump();
+                              std::unique_ptr<Param> p = parseTorchParam(tst->desugar(), *Context);
+                              if (p != nullptr)
+                                params.push_back(std::move(p));
+                              std::string filename =
+                                current_target_unqualified + "_" + std::to_string(api_id) +
+                                ".cpp";
+                              std::string code = gen_code(current_target, params);
+                              file_buffer.push_back(std::make_pair(filename, code));
+                            }
+                            } else if (const auto* tst = dyn_cast<TemplateSpecializationType>(t)) {
+                              tst->desugar()->getAs<RecordType>()->getDecl()->dump();
+                              std::unique_ptr<Param> p = parseTorchParam(tst->desugar(), *Context);
+                              if (p != nullptr)
+                                params.push_back(std::move(p));
+                              std::string filename =
+                                current_target_unqualified + "_" + std::to_string(api_id) +
+                                ".cpp";
+                              std::string code = gen_code(current_target, params);
+                              file_buffer.push_back(std::make_pair(filename, code));
+                              api_id++;
+                            } else if (const auto* et = dyn_cast<ElaboratedType>(t)) {
+                              et->desugar()->getAs<RecordType>()->getDecl()->dump();
+                              if (const auto* tst = dyn_cast<TemplateSpecializationType>(et->desugar())) {
+                                tst->desugar()->getAs<RecordType>()->getDecl()->dump();
+                                std::unique_ptr<Param> p = parseTorchParam(tst->desugar(), *Context);
+                                if (p != nullptr)
+                                  params.push_back(std::move(p));
+                                std::string filename =
+                                  current_target_unqualified + "_" + std::to_string(api_id) +
+                                  ".cpp";
+                                std::string code = gen_code(current_target, params);
+                                file_buffer.push_back(std::make_pair(filename, code));
+                              }
+                            } */
+                            std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+                            if (p != nullptr)
+                              params.push_back(std::move(p));
+                          }
+                          std::string filename =
+                            current_target_unqualified + "_" + std::to_string(api_id) +
+                            ".cpp";
+                          bool is_module = true;
+                          std::string code = gen_code(current_target, params, is_module);
+                          file_buffer.push_back(std::make_pair(filename, code));
+                          api_id++;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+
+          //b.getType()->dump();
+        }
+      //}
     }
 
     return true;
