@@ -157,9 +157,9 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{1},{2}}},
   {"torch::nn::AdaptiveMaxPool1d",{{2},{3}}},
   {"torch::nn::AdaptiveMaxPool2d",{{3},{4}}},
-  {"torch::nn::AdaptiveMaxPool3d",{{4},{5}}}, */
+  {"torch::nn::AdaptiveMaxPool3d",{{4},{5}}},
   {"torch::nn::AlphaDropout",{{}}},
-  /* {"torch::nn::AvgPool1d",{{2},{3}}},
+  {"torch::nn::AvgPool1d",{{2},{3}}},
   {"torch::nn::AvgPool2d",{{3},{4}}},
   {"torch::nn::AvgPool3d",{{4},{5}}},
   {"torch::nn::BatchNorm1d",{{2},{3}}},
@@ -178,7 +178,7 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::ConvTranspose1d",{{2},{3}}},
   {"torch::nn::ConvTranspose2d",{{3},{4}}},
   {"torch::nn::ConvTranspose3d",{{4},{5}}}, */
-  /* {"torch::nn::CosineEmbeddingLoss",{{}}},
+  {"torch::nn::CosineEmbeddingLoss",{{}}},
   {"torch::nn::CosineSimilarity",{{}}},
   {"torch::nn::CrossEntropyLoss",{{}}},
   {"torch::nn::CrossMapLRN2d",{{}}},
@@ -194,7 +194,7 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::Fold",{{}}},
   {"torch::nn::FractionalMaxPool2d",{{}}},
   {"torch::nn::FractionalMaxPool3d",{{}}},
-  {"torch::nn::ELU",{{}}},
+  /* {"torch::nn::ELU",{{}}},
   {"torch::nn::GLU",{{}}},
   {"torch::nn::GroupNorm",{{}}},
   {"torch::nn::GRU",{{}}},
@@ -232,11 +232,8 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::MultiLabelMarginLoss",{{}}},
   {"torch::nn::MultiLabelSoftMarginLoss",{{}}},
   {"torch::nn::MultiMarginLoss",{{}}},
-  {"torch::nn::NamedAnyModule",{{}}},
   {"torch::nn::NLLLoss",{{}}},
   {"torch::nn::PairwiseDistance",{{}}},
-  {"torch::nn::ParameterDict",{{}}},
-  {"torch::nn::ParameterList",{{}}},
   {"torch::nn::PixelShuffle",{{}}},
   {"torch::nn::PixelUnshuffle",{{}}},
   {"torch::nn::PoissonNLLLoss",{{}}},
@@ -878,7 +875,10 @@ public:
     auto targs = tstype->template_arguments();
     assert(targs.size() == 1);
     auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
-    //class_decl->dump();
+    std::cout << "========================================================================\n";
+    std::cout << "class_decl:\n";
+    class_decl->dump();
+    std::cout << "========================================================================\n";
 
     size_t target_id = 0;
     for (auto rank: api_it->second) {
