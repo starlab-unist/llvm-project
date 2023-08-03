@@ -818,199 +818,251 @@ public:
     return true;
   }
 
+  Optional<std::vector<std::unique_ptr<Param>>> parseModuleCtor(CXXConstructorDecl* ctor) {
+    if (//ctor->isDefaultConstructor() ||
+        ctor->isCopyOrMoveConstructor() ||
+        ctor->isSpecializationCopyingObject() ||
+        ctor->isInheritingConstructor())
+      return None;
+
+    current_tensor_rank_idx = 0;
+    option_class_done = false;
+    std::vector<std::unique_ptr<Param>> params;
+    params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+    for (const auto* param: ctor->parameters()) {
+      clang::QualType t = param->getType();
+      //t->dump();
+      std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+      if (p != nullptr)
+        params.push_back(std::move(p));
+    }
+    return params;
+  }
+
+  std::vector<std::unique_ptr<Param>> pickBest(std::vector<std::vector<std::unique_ptr<Param>>> candidates) {
+    assert(!candidates.empty());
+
+    for (auto&& params: candidates)
+      for (auto&& param: params)
+        if (param->is_map())
+          return std::move(params);
+
+    size_t num_params_best = 0;
+    size_t best_idx = 0;
+    for (size_t i = 0; i < candidates.size(); i++)
+      if (candidates[i].size() > num_params_best) {
+        num_params_best = candidates[i].size();
+        best_idx = i;
+      }
+
+    return std::move(candidates[best_idx]);
+  }
 
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
     auto target_api = nn_module;
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
-    if (api_it != target_api.end()) {
-      current_target = Declaration->getQualifiedNameAsString();
-      std::cout << current_target << std::endl;
-      std::string current_target_unqualified = Declaration->getNameAsString();
-      //size_t api_id = 0;
-      /* for (auto rank: api_it->second) {
-        current_tensor_rank = rank;
-        current_tensor_rank_idx = 0;
-        option_class_done = false;
-        std::vector<std::unique_ptr<Param>> params; */
-        
-        //Declaration->dump();
+    if (api_it == target_api.end())
+      return true;
 
-        for (auto b: Declaration->bases()) {
-          if (const auto* elaborated = dyn_cast<ElaboratedType>(b.getType())) {
-            assert(elaborated->isSugared());
-            if (const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar())) {
-              assert(tstype->isSugared());
-              assert(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder");
-              auto targs = tstype->template_arguments();
-              assert(targs.size() == 1);
-              //targs[0].getAsType()->dump();
+    current_target = Declaration->getQualifiedNameAsString();
+    std::cout << current_target << std::endl;
+    std::string current_target_unqualified = Declaration->getNameAsString();
+
+    assert(!Declaration->bases().empty());
+    const auto* elaborated = dyn_cast<ElaboratedType>(Declaration->bases_begin()->getType());
+    assert(elaborated != nullptr);
+    assert(elaborated->isSugared());
+    const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar());
+    assert(tstype->isSugared());
+    assert(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder");
+    auto targs = tstype->template_arguments();
+    assert(targs.size() == 1);
+    auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
+    //class_decl->dump();
+
+    size_t target_id = 0;
+    for (auto rank: api_it->second) {
+      current_tensor_rank = rank;
+      std::vector<std::vector<std::unique_ptr<Param>>> candidates;
+
+      for (auto ctor: class_decl->ctors())
+        if (auto parsed = parseModuleCtor(ctor))
+          candidates.push_back(std::move(parsed.getValue()));
+      if (!class_decl->bases().empty()) {
+        const TemplateSpecializationType* tstype2;
+        if (const auto* etype = dyn_cast<ElaboratedType>(class_decl->bases_begin()->getType())) {
+          tstype2 = dyn_cast<TemplateSpecializationType>(etype->desugar());
+        } else {
+          tstype2 = dyn_cast<TemplateSpecializationType>(class_decl->bases_begin()->getType());
+        }
+
+        if (tstype2 != nullptr) {
+          assert(tstype2->isSugared());
+          if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl()))
+            for (auto ctor: ctsdecl->ctors())
+              if (auto parsed = parseModuleCtor(ctor))
+                candidates.push_back(std::move(parsed.getValue()));
+        }
+      }
+
+      auto params = pickBest(std::move(candidates));
+
+      std::string filename =
+        current_target_unqualified + "_" + std::to_string(target_id++) +
+        ".cpp";
+      bool is_module = true;
+      std::string code = gen_code(current_target, params, is_module);
+      file_buffer.push_back(std::make_pair(filename, code));
+    }
+
+    /* for (auto b: Declaration->bases()) {
+      if (const auto* elaborated = dyn_cast<ElaboratedType>(b.getType())) {
+        assert(elaborated->isSugared());
+        if (const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar())) {
+          assert(tstype->isSugared());
+          assert(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder");
+          auto targs = tstype->template_arguments();
+          assert(targs.size() == 1);
+          //targs[0].getAsType()->dump();
+          //std::cout << "=========================================================================\n";
+          //targs[0].getAsType()->getAs<RecordType>()->dump();
+          //std::cout << "=========================================================================\n";
+          //targs[0].getAsType()->getAs<RecordType>()->getDecl()->dump();
+          auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
+          class_decl->dump();
+          size_t api_id = 0;
+          bool done = false;
+          for (auto b2: class_decl->bases()) {
+            b2.getType()->dump();
+            std::cout << "=========================================================================\n";
+
+            const TemplateSpecializationType* tstype2;
+            if (const auto* etype = dyn_cast<ElaboratedType>(b2.getType())) {
+              std::cout << "11\n";
+              tstype2 = dyn_cast<TemplateSpecializationType>(etype->desugar());
+            } else {
+              std::cout << "22\n";
+              tstype2 = dyn_cast<TemplateSpecializationType>(b2.getType());
+            }
+            
+            //if (const auto* tstype2 = dyn_cast<TemplateSpecializationType>(b2.getType())) {
+            if (tstype2 != nullptr) {
+              std::cout << "33\n";
+              //tstype2->dump();
+              assert(tstype2->isSugared());
               //std::cout << "=========================================================================\n";
-              //targs[0].getAsType()->getAs<RecordType>()->dump();
+              //tstype2->desugar()->dump();
               //std::cout << "=========================================================================\n";
-              //targs[0].getAsType()->getAs<RecordType>()->getDecl()->dump();
-              auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
-              class_decl->dump();
-              size_t api_id = 0;
-              bool done = false;
-              for (auto b2: class_decl->bases()) {
-                //b2.getType()->dump();
+              //tstype2->desugar()->getAs<RecordType>()->getDecl()->dump();
+              if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl())) {
+                std::cout << "ctsdecl: \n";
+                ctsdecl->dump();
                 std::cout << "=========================================================================\n";
-                if (const auto* tstype2 = dyn_cast<TemplateSpecializationType>(b2.getType())) {
-                  //tstype2->dump();
-                  assert(tstype2->isSugared());
-                  //std::cout << "=========================================================================\n";
-                  //tstype2->desugar()->dump();
-                  //std::cout << "=========================================================================\n";
-                  //tstype2->desugar()->getAs<RecordType>()->getDecl()->dump();
-                  if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl())) {
-                    std::cout << "ctsdecl: \n";
-                    //ctsdecl->dump();
-                    std::cout << "=========================================================================\n";
-                    for (auto ctor: ctsdecl->ctors()) {
-                      bool is_special_ctor =
-                        ctor->isDefaultConstructor() ||
-                        ctor->isCopyOrMoveConstructor() ||
-                        ctor->isSpecializationCopyingObject() ||
-                        ctor->isInheritingConstructor();
-                      if (!is_special_ctor) {
-                        done = true;
-                        //cxxconstructordecl->dump();
-                        //ctor->dump();
-                        for (auto rank: api_it->second) {
-                          current_tensor_rank = rank;
-                          current_tensor_rank_idx = 0;
-                          option_class_done = false;
-                          std::vector<std::unique_ptr<Param>> params;
-                          params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
-                          for (const auto* param: ctor->parameters()) {
-                            //param->dump();
-                            //std::cout << param->getNameAsString() << std::endl;
-                            //ctor_param_names.push_back(param->getNameAsString());
-                            clang::QualType t = param->getType();
-                            t->dump();
-                            //std::cout << "============================================================\n";
-                            //std::cout << "type: " << t.getAsString() << std::endl;
-                            //std::cout << "============================================================\n";
-                            /* if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
-                            std::cout << tdtype->getDecl()->getQualifiedNameAsString() << std::endl;
-                            } else if (const auto* lvr = dyn_cast<LValueReferenceType>(t)) {
-                            auto pt = lvr->getPointeeType();
-                            if (const auto* tst = dyn_cast<TemplateSpecializationType>(pt)) {
-                              tst->desugar()->getAs<RecordType>()->getDecl()->dump();
-                              std::unique_ptr<Param> p = parseTorchParam(tst->desugar(), *Context);
-                              if (p != nullptr)
-                                params.push_back(std::move(p));
-                              std::string filename =
-                                current_target_unqualified + "_" + std::to_string(api_id) +
-                                ".cpp";
-                              std::string code = gen_code(current_target, params);
-                              file_buffer.push_back(std::make_pair(filename, code));
-                            }
-                            } else if (const auto* tst = dyn_cast<TemplateSpecializationType>(t)) {
-                              tst->desugar()->getAs<RecordType>()->getDecl()->dump();
-                              std::unique_ptr<Param> p = parseTorchParam(tst->desugar(), *Context);
-                              if (p != nullptr)
-                                params.push_back(std::move(p));
-                              std::string filename =
-                                current_target_unqualified + "_" + std::to_string(api_id) +
-                                ".cpp";
-                              std::string code = gen_code(current_target, params);
-                              file_buffer.push_back(std::make_pair(filename, code));
-                              api_id++;
-                            } else if (const auto* et = dyn_cast<ElaboratedType>(t)) {
-                              et->desugar()->getAs<RecordType>()->getDecl()->dump();
-                              if (const auto* tst = dyn_cast<TemplateSpecializationType>(et->desugar())) {
-                                tst->desugar()->getAs<RecordType>()->getDecl()->dump();
-                                std::unique_ptr<Param> p = parseTorchParam(tst->desugar(), *Context);
-                                if (p != nullptr)
-                                  params.push_back(std::move(p));
-                                std::string filename =
-                                  current_target_unqualified + "_" + std::to_string(api_id) +
-                                  ".cpp";
-                                std::string code = gen_code(current_target, params);
-                                file_buffer.push_back(std::make_pair(filename, code));
-                              }
-                            } */
-                            std::unique_ptr<Param> p = parseTorchParam(t, *Context);
-                            if (p != nullptr)
-                              params.push_back(std::move(p));
-                          }
-                          std::string filename =
-                            current_target_unqualified + "_" + std::to_string(api_id) +
-                            ".cpp";
-                          bool is_module = true;
-                          std::string code = gen_code(current_target, params, is_module);
-                          file_buffer.push_back(std::make_pair(filename, code));
-                          api_id++;
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              if (done)
-                continue;
-              for (auto ctor: class_decl->ctors()) {
-                std::cout << "ctor: \n";
-                ctor->dump();
-                if (ctor->isDefaultConstructor())
-                  std::cout << "isDefaultConstructor\n";
-                if (ctor->isCopyOrMoveConstructor())
-                  std::cout << "isCopyOrMoveConstructor\n";
-                if (ctor->isSpecializationCopyingObject())
-                  std::cout << "isSpecializationCopyingObject\n";
-                if (ctor->isInheritingConstructor())
-                  std::cout << "isInheritingConstructor\n";
-                bool is_special_ctor =
-                  //ctor->isDefaultConstructor() ||
-                  ctor->isCopyOrMoveConstructor() ||
-                  ctor->isSpecializationCopyingObject() ||
-                  ctor->isInheritingConstructor();
-                if (!is_special_ctor) {
-                  //std::cout << "ctor: \n";
-                  //ctor->dump();
-                  //std::vector<std::unique_ptr<Param>> params;
-                  for (auto rank: api_it->second) {
-                    current_tensor_rank = rank;
-                    current_tensor_rank_idx = 0;
-                    option_class_done = false;
-                    std::vector<std::unique_ptr<Param>> params;
-                    params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
-                    for (const auto* param: ctor->parameters()) {
-                      //param->dump();
-                      //std::cout << param->getNameAsString() << std::endl;
-                      //ctor_param_names.push_back(param->getNameAsString());
-                      clang::QualType t = param->getType();
-                      t->dump();
-                      //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
+                for (auto ctor: ctsdecl->ctors()) {
+                  std::cout << "ctor:\n";
+                  ctor->dump();
+                  if (ctor->isDefaultConstructor())
+                    std::cout << "isDefaultConstructor\n";
+                  if (ctor->isCopyOrMoveConstructor())
+                    std::cout << "isCopyOrMoveConstructor\n";
+                  if (ctor->isSpecializationCopyingObject())
+                    std::cout << "isSpecializationCopyingObject\n";
+                  if (ctor->isInheritingConstructor())
+                    std::cout << "isInheritingConstructor\n";
+                  bool is_special_ctor =
+                    //ctor->isDefaultConstructor() ||
+                    ctor->isCopyOrMoveConstructor() ||
+                    ctor->isSpecializationCopyingObject() ||
+                    ctor->isInheritingConstructor();
+                  if (!is_special_ctor) {
+                    done = true;
+                    for (auto rank: api_it->second) {
+                      current_tensor_rank = rank;
+                      current_tensor_rank_idx = 0;
+                      option_class_done = false;
+                      std::vector<std::unique_ptr<Param>> params;
+                      params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+                      for (const auto* param: ctor->parameters()) {
+                        clang::QualType t = param->getType();
+                        //t->dump();
                         std::unique_ptr<Param> p = parseTorchParam(t, *Context);
                         if (p != nullptr)
                           params.push_back(std::move(p));
-                        
-                      //}
+                      }
+                      std::string filename =
+                        current_target_unqualified + "_" + std::to_string(api_id) +
+                        ".cpp";
+                      bool is_module = true;
+                      std::string code = gen_code(current_target, params, is_module);
+                      file_buffer.push_back(std::make_pair(filename, code));
+                      api_id++;
                     }
-                    std::string filename =
-                      current_target_unqualified + "_" + std::to_string(api_id) +
-                      ".cpp";
-                    bool is_module = true;
-                    std::string code = gen_code(current_target, params, is_module);
-                    file_buffer.push_back(std::make_pair(filename, code));
-                    api_id++;
                   }
                 }
               }
-
-              //class_decl->dump();
-              //exit(0);
-
+            }
+          }
+          if (done)
+            continue;
+          for (auto ctor: class_decl->ctors()) {
+            std::cout << "ctor: \n";
+            ctor->dump();
+            if (ctor->isDefaultConstructor())
+              std::cout << "isDefaultConstructor\n";
+            if (ctor->isCopyOrMoveConstructor())
+              std::cout << "isCopyOrMoveConstructor\n";
+            if (ctor->isSpecializationCopyingObject())
+              std::cout << "isSpecializationCopyingObject\n";
+            if (ctor->isInheritingConstructor())
+              std::cout << "isInheritingConstructor\n";
+            bool is_special_ctor =
+              //ctor->isDefaultConstructor() ||
+              ctor->isCopyOrMoveConstructor() ||
+              ctor->isSpecializationCopyingObject() ||
+              ctor->isInheritingConstructor();
+            if (!is_special_ctor) {
+              //std::cout << "ctor: \n";
+              //ctor->dump();
+              //std::vector<std::unique_ptr<Param>> params;
+              for (auto rank: api_it->second) {
+                current_tensor_rank = rank;
+                current_tensor_rank_idx = 0;
+                option_class_done = false;
+                std::vector<std::unique_ptr<Param>> params;
+                params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+                for (const auto* param: ctor->parameters()) {
+                  //param->dump();
+                  //std::cout << param->getNameAsString() << std::endl;
+                  //ctor_param_names.push_back(param->getNameAsString());
+                  clang::QualType t = param->getType();
+                  t->dump();
+                  //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
+                    std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+                    if (p != nullptr)
+                      params.push_back(std::move(p));
+                    
+                  //}
+                }
+                std::string filename =
+                  current_target_unqualified + "_" + std::to_string(api_id) +
+                  ".cpp";
+                bool is_module = true;
+                std::string code = gen_code(current_target, params, is_module);
+                file_buffer.push_back(std::make_pair(filename, code));
+                api_id++;
+              }
             }
           }
 
+          //class_decl->dump();
+          //exit(0);
 
-          //b.getType()->dump();
         }
-      //}
-    }
+      }
+
+
+      //b.getType()->dump();
+    } */
 
     return true;
   }

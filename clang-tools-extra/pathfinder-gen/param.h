@@ -103,6 +103,7 @@ class Param {
     size_t set_offset(size_t offset);
     void constraint(std::vector<std::string>& strs, bool is_module);
     std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code(std::string api_name, bool is_module);
+    bool is_map() { return ptype == MAP; }
   private:
     ParamType ptype;
 
