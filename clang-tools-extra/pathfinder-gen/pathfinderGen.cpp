@@ -151,34 +151,34 @@ std::map<std::string, std::set<tensor_rank>> functional_additional = {
 };
 
 std::map<std::string, std::set<tensor_rank>> nn_module = {
-  {"torch::nn::AdaptiveAvgPool1d",{{3}}},
-  /* {"torch::nn::AdaptiveAvgPool2d",{{}}},
-  {"torch::nn::AdaptiveAvgPool3d",{{}}},
-  {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{}}},
-  {"torch::nn::AdaptiveMaxPool1d",{{}}},
-  {"torch::nn::AdaptiveMaxPool2d",{{}}},
-  {"torch::nn::AdaptiveMaxPool3d",{{}}},
+  /* {"torch::nn::AdaptiveAvgPool1d",{{2},{3}}},
+  {"torch::nn::AdaptiveAvgPool2d",{{3},{4}}},
+  {"torch::nn::AdaptiveAvgPool3d",{{4},{5}}},
+  {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{1},{2}}},
+  {"torch::nn::AdaptiveMaxPool1d",{{2},{3}}},
+  {"torch::nn::AdaptiveMaxPool2d",{{3},{4}}},
+  {"torch::nn::AdaptiveMaxPool3d",{{4},{5}}}, */
   {"torch::nn::AlphaDropout",{{}}},
-  {"torch::nn::AvgPool1d",{{}}},
-  {"torch::nn::AvgPool2d",{{}}},
-  {"torch::nn::AvgPool3d",{{}}},
-  {"torch::nn::BatchNorm1d",{{}}},
-  {"torch::nn::BatchNorm2d",{{}}},
-  {"torch::nn::BatchNorm3d",{{}}},
+  /* {"torch::nn::AvgPool1d",{{2},{3}}},
+  {"torch::nn::AvgPool2d",{{3},{4}}},
+  {"torch::nn::AvgPool3d",{{4},{5}}},
+  {"torch::nn::BatchNorm1d",{{2},{3}}},
+  {"torch::nn::BatchNorm2d",{{4}}},
+  {"torch::nn::BatchNorm3d",{{5}}},
   {"torch::nn::BCELoss",{{}}},
   {"torch::nn::BCEWithLogitsLoss",{{}}},
   {"torch::nn::Bilinear",{{}}},
   {"torch::nn::CELU",{{}}},
-  {"torch::nn::ConstantPad1d",{{}}},
-  {"torch::nn::ConstantPad2d",{{}}},
-  {"torch::nn::ConstantPad3d",{{}}},
-  {"torch::nn::Conv1d",{{}}}, */
-  {"torch::nn::Conv2d",{{4}}},
-  /* {"torch::nn::Conv3d",{{}}},
-  {"torch::nn::ConvTranspose1d",{{}}},
-  {"torch::nn::ConvTranspose2d",{{}}},
-  {"torch::nn::ConvTranspose3d",{{}}},
-  {"torch::nn::CosineEmbeddingLoss",{{}}},
+  {"torch::nn::ConstantPad1d",{{2},{3}}},
+  {"torch::nn::ConstantPad2d",{{3},{4}}},
+  {"torch::nn::ConstantPad3d",{{4},{5}}},
+  {"torch::nn::Conv1d",{{2},{3}}},
+  {"torch::nn::Conv2d",{{3},{4}}},
+  {"torch::nn::Conv3d",{{4},{5}}},
+  {"torch::nn::ConvTranspose1d",{{2},{3}}},
+  {"torch::nn::ConvTranspose2d",{{3},{4}}},
+  {"torch::nn::ConvTranspose3d",{{4},{5}}}, */
+  /* {"torch::nn::CosineEmbeddingLoss",{{}}},
   {"torch::nn::CosineSimilarity",{{}}},
   {"torch::nn::CrossEntropyLoss",{{}}},
   {"torch::nn::CrossMapLRN2d",{{}}},
@@ -651,8 +651,7 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   const auto* cdecl = rtype->getAsCXXRecordDecl();
   assert(cdecl != nullptr);
   std::cout << "cdecl:\n";
-  //std::cout << "cdecl\n";
-  //cdecl->dump();
+  cdecl->dump();
   std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params;
   std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
   std::vector<std::string> ctor_param_names;
@@ -850,52 +849,9 @@ public:
               //std::cout << "=========================================================================\n";
               //targs[0].getAsType()->getAs<RecordType>()->getDecl()->dump();
               auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
-              //class_decl->dump();
+              class_decl->dump();
               size_t api_id = 0;
               bool done = false;
-              for (auto ctor: class_decl->ctors()) {
-                bool is_special_ctor =
-                  ctor->isDefaultConstructor() ||
-                  ctor->isCopyOrMoveConstructor() ||
-                  ctor->isSpecializationCopyingObject() ||
-                  ctor->isInheritingConstructor();
-                if (!is_special_ctor) {
-                  done = true;
-                  //ctor->dump();
-                  //std::vector<std::unique_ptr<Param>> params;
-                  for (auto rank: api_it->second) {
-                    current_tensor_rank = rank;
-                    current_tensor_rank_idx = 0;
-                    option_class_done = false;
-                    std::vector<std::unique_ptr<Param>> params;
-                    params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
-                    for (const auto* param: ctor->parameters()) {
-                      //param->dump();
-                      //std::cout << param->getNameAsString() << std::endl;
-                      //ctor_param_names.push_back(param->getNameAsString());
-                      clang::QualType t = param->getType();
-                      t->dump();
-                      //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
-                        std::unique_ptr<Param> p = parseTorchParam(t, *Context);
-                        if (p != nullptr)
-                          params.push_back(std::move(p));
-                        
-                      //}
-                    }
-                    std::string filename =
-                      current_target_unqualified + "_" + std::to_string(api_id) +
-                      ".cpp";
-                    bool is_module = true;
-                    std::string code = gen_code(current_target, params, is_module);
-                    file_buffer.push_back(std::make_pair(filename, code));
-                    api_id++;
-                  }
-                }
-              }
-              if (done)
-                continue;
-              class_decl->dump();
-              //exit(0);
               for (auto b2: class_decl->bases()) {
                 //b2.getType()->dump();
                 std::cout << "=========================================================================\n";
@@ -917,6 +873,7 @@ public:
                         ctor->isSpecializationCopyingObject() ||
                         ctor->isInheritingConstructor();
                       if (!is_special_ctor) {
+                        done = true;
                         //cxxconstructordecl->dump();
                         //ctor->dump();
                         for (auto rank: api_it->second) {
@@ -991,6 +948,61 @@ public:
                   }
                 }
               }
+              if (done)
+                continue;
+              for (auto ctor: class_decl->ctors()) {
+                std::cout << "ctor: \n";
+                ctor->dump();
+                if (ctor->isDefaultConstructor())
+                  std::cout << "isDefaultConstructor\n";
+                if (ctor->isCopyOrMoveConstructor())
+                  std::cout << "isCopyOrMoveConstructor\n";
+                if (ctor->isSpecializationCopyingObject())
+                  std::cout << "isSpecializationCopyingObject\n";
+                if (ctor->isInheritingConstructor())
+                  std::cout << "isInheritingConstructor\n";
+                bool is_special_ctor =
+                  //ctor->isDefaultConstructor() ||
+                  ctor->isCopyOrMoveConstructor() ||
+                  ctor->isSpecializationCopyingObject() ||
+                  ctor->isInheritingConstructor();
+                if (!is_special_ctor) {
+                  //std::cout << "ctor: \n";
+                  //ctor->dump();
+                  //std::vector<std::unique_ptr<Param>> params;
+                  for (auto rank: api_it->second) {
+                    current_tensor_rank = rank;
+                    current_tensor_rank_idx = 0;
+                    option_class_done = false;
+                    std::vector<std::unique_ptr<Param>> params;
+                    params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+                    for (const auto* param: ctor->parameters()) {
+                      //param->dump();
+                      //std::cout << param->getNameAsString() << std::endl;
+                      //ctor_param_names.push_back(param->getNameAsString());
+                      clang::QualType t = param->getType();
+                      t->dump();
+                      //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
+                        std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+                        if (p != nullptr)
+                          params.push_back(std::move(p));
+                        
+                      //}
+                    }
+                    std::string filename =
+                      current_target_unqualified + "_" + std::to_string(api_id) +
+                      ".cpp";
+                    bool is_module = true;
+                    std::string code = gen_code(current_target, params, is_module);
+                    file_buffer.push_back(std::make_pair(filename, code));
+                    api_id++;
+                  }
+                }
+              }
+
+              //class_decl->dump();
+              //exit(0);
+
             }
           }
 
