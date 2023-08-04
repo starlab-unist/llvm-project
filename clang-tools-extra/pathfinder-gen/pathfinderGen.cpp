@@ -151,7 +151,7 @@ std::map<std::string, std::set<tensor_rank>> functional_additional = {
 };
 
 std::map<std::string, std::set<tensor_rank>> nn_module = {
-  /* {"torch::nn::AdaptiveAvgPool1d",{{2},{3}}},
+  {"torch::nn::AdaptiveAvgPool1d",{{2},{3}}},
   {"torch::nn::AdaptiveAvgPool2d",{{3},{4}}},
   {"torch::nn::AdaptiveAvgPool3d",{{4},{5}}},
   {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{1},{2}}},
@@ -165,7 +165,7 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::BatchNorm1d",{{2},{3}}},
   {"torch::nn::BatchNorm2d",{{4}}},
   {"torch::nn::BatchNorm3d",{{5}}},
-  {"torch::nn::Bilinear",{{}}},
+  {"torch::nn::Bilinear",{same_ranks}},
   {"torch::nn::CELU",{{}}},
   {"torch::nn::ConstantPad1d",{{2},{3}}},
   {"torch::nn::ConstantPad2d",{{3},{4}}},
@@ -175,70 +175,69 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::Conv3d",{{4},{5}}},
   {"torch::nn::ConvTranspose1d",{{2},{3}}},
   {"torch::nn::ConvTranspose2d",{{3},{4}}},
-  {"torch::nn::ConvTranspose3d",{{4},{5}}}, */
-  {"torch::nn::CosineSimilarity",{{}}},
+  {"torch::nn::ConvTranspose3d",{{4},{5}}},
+  {"torch::nn::CosineSimilarity",{same_ranks}},
   {"torch::nn::CrossMapLRN2d",{{}}},
-  {"torch::nn::Dropout",{{}}},
-  {"torch::nn::Dropout2d",{{}}},
-  {"torch::nn::Dropout3d",{{}}},
+  {"torch::nn::Dropout",{same_ranks}},
+  {"torch::nn::Dropout2d",{{3},{4}}},
+  {"torch::nn::Dropout3d",{{4},{5}}},
   {"torch::nn::ELU",{{}}},
   {"torch::nn::Embedding",{{}}},
   {"torch::nn::EmbeddingBag",{{}}},
-  {"torch::nn::FeatureAlphaDropout",{{}}},
+  {"torch::nn::FeatureAlphaDropout",{{4},{5}}},
   {"torch::nn::Flatten",{{}}},
-  {"torch::nn::Fold",{{}}},
-  {"torch::nn::FractionalMaxPool2d",{{}}},
-  {"torch::nn::FractionalMaxPool3d",{{}}},
-  /* {"torch::nn::ELU",{{}}},
+  {"torch::nn::Fold",{{2},{3}}},
+  {"torch::nn::FractionalMaxPool2d",{{3},{4}}},
+  {"torch::nn::FractionalMaxPool3d",{{4},{5}}},
+  {"torch::nn::ELU",{{}}},
   {"torch::nn::GLU",{{}}},
-  {"torch::nn::GroupNorm",{{}}},
-  {"torch::nn::GRU",{{}}},
-  {"torch::nn::GRUCell",{{}}},
+  {"torch::nn::GroupNorm",{{2},{3},{4},{5}}},
+  {"torch::nn::GRU",{{2,2},{3,3}}},
+  {"torch::nn::GRUCell",{{1,1},{2,2}}},
   {"torch::nn::Hardshrink",{{}}},
   {"torch::nn::Hardtanh",{{}}},
   {"torch::nn::Identity",{{}}},
-  {"torch::nn::InstanceNorm1d",{{}}},
-  {"torch::nn::InstanceNorm2d",{{}}},
-  {"torch::nn::InstanceNorm3d",{{}}},
+  {"torch::nn::InstanceNorm1d",{{2},{3}}},
+  {"torch::nn::InstanceNorm2d",{{3},{4}}},
+  {"torch::nn::InstanceNorm3d",{{4},{5}}},
   {"torch::nn::LayerNorm",{{}}},
   {"torch::nn::LeakyReLU",{{}}},
   {"torch::nn::Linear",{{}}},
-  {"torch::nn::LocalResponseNorm",{{}}},
+  {"torch::nn::LocalResponseNorm",{{2},{3},{4},{5}}},
   {"torch::nn::LogSigmoid",{{}}},
   {"torch::nn::LogSoftmax",{{}}},
-  {"torch::nn::LPPool1d",{{}}},
-  {"torch::nn::LPPool2d",{{}}},
-  {"torch::nn::LSTM",{{}}},
-  {"torch::nn::LSTMCell",{{}}},
-  {"torch::nn::MaxPool1d",{{}}},
-  {"torch::nn::MaxPool2d",{{}}},
-  {"torch::nn::MaxPool3d",{{}}},
-  {"torch::nn::MaxUnpool1d",{{}}},
-  {"torch::nn::MaxUnpool2d",{{}}},
-  {"torch::nn::MaxUnpool3d",{{}}},
+  {"torch::nn::LPPool1d",{{2},{3}}},
+  {"torch::nn::LPPool2d",{{4}}},
+  {"torch::nn::LSTM",{{2,2,2},{3,3,3}}},
+  {"torch::nn::LSTMCell",{{1,1,1},{2,2,2}}},
+  {"torch::nn::MaxPool1d",{{2},{3}}},
+  {"torch::nn::MaxPool2d",{{3},{4}}},
+  {"torch::nn::MaxPool3d",{{4},{5}}},
+  {"torch::nn::MaxUnpool1d",{{2},{3}}},
+  {"torch::nn::MaxUnpool2d",{{3},{4}}},
+  {"torch::nn::MaxUnpool3d",{{4},{5}}},
   {"torch::nn::Mish",{{}}},
-  {"torch::nn::MultiheadAttention",{{}}},
-  {"torch::nn::PairwiseDistance",{{}}},
-  {"torch::nn::PixelShuffle",{{}}},
-  {"torch::nn::PixelUnshuffle",{{}}},
+  //{"torch::nn::MultiheadAttention",{{}}},
+  {"torch::nn::PairwiseDistance",{{1,1},{2,2}}},
+  {"torch::nn::PixelShuffle",{{3},{4},{5}}},
+  {"torch::nn::PixelUnshuffle",{{3},{4},{5}}},
   {"torch::nn::PReLU",{{}}},
-  {"torch::nn::ReflectionPad1d",{{}}},
-  {"torch::nn::ReflectionPad2d",{{}}},
-  {"torch::nn::ReflectionPad3d",{{}}},
+  {"torch::nn::ReflectionPad1d",{{2},{3}}},
+  {"torch::nn::ReflectionPad2d",{{3},{4}}},
+  {"torch::nn::ReflectionPad3d",{{4},{5}}},
   {"torch::nn::ReLU",{{}}},
   {"torch::nn::ReLU6",{{}}},
-  {"torch::nn::ReplicationPad1d",{{}}},
-  {"torch::nn::ReplicationPad2d",{{}}},
-  {"torch::nn::ReplicationPad3d",{{}}},
-  {"torch::nn::RNN",{{}}},
-  {"torch::nn::RNNCell",{{}}},
+  {"torch::nn::ReplicationPad1d",{{2},{3}}},
+  {"torch::nn::ReplicationPad2d",{{3},{4}}},
+  {"torch::nn::ReplicationPad3d",{{4},{5}}},
+  {"torch::nn::RNN",{{2,2},{3,3}}},
+  {"torch::nn::RNNCell",{{1,1},{2,2}}},
   {"torch::nn::RReLU",{{}}},
   {"torch::nn::SELU",{{}}},
-  {"torch::nn::Sequential",{{}}},
   {"torch::nn::Sigmoid",{{}}},
   {"torch::nn::SiLU",{{}}},
   {"torch::nn::Softmax",{{}}},
-  {"torch::nn::Softmax2d",{{}}},
+  {"torch::nn::Softmax2d",{{3},{4}}},
   {"torch::nn::Softmin",{{}}},
   {"torch::nn::Softplus",{{}}},
   {"torch::nn::Softshrink",{{}}},
@@ -246,17 +245,17 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::Tanh",{{}}},
   {"torch::nn::Tanhshrink",{{}}},
   {"torch::nn::Threshold",{{}}},
-  {"torch::nn::Transformer",{{}}},
-  {"torch::nn::TransformerDecoder",{{}}},
-  {"torch::nn::TransformerDecoderLayer",{{}}},
-  {"torch::nn::TransformerEncoder",{{}}},
-  {"torch::nn::TransformerEncoderLayer",{{}}},
+  //{"torch::nn::Transformer",{{}}},
+  //{"torch::nn::TransformerDecoder",{{}}},
+  //{"torch::nn::TransformerDecoderLayer",{{}}},
+  //{"torch::nn::TransformerEncoder",{{}}},
+  //{"torch::nn::TransformerEncoderLayer",{{}}},
   {"torch::nn::Unflatten",{{}}},
-  {"torch::nn::Unfold",{{}}},
-  {"torch::nn::Upsample",{{}}},
-  {"torch::nn::ZeroPad1d",{{}}},
-  {"torch::nn::ZeroPad2d",{{}}},
-  {"torch::nn::ZeroPad3d",{{}}}, */
+  {"torch::nn::Unfold",{{2},{3},{4}}},
+  {"torch::nn::Upsample",{{3},{4},{5}}},
+  {"torch::nn::ZeroPad1d",{{2},{3}}},
+  {"torch::nn::ZeroPad2d",{{3},{4}}},
+  {"torch::nn::ZeroPad3d",{{4},{5}}},
 };
 
 std::map<std::string, std::set<tensor_rank>> nn_loss = {
@@ -860,8 +859,8 @@ public:
   }
 
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
-    //auto target_api = nn_module;
-    auto target_api = nn_loss;
+    auto target_api = nn_module;
+    //auto target_api = nn_loss;
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it == target_api.end())
       return true;
@@ -899,7 +898,19 @@ public:
         num_input_tensor = 2;
       }
     } else {
-      num_input_tensor = 1;
+      if (current_target == "torch::nn::LSTM" ||
+          current_target == "torch::nn::LSTMCell") {
+        num_input_tensor = 3;
+      } else if (current_target == "torch::nn::CosineSimilarity" ||
+          current_target == "torch::nn::GRU" ||
+          current_target == "torch::nn::GRUCell" ||
+          current_target == "torch::nn::RNN" ||
+          current_target == "torch::nn::RNNCell" ||
+          current_target == "torch::nn::Bilinear") {
+        num_input_tensor = 2;
+      } else {
+        num_input_tensor = 1;
+      }
     }
 
     size_t target_id = 0;
