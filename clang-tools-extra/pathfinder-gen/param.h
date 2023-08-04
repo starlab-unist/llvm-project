@@ -565,7 +565,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
   }
 }
 
-std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
+std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor) {
   std::string code;
   code += "int PathFinderTestOneInput(const long* arg) {\n";
   code += "  torch::set_num_threads(1);\n";
@@ -604,7 +604,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   }
   if (is_module) {
     code += "\n    auto m = " + api_name + "(";
-    for (size_t i = 1; i < positional_arg.size(); i++) {
+    for (size_t i = num_input_tensor; i < positional_arg.size(); i++) {
       code += positional_arg[i];
       if (i != positional_arg.size()-1) {
         code += ", ";
@@ -617,7 +617,13 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
 
   code += "\n    PathFinderExecuteTarget(\n";
   if (is_module) {
-    code += "      auto result = m->forward(tensor_0));\n";
+    code += "      auto result = m->forward(";
+    for (size_t i = 0; i < num_input_tensor; i++) {
+      code += "tensor_" + std::to_string(i);
+      if (i != num_input_tensor - 1)
+        code += ", ";
+    }
+    code += "));\n";
   } else {
     code += "      auto result = " + api_name + "(";
     for (size_t i = 0; i < positional_arg.size(); i++) {
@@ -665,7 +671,7 @@ std::string gen_footer() {
   return code;
 }
 
-std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
+std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor) {
   tensor_id = 0;
   int_vector_id = 0;
   float_vector_id = 0;
@@ -679,7 +685,7 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
   std::string code;
   code += gen_header();
   code += gen_setup(offset, params, is_module);
-  code += gen_api_call(api_name, params, is_module);
+  code += gen_api_call(api_name, params, is_module, num_input_tensor);
   code += gen_footer();
 
   return code;

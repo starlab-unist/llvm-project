@@ -32,4 +32,10 @@ std::string strip_ext(std::string filename) {
   return filename.substr(0,filename.find_last_of("."));
 }
 
+bool endswith(std::string str, std::string suffix) {
+  return
+    str.length() >= suffix.length() &&
+    str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0;
+}
+
 #endif

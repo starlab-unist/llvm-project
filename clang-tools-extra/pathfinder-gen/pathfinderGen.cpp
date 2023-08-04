@@ -165,8 +165,6 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::BatchNorm1d",{{2},{3}}},
   {"torch::nn::BatchNorm2d",{{4}}},
   {"torch::nn::BatchNorm3d",{{5}}},
-  {"torch::nn::BCELoss",{{}}},
-  {"torch::nn::BCEWithLogitsLoss",{{}}},
   {"torch::nn::Bilinear",{{}}},
   {"torch::nn::CELU",{{}}},
   {"torch::nn::ConstantPad1d",{{2},{3}}},
@@ -178,11 +176,8 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::ConvTranspose1d",{{2},{3}}},
   {"torch::nn::ConvTranspose2d",{{3},{4}}},
   {"torch::nn::ConvTranspose3d",{{4},{5}}}, */
-  {"torch::nn::CosineEmbeddingLoss",{{}}},
   {"torch::nn::CosineSimilarity",{{}}},
-  {"torch::nn::CrossEntropyLoss",{{}}},
   {"torch::nn::CrossMapLRN2d",{{}}},
-  {"torch::nn::CTCLoss",{{}}},
   {"torch::nn::Dropout",{{}}},
   {"torch::nn::Dropout2d",{{}}},
   {"torch::nn::Dropout3d",{{}}},
@@ -201,14 +196,10 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::GRUCell",{{}}},
   {"torch::nn::Hardshrink",{{}}},
   {"torch::nn::Hardtanh",{{}}},
-  {"torch::nn::HingeEmbeddingLoss",{{}}},
-  {"torch::nn::HuberLoss",{{}}},
   {"torch::nn::Identity",{{}}},
   {"torch::nn::InstanceNorm1d",{{}}},
   {"torch::nn::InstanceNorm2d",{{}}},
   {"torch::nn::InstanceNorm3d",{{}}},
-  {"torch::nn::KLDivLoss",{{}}},
-  {"torch::nn::L1Loss",{{}}},
   {"torch::nn::LayerNorm",{{}}},
   {"torch::nn::LeakyReLU",{{}}},
   {"torch::nn::Linear",{{}}},
@@ -219,7 +210,6 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::LPPool2d",{{}}},
   {"torch::nn::LSTM",{{}}},
   {"torch::nn::LSTMCell",{{}}},
-  {"torch::nn::MarginRankingLoss",{{}}},
   {"torch::nn::MaxPool1d",{{}}},
   {"torch::nn::MaxPool2d",{{}}},
   {"torch::nn::MaxPool3d",{{}}},
@@ -227,16 +217,10 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::MaxUnpool2d",{{}}},
   {"torch::nn::MaxUnpool3d",{{}}},
   {"torch::nn::Mish",{{}}},
-  {"torch::nn::MSELoss",{{}}},
   {"torch::nn::MultiheadAttention",{{}}},
-  {"torch::nn::MultiLabelMarginLoss",{{}}},
-  {"torch::nn::MultiLabelSoftMarginLoss",{{}}},
-  {"torch::nn::MultiMarginLoss",{{}}},
-  {"torch::nn::NLLLoss",{{}}},
   {"torch::nn::PairwiseDistance",{{}}},
   {"torch::nn::PixelShuffle",{{}}},
   {"torch::nn::PixelUnshuffle",{{}}},
-  {"torch::nn::PoissonNLLLoss",{{}}},
   {"torch::nn::PReLU",{{}}},
   {"torch::nn::ReflectionPad1d",{{}}},
   {"torch::nn::ReflectionPad2d",{{}}},
@@ -253,8 +237,6 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::Sequential",{{}}},
   {"torch::nn::Sigmoid",{{}}},
   {"torch::nn::SiLU",{{}}},
-  {"torch::nn::SmoothL1Loss",{{}}},
-  {"torch::nn::SoftMarginLoss",{{}}},
   {"torch::nn::Softmax",{{}}},
   {"torch::nn::Softmax2d",{{}}},
   {"torch::nn::Softmin",{{}}},
@@ -269,14 +251,35 @@ std::map<std::string, std::set<tensor_rank>> nn_module = {
   {"torch::nn::TransformerDecoderLayer",{{}}},
   {"torch::nn::TransformerEncoder",{{}}},
   {"torch::nn::TransformerEncoderLayer",{{}}},
-  {"torch::nn::TripletMarginLoss",{{}}},
-  {"torch::nn::TripletMarginWithDistanceLoss",{{}}},
   {"torch::nn::Unflatten",{{}}},
   {"torch::nn::Unfold",{{}}},
   {"torch::nn::Upsample",{{}}},
   {"torch::nn::ZeroPad1d",{{}}},
   {"torch::nn::ZeroPad2d",{{}}},
   {"torch::nn::ZeroPad3d",{{}}}, */
+};
+
+std::map<std::string, std::set<tensor_rank>> nn_loss = {
+  {"torch::nn::BCELoss",{same_ranks}},
+  {"torch::nn::BCEWithLogitsLoss",{same_ranks}},
+  {"torch::nn::CosineEmbeddingLoss",{{2,2,1},{1,1,0}}},
+  {"torch::nn::CrossEntropyLoss",{{1,0},{2,1},{3,2},{4,3},{5,4}}},
+  {"torch::nn::CTCLoss",{{3,2,1,1},{2,1,0,0}}},
+  {"torch::nn::HingeEmbeddingLoss",{same_ranks}},
+  {"torch::nn::HuberLoss",{same_ranks}},
+  {"torch::nn::KLDivLoss",{same_ranks}},
+  {"torch::nn::L1Loss",{same_ranks}},
+  {"torch::nn::MarginRankingLoss",{{1,1,1},{2,2,2},{3,3,3},{4,4,4},{5,5,5}}},
+  {"torch::nn::MSELoss",{same_ranks}},
+  {"torch::nn::MultiLabelMarginLoss",{{1,1},{2,2}}},
+  {"torch::nn::MultiLabelSoftMarginLoss",{{2,2}}},
+  {"torch::nn::MultiMarginLoss",{{2,1},{1,0}}},
+  {"torch::nn::NLLLoss",{{1,0},{2,1},{3,2},{4,3},{5,4}}},
+  {"torch::nn::PoissonNLLLoss",{same_ranks}},
+  {"torch::nn::SmoothL1Loss",{same_ranks}},
+  {"torch::nn::SoftMarginLoss",{same_ranks}},
+  {"torch::nn::TripletMarginLoss",{{1,1,1},{2,2,2}}},
+  {"torch::nn::TripletMarginWithDistanceLoss",{{1,1,1},{2,2,2},{3,3,3},{4,4,4},{5,5,5}}},
 };
 
 std::string current_target;
@@ -806,7 +809,7 @@ public:
           current_target_unqualified + "_" + std::to_string(api_id) +
           ".cpp";
         bool is_module = false;
-        std::string code = gen_code(current_target, params, is_module);
+        std::string code = gen_code(current_target, params, is_module, 0);
         file_buffer.push_back(std::make_pair(filename, code));
         api_id++;
       }
@@ -815,7 +818,7 @@ public:
     return true;
   }
 
-  Optional<std::vector<std::unique_ptr<Param>>> parseModuleCtor(CXXConstructorDecl* ctor) {
+  Optional<std::vector<std::unique_ptr<Param>>> parseModuleCtor(CXXConstructorDecl* ctor, size_t num_input_tensor) {
     if (//ctor->isDefaultConstructor() ||
         ctor->isCopyOrMoveConstructor() ||
         ctor->isSpecializationCopyingObject() ||
@@ -825,7 +828,8 @@ public:
     current_tensor_rank_idx = 0;
     option_class_done = false;
     std::vector<std::unique_ptr<Param>> params;
-    params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+    for (size_t i = 0; i < num_input_tensor; i++)
+      params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
     for (const auto* param: ctor->parameters()) {
       clang::QualType t = param->getType();
       //t->dump();
@@ -856,7 +860,8 @@ public:
   }
 
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
-    auto target_api = nn_module;
+    //auto target_api = nn_module;
+    auto target_api = nn_loss;
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it == target_api.end())
       return true;
@@ -880,13 +885,30 @@ public:
     class_decl->dump();
     std::cout << "========================================================================\n";
 
+    size_t num_input_tensor;
+    if (endswith(current_target, "Loss")) {
+      if (current_target == "torch::nn::CTCLoss") {
+        num_input_tensor = 4;
+      } else if (
+          current_target == "torch::nn::TripletMarginLoss" ||
+          current_target == "torch::nn::TripletMarginWithDistanceLoss" ||
+          current_target == "torch::nn::CosineEmbeddingLoss" ||
+          current_target == "torch::nn::MarginRankingLoss") {
+        num_input_tensor = 3;
+      } else {
+        num_input_tensor = 2;
+      }
+    } else {
+      num_input_tensor = 1;
+    }
+
     size_t target_id = 0;
     for (auto rank: api_it->second) {
       current_tensor_rank = rank;
       std::vector<std::vector<std::unique_ptr<Param>>> candidates;
 
       for (auto ctor: class_decl->ctors())
-        if (auto parsed = parseModuleCtor(ctor))
+        if (auto parsed = parseModuleCtor(ctor, num_input_tensor))
           candidates.push_back(std::move(parsed.getValue()));
       if (!class_decl->bases().empty()) {
         const TemplateSpecializationType* tstype2;
@@ -900,7 +922,7 @@ public:
           assert(tstype2->isSugared());
           if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl()))
             for (auto ctor: ctsdecl->ctors())
-              if (auto parsed = parseModuleCtor(ctor))
+              if (auto parsed = parseModuleCtor(ctor, num_input_tensor))
                 candidates.push_back(std::move(parsed.getValue()));
         }
       }
@@ -911,158 +933,9 @@ public:
         current_target_unqualified + "_" + std::to_string(target_id++) +
         ".cpp";
       bool is_module = true;
-      std::string code = gen_code(current_target, params, is_module);
+      std::string code = gen_code(current_target, params, is_module, num_input_tensor);
       file_buffer.push_back(std::make_pair(filename, code));
     }
-
-    /* for (auto b: Declaration->bases()) {
-      if (const auto* elaborated = dyn_cast<ElaboratedType>(b.getType())) {
-        assert(elaborated->isSugared());
-        if (const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar())) {
-          assert(tstype->isSugared());
-          assert(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder");
-          auto targs = tstype->template_arguments();
-          assert(targs.size() == 1);
-          //targs[0].getAsType()->dump();
-          //std::cout << "=========================================================================\n";
-          //targs[0].getAsType()->getAs<RecordType>()->dump();
-          //std::cout << "=========================================================================\n";
-          //targs[0].getAsType()->getAs<RecordType>()->getDecl()->dump();
-          auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
-          class_decl->dump();
-          size_t api_id = 0;
-          bool done = false;
-          for (auto b2: class_decl->bases()) {
-            b2.getType()->dump();
-            std::cout << "=========================================================================\n";
-
-            const TemplateSpecializationType* tstype2;
-            if (const auto* etype = dyn_cast<ElaboratedType>(b2.getType())) {
-              std::cout << "11\n";
-              tstype2 = dyn_cast<TemplateSpecializationType>(etype->desugar());
-            } else {
-              std::cout << "22\n";
-              tstype2 = dyn_cast<TemplateSpecializationType>(b2.getType());
-            }
-            
-            //if (const auto* tstype2 = dyn_cast<TemplateSpecializationType>(b2.getType())) {
-            if (tstype2 != nullptr) {
-              std::cout << "33\n";
-              //tstype2->dump();
-              assert(tstype2->isSugared());
-              //std::cout << "=========================================================================\n";
-              //tstype2->desugar()->dump();
-              //std::cout << "=========================================================================\n";
-              //tstype2->desugar()->getAs<RecordType>()->getDecl()->dump();
-              if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl())) {
-                std::cout << "ctsdecl: \n";
-                ctsdecl->dump();
-                std::cout << "=========================================================================\n";
-                for (auto ctor: ctsdecl->ctors()) {
-                  std::cout << "ctor:\n";
-                  ctor->dump();
-                  if (ctor->isDefaultConstructor())
-                    std::cout << "isDefaultConstructor\n";
-                  if (ctor->isCopyOrMoveConstructor())
-                    std::cout << "isCopyOrMoveConstructor\n";
-                  if (ctor->isSpecializationCopyingObject())
-                    std::cout << "isSpecializationCopyingObject\n";
-                  if (ctor->isInheritingConstructor())
-                    std::cout << "isInheritingConstructor\n";
-                  bool is_special_ctor =
-                    //ctor->isDefaultConstructor() ||
-                    ctor->isCopyOrMoveConstructor() ||
-                    ctor->isSpecializationCopyingObject() ||
-                    ctor->isInheritingConstructor();
-                  if (!is_special_ctor) {
-                    done = true;
-                    for (auto rank: api_it->second) {
-                      current_tensor_rank = rank;
-                      current_tensor_rank_idx = 0;
-                      option_class_done = false;
-                      std::vector<std::unique_ptr<Param>> params;
-                      params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
-                      for (const auto* param: ctor->parameters()) {
-                        clang::QualType t = param->getType();
-                        //t->dump();
-                        std::unique_ptr<Param> p = parseTorchParam(t, *Context);
-                        if (p != nullptr)
-                          params.push_back(std::move(p));
-                      }
-                      std::string filename =
-                        current_target_unqualified + "_" + std::to_string(api_id) +
-                        ".cpp";
-                      bool is_module = true;
-                      std::string code = gen_code(current_target, params, is_module);
-                      file_buffer.push_back(std::make_pair(filename, code));
-                      api_id++;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          if (done)
-            continue;
-          for (auto ctor: class_decl->ctors()) {
-            std::cout << "ctor: \n";
-            ctor->dump();
-            if (ctor->isDefaultConstructor())
-              std::cout << "isDefaultConstructor\n";
-            if (ctor->isCopyOrMoveConstructor())
-              std::cout << "isCopyOrMoveConstructor\n";
-            if (ctor->isSpecializationCopyingObject())
-              std::cout << "isSpecializationCopyingObject\n";
-            if (ctor->isInheritingConstructor())
-              std::cout << "isInheritingConstructor\n";
-            bool is_special_ctor =
-              //ctor->isDefaultConstructor() ||
-              ctor->isCopyOrMoveConstructor() ||
-              ctor->isSpecializationCopyingObject() ||
-              ctor->isInheritingConstructor();
-            if (!is_special_ctor) {
-              //std::cout << "ctor: \n";
-              //ctor->dump();
-              //std::vector<std::unique_ptr<Param>> params;
-              for (auto rank: api_it->second) {
-                current_tensor_rank = rank;
-                current_tensor_rank_idx = 0;
-                option_class_done = false;
-                std::vector<std::unique_ptr<Param>> params;
-                params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
-                for (const auto* param: ctor->parameters()) {
-                  //param->dump();
-                  //std::cout << param->getNameAsString() << std::endl;
-                  //ctor_param_names.push_back(param->getNameAsString());
-                  clang::QualType t = param->getType();
-                  t->dump();
-                  //if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
-                    std::unique_ptr<Param> p = parseTorchParam(t, *Context);
-                    if (p != nullptr)
-                      params.push_back(std::move(p));
-                    
-                  //}
-                }
-                std::string filename =
-                  current_target_unqualified + "_" + std::to_string(api_id) +
-                  ".cpp";
-                bool is_module = true;
-                std::string code = gen_code(current_target, params, is_module);
-                file_buffer.push_back(std::make_pair(filename, code));
-                api_id++;
-              }
-            }
-          }
-
-          //class_decl->dump();
-          //exit(0);
-
-        }
-      }
-
-
-      //b.getType()->dump();
-    } */
 
     return true;
   }
