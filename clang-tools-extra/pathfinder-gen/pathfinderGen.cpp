@@ -312,8 +312,12 @@ std::string current_target;
 tensor_rank current_tensor_rank;
 size_t current_tensor_rank_idx;
 bool option_class_done;
+bool general_tensor_rank = false;
 
 Optional<size_t> get_rank() {
+  if (general_tensor_rank)
+    return None;
+
   if (current_tensor_rank.size() <= current_tensor_rank_idx) {
     return None;
   } else {
@@ -871,6 +875,8 @@ public:
         else if (in (current_target, functional_additional))
           functional_additional_files.push_back(std::make_pair(filename, code));
         api_id++;
+        if (general_tensor_rank)
+          break;
       }
     }
 
@@ -1035,6 +1041,8 @@ public:
       bool is_module = true;
       std::string code = gen_code(current_target, params, is_module, num_input_tensor);
       module_files.push_back(std::make_pair(filename, code));
+      if (general_tensor_rank)
+        break;
     }
 
     return true;
@@ -1100,6 +1108,7 @@ int main(int argc, const char **argv) {
   ClangTool Tool(OptionsParser.getCompilations(),
                  OptionsParser.getSourcePathList());
 
+  //general_tensor_rank = true;
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
   make_dir_and_write_files("functional_common", functional_common_files);
@@ -1115,29 +1124,6 @@ int main(int argc, const char **argv) {
   } else {
     assert(false);
   }
-
-  /* std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
-  for (auto p: file_buffer) {
-    std::string filename = p.first;
-    //std::cout << filename << std::endl;
-    std::string code = p.second;
-    std::ofstream writeFile(filename);
-    if(writeFile.is_open()){
-      writeFile << code;
-      writeFile.close();
-      cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
-    } else {
-      assert(false);
-    }
-  }
-
-  std::ofstream writeFile("CMakeLists.txt");
-  if(writeFile.is_open()){
-    writeFile << cmake_contents;
-    writeFile.close();
-  } else {
-    assert(false);
-  } */
 
   return 0;
 }
