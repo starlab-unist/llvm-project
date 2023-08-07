@@ -150,135 +150,162 @@ std::map<std::string, std::set<tensor_rank>> functional_additional = {
   {"torch::nn::functional::multi_head_attention_forward",{{}}},
 };
 
-std::map<std::string, std::set<tensor_rank>> nn_module = {
-  {"torch::nn::AdaptiveAvgPool1d",{{2},{3}}},
-  {"torch::nn::AdaptiveAvgPool2d",{{3},{4}}},
-  {"torch::nn::AdaptiveAvgPool3d",{{4},{5}}},
-  {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{1},{2}}},
-  {"torch::nn::AdaptiveMaxPool1d",{{2},{3}}},
-  {"torch::nn::AdaptiveMaxPool2d",{{3},{4}}},
-  {"torch::nn::AdaptiveMaxPool3d",{{4},{5}}},
-  {"torch::nn::AlphaDropout",{{}}},
-  {"torch::nn::AvgPool1d",{{2},{3}}},
-  {"torch::nn::AvgPool2d",{{3},{4}}},
-  {"torch::nn::AvgPool3d",{{4},{5}}},
-  {"torch::nn::BatchNorm1d",{{2},{3}}},
-  {"torch::nn::BatchNorm2d",{{4}}},
-  {"torch::nn::BatchNorm3d",{{5}}},
-  {"torch::nn::Bilinear",{same_ranks}},
-  {"torch::nn::CELU",{{}}},
-  {"torch::nn::ConstantPad1d",{{2},{3}}},
-  {"torch::nn::ConstantPad2d",{{3},{4}}},
-  {"torch::nn::ConstantPad3d",{{4},{5}}},
+std::map<std::string, std::set<tensor_rank>> module = {
+  // Convolution Layers
   {"torch::nn::Conv1d",{{2},{3}}},
   {"torch::nn::Conv2d",{{3},{4}}},
   {"torch::nn::Conv3d",{{4},{5}}},
   {"torch::nn::ConvTranspose1d",{{2},{3}}},
   {"torch::nn::ConvTranspose2d",{{3},{4}}},
   {"torch::nn::ConvTranspose3d",{{4},{5}}},
-  {"torch::nn::CosineSimilarity",{same_ranks}},
-  {"torch::nn::CrossMapLRN2d",{{}}},
-  {"torch::nn::Dropout",{same_ranks}},
-  {"torch::nn::Dropout2d",{{3},{4}}},
-  {"torch::nn::Dropout3d",{{4},{5}}},
-  {"torch::nn::ELU",{{}}},
-  {"torch::nn::Embedding",{{}}},
-  {"torch::nn::EmbeddingBag",{{}}},
-  {"torch::nn::FeatureAlphaDropout",{{4},{5}}},
-  {"torch::nn::Flatten",{{}}},
+  {"torch::nn::Unfold",{{2},{3},{4}}},
   {"torch::nn::Fold",{{2},{3}}},
-  {"torch::nn::FractionalMaxPool2d",{{3},{4}}},
-  {"torch::nn::FractionalMaxPool3d",{{4},{5}}},
-  {"torch::nn::ELU",{{}}},
-  {"torch::nn::GLU",{{}}},
-  {"torch::nn::GroupNorm",{{2},{3},{4},{5}}},
-  {"torch::nn::GRU",{{2,2},{3,3}}},
-  {"torch::nn::GRUCell",{{1,1},{2,2}}},
-  {"torch::nn::Hardshrink",{{}}},
-  {"torch::nn::Hardtanh",{{}}},
-  {"torch::nn::Identity",{{}}},
-  {"torch::nn::InstanceNorm1d",{{2},{3}}},
-  {"torch::nn::InstanceNorm2d",{{3},{4}}},
-  {"torch::nn::InstanceNorm3d",{{4},{5}}},
-  {"torch::nn::LayerNorm",{{}}},
-  {"torch::nn::LeakyReLU",{{}}},
-  {"torch::nn::Linear",{{}}},
-  {"torch::nn::LocalResponseNorm",{{2},{3},{4},{5}}},
-  {"torch::nn::LogSigmoid",{{}}},
-  {"torch::nn::LogSoftmax",{{}}},
-  {"torch::nn::LPPool1d",{{2},{3}}},
-  {"torch::nn::LPPool2d",{{4}}},
-  {"torch::nn::LSTM",{{2,2,2},{3,3,3}}},
-  {"torch::nn::LSTMCell",{{1,1,1},{2,2,2}}},
+
+  // Pooling Layers
   {"torch::nn::MaxPool1d",{{2},{3}}},
   {"torch::nn::MaxPool2d",{{3},{4}}},
   {"torch::nn::MaxPool3d",{{4},{5}}},
-  {"torch::nn::MaxUnpool1d",{{2},{3}}},
-  {"torch::nn::MaxUnpool2d",{{3},{4}}},
-  {"torch::nn::MaxUnpool3d",{{4},{5}}},
-  {"torch::nn::Mish",{{}}},
-  //{"torch::nn::MultiheadAttention",{{}}},
-  {"torch::nn::PairwiseDistance",{{1,1},{2,2}}},
-  {"torch::nn::PixelShuffle",{{3},{4},{5}}},
-  {"torch::nn::PixelUnshuffle",{{3},{4},{5}}},
-  {"torch::nn::PReLU",{{}}},
+  {"torch::nn::MaxUnpool1d",{{2,2},{3,3}}},
+  {"torch::nn::MaxUnpool2d",{{3,3},{4,4}}},
+  {"torch::nn::MaxUnpool3d",{{4,4},{5,5}}},
+  {"torch::nn::AvgPool1d",{{2},{3}}},
+  {"torch::nn::AvgPool2d",{{3},{4}}},
+  {"torch::nn::AvgPool3d",{{4},{5}}},
+  {"torch::nn::FractionalMaxPool2d",{{3},{4}}},
+  {"torch::nn::FractionalMaxPool3d",{{4},{5}}},
+  {"torch::nn::LPPool1d",{{2},{3}}},
+  {"torch::nn::LPPool2d",{{4}}},
+  {"torch::nn::AdaptiveMaxPool1d",{{2},{3}}},
+  {"torch::nn::AdaptiveMaxPool2d",{{3},{4}}},
+  {"torch::nn::AdaptiveMaxPool3d",{{4},{5}}},
+  {"torch::nn::AdaptiveAvgPool1d",{{2},{3}}},
+  {"torch::nn::AdaptiveAvgPool2d",{{3},{4}}},
+  {"torch::nn::AdaptiveAvgPool3d",{{4},{5}}},
+
+  // Padding Layers
   {"torch::nn::ReflectionPad1d",{{2},{3}}},
   {"torch::nn::ReflectionPad2d",{{3},{4}}},
   {"torch::nn::ReflectionPad3d",{{4},{5}}},
-  {"torch::nn::ReLU",{{}}},
-  {"torch::nn::ReLU6",{{}}},
   {"torch::nn::ReplicationPad1d",{{2},{3}}},
   {"torch::nn::ReplicationPad2d",{{3},{4}}},
   {"torch::nn::ReplicationPad3d",{{4},{5}}},
-  {"torch::nn::RNN",{{2,2},{3,3}}},
-  {"torch::nn::RNNCell",{{1,1},{2,2}}},
+  {"torch::nn::ZeroPad1d",{{2},{3}}},
+  {"torch::nn::ZeroPad2d",{{3},{4}}},
+  {"torch::nn::ZeroPad3d",{{4},{5}}},
+  {"torch::nn::ConstantPad1d",{{2},{3}}},
+  {"torch::nn::ConstantPad2d",{{3},{4}}},
+  {"torch::nn::ConstantPad3d",{{4},{5}}},
+
+  // Non-linear Activations (weighted sum, nonlinearity)
+  {"torch::nn::ELU",{{}}},
+  {"torch::nn::Hardshrink",{{}}},
+  {"torch::nn::Hardtanh",{{}}},
+  {"torch::nn::LeakyReLU",{{}}},
+  {"torch::nn::LogSigmoid",{{}}},
+  //{"torch::nn::MultiheadAttention",{{}}},
+  {"torch::nn::PReLU",{{}}},
+  {"torch::nn::ReLU",{{}}},
+  {"torch::nn::ReLU6",{{}}},
   {"torch::nn::RReLU",{{}}},
   {"torch::nn::SELU",{{}}},
+  {"torch::nn::CELU",{{}}},
   {"torch::nn::Sigmoid",{{}}},
   {"torch::nn::SiLU",{{}}},
-  {"torch::nn::Softmax",{{}}},
-  {"torch::nn::Softmax2d",{{3},{4}}},
-  {"torch::nn::Softmin",{{}}},
+  {"torch::nn::Mish",{{}}},
   {"torch::nn::Softplus",{{}}},
   {"torch::nn::Softshrink",{{}}},
   {"torch::nn::Softsign",{{}}},
   {"torch::nn::Tanh",{{}}},
   {"torch::nn::Tanhshrink",{{}}},
   {"torch::nn::Threshold",{{}}},
-  //{"torch::nn::Transformer",{{}}},
-  //{"torch::nn::TransformerDecoder",{{}}},
-  //{"torch::nn::TransformerDecoderLayer",{{}}},
-  //{"torch::nn::TransformerEncoder",{{}}},
-  //{"torch::nn::TransformerEncoderLayer",{{}}},
-  {"torch::nn::Unflatten",{{}}},
-  {"torch::nn::Unfold",{{2},{3},{4}}},
-  {"torch::nn::Upsample",{{3},{4},{5}}},
-  {"torch::nn::ZeroPad1d",{{2},{3}}},
-  {"torch::nn::ZeroPad2d",{{3},{4}}},
-  {"torch::nn::ZeroPad3d",{{4},{5}}},
-};
+  {"torch::nn::GLU",{{}}},
 
-std::map<std::string, std::set<tensor_rank>> nn_loss = {
-  {"torch::nn::BCELoss",{same_ranks}},
-  {"torch::nn::BCEWithLogitsLoss",{same_ranks}},
-  {"torch::nn::CosineEmbeddingLoss",{{2,2,1},{1,1,0}}},
+  // Non-linear Activations (other)
+  {"torch::nn::Softmin",{{}}},
+  {"torch::nn::Softmax",{{}}},
+  {"torch::nn::Softmax2d",{{3},{4}}},
+  {"torch::nn::LogSoftmax",{{}}},
+  {"torch::nn::AdaptiveLogSoftmaxWithLoss",{{1},{2}}},
+
+  // Normalization Layers
+  {"torch::nn::BatchNorm1d",{{2},{3}}},
+  {"torch::nn::BatchNorm2d",{{4}}},
+  {"torch::nn::BatchNorm3d",{{5}}},
+  {"torch::nn::GroupNorm",{{2},{3},{4},{5}}},
+  {"torch::nn::InstanceNorm1d",{{2},{3}}},
+  {"torch::nn::InstanceNorm2d",{{3},{4}}},
+  {"torch::nn::InstanceNorm3d",{{4},{5}}},
+  {"torch::nn::LayerNorm",{{}}},
+  {"torch::nn::LocalResponseNorm",{{2},{3},{4},{5}}},
+
+  // Recurrent Layers
+  {"torch::nn::RNN",{{2,2},{3,3}}},
+  {"torch::nn::LSTM",{{2,2,2},{3,3,3}}},
+  {"torch::nn::GRU",{{2,2},{3,3}}},
+  {"torch::nn::RNNCell",{{1,1},{2,2}}},
+  {"torch::nn::LSTMCell",{{1,1,1},{2,2,2}}},
+  {"torch::nn::GRUCell",{{1,1},{2,2}}},
+
+  // Transformer Layers
+  //{"torch::nn::Transformer",{{}}},
+  //{"torch::nn::TransformerEncoder",{{}}},
+  //{"torch::nn::TransformerDecoder",{{}}},
+  //{"torch::nn::TransformerEncoderLayer",{{}}},
+  //{"torch::nn::TransformerDecoderLayer",{{}}},
+
+  // Linear Layers
+  {"torch::nn::Identity",{{}}},
+  {"torch::nn::Linear",{{}}},
+  {"torch::nn::Bilinear",{same_ranks}},
+
+  // Dropout Layers
+  {"torch::nn::Dropout",{same_ranks}},
+  {"torch::nn::Dropout2d",{{3},{4}}},
+  {"torch::nn::Dropout3d",{{4},{5}}},
+  {"torch::nn::AlphaDropout",{{}}},
+  {"torch::nn::FeatureAlphaDropout",{{4},{5}}},
+
+  // Sparse Layers
+  {"torch::nn::Embedding",{{}}},
+  {"torch::nn::EmbeddingBag",{{}}},
+
+  // Distance Functions
+  {"torch::nn::CosineSimilarity",{same_ranks}},
+  {"torch::nn::PairwiseDistance",{{1,1},{2,2}}},
+
+  // Loss Functions
+  {"torch::nn::L1Loss",{same_ranks}},
+  {"torch::nn::MSELoss",{same_ranks}},
   {"torch::nn::CrossEntropyLoss",{{1,0},{2,1},{3,2},{4,3},{5,4}}},
   {"torch::nn::CTCLoss",{{3,2,1,1},{2,1,0,0}}},
-  {"torch::nn::HingeEmbeddingLoss",{same_ranks}},
-  {"torch::nn::HuberLoss",{same_ranks}},
-  {"torch::nn::KLDivLoss",{same_ranks}},
-  {"torch::nn::L1Loss",{same_ranks}},
-  {"torch::nn::MarginRankingLoss",{{1,1,1},{2,2,2},{3,3,3},{4,4,4},{5,5,5}}},
-  {"torch::nn::MSELoss",{same_ranks}},
-  {"torch::nn::MultiLabelMarginLoss",{{1,1},{2,2}}},
-  {"torch::nn::MultiLabelSoftMarginLoss",{{2,2}}},
-  {"torch::nn::MultiMarginLoss",{{2,1},{1,0}}},
   {"torch::nn::NLLLoss",{{1,0},{2,1},{3,2},{4,3},{5,4}}},
   {"torch::nn::PoissonNLLLoss",{same_ranks}},
+  {"torch::nn::KLDivLoss",{same_ranks}},
+  {"torch::nn::BCELoss",{same_ranks}},
+  {"torch::nn::BCEWithLogitsLoss",{same_ranks}},
+  {"torch::nn::MarginRankingLoss",{{1,1,1},{2,2,2},{3,3,3},{4,4,4},{5,5,5}}},
+  {"torch::nn::HingeEmbeddingLoss",{same_ranks}},
+  {"torch::nn::MultiLabelMarginLoss",{{1,1},{2,2}}},
+  {"torch::nn::HuberLoss",{same_ranks}},
   {"torch::nn::SmoothL1Loss",{same_ranks}},
   {"torch::nn::SoftMarginLoss",{same_ranks}},
+  {"torch::nn::MultiLabelSoftMarginLoss",{{2,2}}},
+  {"torch::nn::CosineEmbeddingLoss",{{2,2,1},{1,1,0}}},
+  {"torch::nn::MultiMarginLoss",{{2,1},{1,0}}},
   {"torch::nn::TripletMarginLoss",{{1,1,1},{2,2,2}}},
   {"torch::nn::TripletMarginWithDistanceLoss",{{1,1,1},{2,2,2},{3,3,3},{4,4,4},{5,5,5}}},
+  
+  // Vision Layers
+  {"torch::nn::PixelShuffle",{{3},{4},{5}}},
+  {"torch::nn::PixelUnshuffle",{{3},{4},{5}}},
+  {"torch::nn::Upsample",{{3},{4},{5}}},
+  
+  // Utilities
+  {"torch::nn::Flatten",{{}}},
+  {"torch::nn::Unflatten",{{}}},
+  
+  // etc
+  {"torch::nn::CrossMapLRN2d",{{}}},
 };
 
 std::string current_target;
@@ -286,18 +313,7 @@ tensor_rank current_tensor_rank;
 size_t current_tensor_rank_idx;
 bool option_class_done;
 
-/* size_t get_rank() {
-  static const size_t DEFAULT_RANK = 3;
-  if (current_tensor_rank.size() <= current_tensor_rank_idx) {
-    return DEFAULT_RANK;
-  } else {
-    return current_tensor_rank[current_tensor_rank_idx++];
-  }
-} */
-
 Optional<size_t> get_rank() {
-  //static const size_t DEFAULT_RANK = 3;
-  //std::cout << "rank.size(): " << std::to_string(current_tensor_rank.size()) << ", idx: " << std::to_string(current_tensor_rank_idx ) << std::endl;
   if (current_tensor_rank.size() <= current_tensor_rank_idx) {
     return None;
   } else {
@@ -379,12 +395,12 @@ Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, ASTContext &Ctx)
         if (rtype->getDecl()->getNameAsString() == "vector") {
           auto targs = tstype->template_arguments();
           if (targs.size() == 1) {
-            //targs[0].getAsType()->dump();
-            auto p = parseTorchParam(targs[0].getAsType(), Ctx);
-            if (p->ptype == INT)
-              return std::make_unique<Param>(INTVECTOR);
-            if (p->ptype == FLOAT)
-              return std::make_unique<Param>(FLOATVECTOR);
+            if (auto p = parseTorchParam(targs[0].getAsType(), Ctx)) {
+              if (p->ptype == INT)
+                return std::make_unique<Param>(INTVECTOR);
+              if (p->ptype == FLOAT)
+                return std::make_unique<Param>(FLOATVECTOR);
+            }
           }
         }
       }
@@ -412,10 +428,6 @@ Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t) {
   return None;
 }
 
-bool is_expandingarray(std::string name) {
-  return name == "ExpandingArray" || name == "ExpandingArrayWithOptionalElem";
-}
-
 Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, ASTContext &Ctx) {
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
     if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
@@ -441,8 +453,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
   if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
     assert(tstype->isSugared());
     rtype = dyn_cast<RecordType>(tstype->desugar());
-    //if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
-    if (rtype != nullptr && is_expandingarray(rtype->getDecl()->getNameAsString())) {
+    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
       //rtype->dump();
       auto targ = tstype->template_arguments();
       if (targ.size() != 1)
@@ -461,7 +472,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
     if (const auto* rtype2 = dyn_cast<RecordType>(sttptype->getReplacementType())) {
       if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype2->getDecl())) {
         //if (ctsdecl->getNameAsString() == "ExpandingArrayWithOptionalElem") {
-        if (is_expandingarray(ctsdecl->getNameAsString())) {
+        if (ctsdecl->getNameAsString() == "ExpandingArray") {
           //ctsdecl->dump();
           const auto& targ = ctsdecl->getTemplateArgs();
           assert(targ.size() == 2);
@@ -481,6 +492,40 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
         targ[0].dump();
         targ[1].dump();
       } */
+    }
+  }
+
+  return None;
+}
+
+Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::QualType t, ASTContext &Ctx) {
+  const RecordType* rtype;
+  const TemplateSpecializationType* tstype;
+  const SubstTemplateTypeParmType* sttptype;
+  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
+    assert(tstype->isSugared());
+    rtype = dyn_cast<RecordType>(tstype->desugar());
+    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArrayWithOptionalElem") {
+      auto targ = tstype->template_arguments();
+      if (targ.size() != 1)
+        return None;
+      int64_t expandingarray_size =
+        targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
+      return std::make_unique<Param>(EXPANDINGARRAYWITHOPTIONALELEM, expandingarray_size);
+    }
+  } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
+    assert(sttptype->isSugared());
+    if (const auto* rtype2 = dyn_cast<RecordType>(sttptype->getReplacementType())) {
+      if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype2->getDecl())) {
+        if (ctsdecl->getNameAsString() == "ExpandingArrayWithOptionalElem") {
+          const auto& targ = ctsdecl->getTemplateArgs();
+          assert(targ.size() == 2);
+          assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
+          int64_t expandingarray_size =
+            targ[0].getAsIntegral().getExtValue();
+          return std::make_unique<Param>(EXPANDINGARRAYWITHOPTIONALELEM, expandingarray_size);
+        }
+      }
     }
   }
 
@@ -529,7 +574,7 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
                   auto p = parseTorchParam(targ.getAsType(), Ctx);
                   if (p->ptype == ENUM) {
                     enums.push_back(std::move(p));
-                  } else if (p->ptype == EXPANDINGARRAY) {
+                  } else if (p->ptype == EXPANDINGARRAY || p->ptype == EXPANDINGARRAYWITHOPTIONALELEM) {
                     expandingarray = std::move(p);
                   } else {
                     assert(false);
@@ -734,6 +779,8 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
     return std::move(intarrayref_opt.getValue());
   if (auto expandingarray_opt = parseExpandingArray(t, Ctx))
     return std::move(expandingarray_opt.getValue());
+  if (auto expandingarraywithoptionalelem_opt = parseExpandingArrayWithOptionalElem(t, Ctx))
+    return std::move(expandingarraywithoptionalelem_opt.getValue());
   if (auto optional_opt = parseOptional(t, Ctx))
     return std::move(optional_opt.getValue());
   if (auto variant_opt = parseVariant(t, Ctx))
@@ -770,7 +817,17 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
   return nullptr;
 }
 
-std::vector<std::pair<std::string, std::string>> file_buffer;
+std::vector<std::pair<std::string, std::string>> functional_common_files;
+std::vector<std::pair<std::string, std::string>> functional_additional_files;
+std::vector<std::pair<std::string, std::string>> module_files;
+
+void map_concat(std::map<std::string, std::set<tensor_rank>>& orig,std::map<std::string, std::set<tensor_rank>>& other) {
+  orig.insert(other.begin(), other.end());
+}
+
+bool in(std::string api_name, std::map<std::string, std::set<tensor_rank>> apis) {
+  return apis.find(api_name) != apis.end();
+}
 
 class FindNamedClassVisitor
   : public RecursiveASTVisitor<FindNamedClassVisitor> {
@@ -779,10 +836,10 @@ public:
     : Context(Context) {}
 
   bool VisitFunctionDecl(FunctionDecl *Declaration) {
-    //auto target_api = functional_common;
-    return true;
+    std::map<std::string, std::set<tensor_rank>> target_api;
+    map_concat(target_api, functional_common);
+    map_concat(target_api, functional_additional);
 
-    auto target_api = functional_additional;
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it != target_api.end()) {
       current_target = Declaration->getQualifiedNameAsString();
@@ -809,7 +866,10 @@ public:
           ".cpp";
         bool is_module = false;
         std::string code = gen_code(current_target, params, is_module, 0);
-        file_buffer.push_back(std::make_pair(filename, code));
+        if (in (current_target, functional_common))
+          functional_common_files.push_back(std::make_pair(filename, code));
+        else if (in (current_target, functional_additional))
+          functional_additional_files.push_back(std::make_pair(filename, code));
         api_id++;
       }
     }
@@ -818,6 +878,9 @@ public:
   }
 
   Optional<std::vector<std::unique_ptr<Param>>> parseModuleCtor(CXXConstructorDecl* ctor, size_t num_input_tensor) {
+    std::cout << "ctor:\n";
+    ctor->dump();
+
     if (//ctor->isDefaultConstructor() ||
         ctor->isCopyOrMoveConstructor() ||
         ctor->isSpecializationCopyingObject() ||
@@ -858,9 +921,10 @@ public:
     return std::move(candidates[best_idx]);
   }
 
+
+
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
-    auto target_api = nn_module;
-    //auto target_api = nn_loss;
+    auto target_api = module;
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it == target_api.end())
       return true;
@@ -901,7 +965,12 @@ public:
       if (current_target == "torch::nn::LSTM" ||
           current_target == "torch::nn::LSTMCell") {
         num_input_tensor = 3;
-      } else if (current_target == "torch::nn::CosineSimilarity" ||
+      } else if (
+          current_target == "torch::nn::MaxUnpool1d" ||
+          current_target == "torch::nn::MaxUnpool2d" ||
+          current_target == "torch::nn::MaxUnpool3d" ||
+          current_target == "torch::nn::CosineSimilarity" ||
+          current_target == "torch::nn::PairwiseDistance" ||
           current_target == "torch::nn::GRU" ||
           current_target == "torch::nn::GRUCell" ||
           current_target == "torch::nn::RNN" ||
@@ -922,6 +991,8 @@ public:
         if (auto parsed = parseModuleCtor(ctor, num_input_tensor))
           candidates.push_back(std::move(parsed.getValue()));
       if (!class_decl->bases().empty()) {
+        std::cout << "base type:\n";
+        class_decl->bases_begin()->getType()->dump();
         const TemplateSpecializationType* tstype2;
         if (const auto* etype = dyn_cast<ElaboratedType>(class_decl->bases_begin()->getType())) {
           tstype2 = dyn_cast<TemplateSpecializationType>(etype->desugar());
@@ -931,10 +1002,28 @@ public:
 
         if (tstype2 != nullptr) {
           assert(tstype2->isSugared());
-          if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl()))
-            for (auto ctor: ctsdecl->ctors())
-              if (auto parsed = parseModuleCtor(ctor, num_input_tensor))
-                candidates.push_back(std::move(parsed.getValue()));
+          if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(tstype2->desugar()->getAs<RecordType>()->getDecl())) {
+            if (!ctsdecl->bases().empty() && ctsdecl->bases_begin()->getType()->getAs<RecordType>()->getDecl()->getNameAsString() == "NormImplBase") {
+              //std::cout << "normimplbase:\n";
+              //ctsdecl->bases_begin()->getType()->getAs<RecordType>()->getDecl()->dump();
+              auto targs = ctsdecl->bases_begin()->getType()->getAs<TemplateSpecializationType>()->template_arguments();
+              assert(targs.size() == 3 && targs[2].getKind() == TemplateArgument::ArgKind::Type);
+              current_tensor_rank_idx = 0;
+              option_class_done = false;
+              std::vector<std::unique_ptr<Param>> params;
+              for (size_t i = 0; i < num_input_tensor; i++)
+                params.push_back(std::make_unique<Param>(TENSOR, get_rank()));
+              if (auto p = parseTorchParam(targs[2].getAsType(), *Context))
+                params.push_back(std::move(p));
+              candidates.push_back(std::move(params));
+            } else {
+              std::cout << "ctsdecl:\n";
+              ctsdecl->dump();
+              for (auto ctor: ctsdecl->ctors())
+                if (auto parsed = parseModuleCtor(ctor, num_input_tensor))
+                  candidates.push_back(std::move(parsed.getValue()));
+            }
+          }
         }
       }
 
@@ -945,7 +1034,7 @@ public:
         ".cpp";
       bool is_module = true;
       std::string code = gen_code(current_target, params, is_module, num_input_tensor);
-      file_buffer.push_back(std::make_pair(filename, code));
+      module_files.push_back(std::make_pair(filename, code));
     }
 
     return true;
@@ -977,6 +1066,35 @@ public:
 
 static llvm::cl::OptionCategory MyToolCategory("my-tool options");
 
+void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string, std::string>> files) {
+  if (mkdir(dir.c_str(), 0775) != 0) {
+    std::cout << "Failed to create directory " << dir << std::endl;
+    exit(0);
+  }
+
+  std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
+  for (auto p: files) {
+    std::string filename = p.first;
+    std::string code = p.second;
+    std::ofstream writeFile(dir + "/" + filename);
+    if(writeFile.is_open()){
+      writeFile << code;
+      writeFile.close();
+      cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
+    } else {
+      assert(false);
+    }
+  }
+
+  std::ofstream writeFile(dir + "/CMakeLists.txt");
+  if(writeFile.is_open()){
+    writeFile << cmake_contents;
+    writeFile.close();
+  } else {
+    assert(false);
+  }
+}
+
 int main(int argc, const char **argv) {
   CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
   ClangTool Tool(OptionsParser.getCompilations(),
@@ -984,7 +1102,21 @@ int main(int argc, const char **argv) {
 
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
+  make_dir_and_write_files("functional_common", functional_common_files);
+  make_dir_and_write_files("functional_additional", functional_additional_files);
+  make_dir_and_write_files("module", module_files);
+
+  std::ofstream writeFile("CMakeLists.txt");
+  if(writeFile.is_open()){
+    writeFile << "add_subdirectory(functional_common)\n";
+    writeFile << "add_subdirectory(functional_additional)\n";
+    writeFile << "add_subdirectory(module)\n\n";
+    writeFile.close();
+  } else {
+    assert(false);
+  }
+
+  /* std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
   for (auto p: file_buffer) {
     std::string filename = p.first;
     //std::cout << filename << std::endl;
@@ -1005,7 +1137,7 @@ int main(int argc, const char **argv) {
     writeFile.close();
   } else {
     assert(false);
-  }
+  } */
 
   return 0;
 }

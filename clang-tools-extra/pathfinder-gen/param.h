@@ -32,6 +32,7 @@ enum ParamType {
   FLOATVECTOR,
   INTARRAYREF,
   EXPANDINGARRAY,
+  EXPANDINGARRAYWITHOPTIONALELEM,
   OPTIONAL,
   VARIANT,
   MAP,
@@ -65,7 +66,7 @@ class Param {
     Param(ParamType ptype_, long size)
       : ptype(ptype_)
     {
-      assert(ptype == EXPANDINGARRAY);
+      assert(ptype == EXPANDINGARRAY || ptype == EXPANDINGARRAYWITHOPTIONALELEM);
       expandingarray_size = size;
       offset_size = expandingarray_size;
     }
@@ -156,6 +157,7 @@ size_t Param::set_offset(size_t offset) {
     case FLOATVECTOR:
     case INTARRAYREF:
     case EXPANDINGARRAY:
+    case EXPANDINGARRAYWITHOPTIONALELEM:
       offset_start = offset;
       offset += offset_size;
       break;
@@ -199,7 +201,8 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
   if (e !=nullptr) {
     switch(ptype) {
       case INT:
-      case EXPANDINGARRAY: {
+      case EXPANDINGARRAY:
+      case EXPANDINGARRAYWITHOPTIONALELEM: {
         //std::cout << "aaa\n";
         if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
           assert(il != nullptr);
@@ -293,6 +296,12 @@ void Param::constraint(std::vector<std::string>& strs, bool is_module) {
         strs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
       break;
     }
+    case EXPANDINGARRAYWITHOPTIONALELEM: {
+      int min = default_int ? default_int.getValue() : 0;
+      for (size_t i = offset_start; i < offset_start + offset_size; i++)
+        strs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
+      break;
+    }
     case OPTIONAL: {
       std::string is_some = "arg[" + std::to_string(offset_start) + "]";
       strs.push_back("0 <= " + is_some + ", " + is_some + " <= 1");
@@ -362,6 +371,12 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       return to_quad(empty_strvec(),empty_strvec(),"get_dtype(arg[" + std::to_string(offset_start) + "])",empty_strvec());
     case TENSOR: {
       std::string var_name = "tensor_" + std::to_string(tensor_id++);
+      std::string device = "device";
+      std::string dtype =
+        (api_name == "torch::nn::MaxUnpool1d" ||
+         api_name == "torch::nn::MaxUnpool2d" ||
+         api_name == "torch::nn::MaxUnpool3d") && var_name == "tensor_1" ?
+        "torch::kInt64" : "dtype";
       if (tensor_rank) {
         std::string shape = "{";
         for (size_t i = offset_start; i < offset_start + offset_size; i++) {
@@ -371,7 +386,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(" + shape + "))";
-        std::string tensor_init = "auto " + var_name + " = torch_tensor(device, dtype, " + shape + ");";
+        std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       } else {
         std::string shape = "{";
@@ -382,7 +397,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))";
-        std::string tensor_init = "auto " + var_name + " = torch_tensor(device, dtype, arg[" + std::to_string(offset_start) + "], " + shape + ");";
+        std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(offset_start) + "], " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
       }
     }
@@ -431,6 +446,20 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
           array_init += ",";
       }
       array_init += "};";
+
+      return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
+    }
+    case EXPANDINGARRAYWITHOPTIONALELEM: {
+      std::string var_name = "array_" + std::to_string(array_id++);
+      std::string array_init =
+        "torch::ExpandingArrayWithOptionalElem<" + std::to_string(expandingarray_size) + "> " + var_name +
+        " = expandingarray_with_optional_elem<" + std::to_string(expandingarray_size) + ">({";
+      for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+        array_init += "arg[" + std::to_string(i) + "]";
+        if (i != offset_start + offset_size - 1)
+          array_init += ",";
+      }
+      array_init += "});";
 
       return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
     }
@@ -549,11 +578,6 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       }
       if (map_init.size() > 0)
         map_init[map_init.size()-1] = map_init[map_init.size()-1] + ";";
-      //if (is_module) {
-      //  map_init.push_back("auto m = " + api_name + "(" + options_var + ");");
-      //  map_init.push_back("m->to(device);");
-      //  map_init.push_back("m->to(dtype);");
-      //}
       if (preparation.size() > 0)
         preparation.push_back("");
       preparation.insert(preparation.end(), map_init.begin(), map_init.end());
@@ -617,13 +641,18 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
 
   code += "\n    PathFinderExecuteTarget(\n";
   if (is_module) {
-    code += "      auto result = m->forward(";
-    for (size_t i = 0; i < num_input_tensor; i++) {
-      code += "tensor_" + std::to_string(i);
-      if (i != num_input_tensor - 1)
-        code += ", ";
+    if (api_name == "torch::nn::LSTM" ||
+        api_name == "torch::nn::LSTMCell") {
+      code += "      auto result = m->forward(tensor_0, {{tensor_1, tensor_2}}));\n";
+    } else {
+      code += "      auto result = m->forward(";
+      for (size_t i = 0; i < num_input_tensor; i++) {
+        code += "tensor_" + std::to_string(i);
+        if (i != num_input_tensor - 1)
+          code += ", ";
+      }
+      code += "));\n";
     }
-    code += "));\n";
   } else {
     code += "      auto result = " + api_name + "(";
     for (size_t i = 0; i < positional_arg.size(); i++) {
