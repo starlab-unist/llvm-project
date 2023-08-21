@@ -150,6 +150,58 @@ std::map<std::string, std::set<tensor_rank>> functional_additional = {
   {"torch::nn::functional::multi_head_attention_forward",{{}}},
 };
 
+std::map<std::string, std::set<tensor_rank>> at = {
+  {"at::abs",{{}}},
+  {"at::abs_",{{}}},
+  {"at::absolute",{{}}},
+  {"at::acos",{{}}},
+  {"at::acos_",{{}}},
+  {"at::abs",{{}}},
+  {"at::absolute",{{}}},
+  {"at::acos",{{}}},
+  {"at::acosh",{{}}},
+  {"at::addbmm",{{}}},
+  {"at::addcdiv",{{}}},
+  {"at::addcmul",{{}}},
+  {"at::addmm",{{}}},
+  {"at::addmv",{{}}},
+  {"at::addr",{{}}},
+  {"at::adjoint",{{}}},
+  {"at::affine_grid_generator",{{}}},
+  {"at::alias",{{}}},
+  {"at::align_tensors",{{}}},
+  {"at::all",{{}}},
+  {"at::allclose",{{}}},
+  {"at::alpha_dropout",{{}}},
+  {"at::amax",{{}}},
+  {"at::amin",{{}}},
+  {"at::aminmax",{{}}},
+  {"at::angle",{{}}},
+  {"at::any",{{}}},
+  {"at::arccos",{{}}},
+  {"at::arccosh",{{}}},
+  {"at::arcsin",{{}}},
+  {"at::arcsinh",{{}}},
+  {"at::arctan",{{}}},
+  {"at::arctan2",{{}}},
+  {"at::arctanh",{{}}},
+  {"at::argmax",{{}}},
+  {"at::argmin",{{}}},
+  {"at::argsort",{{}}},
+  {"at::argsort",{{}}},
+  {"at::argwhere",{{}}},
+  {"at::as_strided",{{}}},
+  {"at::as_strided_scatter",{{}}},
+  {"at::asin",{{}}},
+  {"at::asinh",{{}}},
+  {"at::atan",{{}}},
+  {"at::atan2",{{}}},
+  {"at::atanh",{{}}},
+  {"at::atleast_1d",{{}}},
+  {"at::atleast_2d",{{}}},
+  {"at::atleast_3d",{{}}},
+};
+
 std::map<std::string, std::set<tensor_rank>> module = {
   // Convolution Layers
   {"torch::nn::Conv1d",{{2},{3}}},
@@ -823,6 +875,7 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
 
 std::vector<std::pair<std::string, std::string>> functional_common_files;
 std::vector<std::pair<std::string, std::string>> functional_additional_files;
+std::vector<std::pair<std::string, std::string>> at_files;
 std::vector<std::pair<std::string, std::string>> module_files;
 
 void map_concat(std::map<std::string, std::set<tensor_rank>>& orig,std::map<std::string, std::set<tensor_rank>>& other) {
@@ -843,6 +896,7 @@ public:
     std::map<std::string, std::set<tensor_rank>> target_api;
     map_concat(target_api, functional_common);
     map_concat(target_api, functional_additional);
+    map_concat(target_api, at);
 
     auto api_it = target_api.find(Declaration->getQualifiedNameAsString());
     if (api_it != target_api.end()) {
@@ -865,15 +919,17 @@ public:
             params.push_back(std::move(p));
         }
 
-        std::string filename =
-          current_target_unqualified + "_" + std::to_string(api_id) +
-          ".cpp";
+        if (params.empty())
+          continue;
+
         bool is_module = false;
         std::string code = gen_code(current_target, params, is_module, 0);
         if (in (current_target, functional_common))
-          functional_common_files.push_back(std::make_pair(filename, code));
+          functional_common_files.push_back(std::make_pair(current_target_unqualified, code));
         else if (in (current_target, functional_additional))
-          functional_additional_files.push_back(std::make_pair(filename, code));
+          functional_additional_files.push_back(std::make_pair(current_target_unqualified, code));
+        else if (in (current_target, at))
+          at_files.push_back(std::make_pair(current_target_unqualified, code));
         api_id++;
         if (general_tensor_rank)
           break;
@@ -1074,6 +1130,11 @@ public:
 
 static llvm::cl::OptionCategory MyToolCategory("my-tool options");
 
+bool is_file_exist(std::string filename) {
+  std::ifstream infile(filename.c_str());
+  return infile.good();
+}
+
 void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string, std::string>> files) {
   if (mkdir(dir.c_str(), 0775) != 0) {
     std::cout << "Failed to create directory " << dir << std::endl;
@@ -1082,8 +1143,14 @@ void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string
 
   std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
   for (auto p: files) {
-    std::string filename = p.first;
+    std::string target_name = p.first;
     std::string code = p.second;
+
+    size_t id = 0;
+    std::string filename = target_name + "_" + std::to_string(id) + ".cpp";
+    while (is_file_exist(filename))
+      filename = target_name + std::to_string(++id) + ".cpp";
+
     std::ofstream writeFile(dir + "/" + filename);
     if(writeFile.is_open()){
       writeFile << code;
@@ -1108,17 +1175,19 @@ int main(int argc, const char **argv) {
   ClangTool Tool(OptionsParser.getCompilations(),
                  OptionsParser.getSourcePathList());
 
-  //general_tensor_rank = true;
+  general_tensor_rank = true;
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
   make_dir_and_write_files("functional_common", functional_common_files);
   make_dir_and_write_files("functional_additional", functional_additional_files);
+  make_dir_and_write_files("at", at_files);
   make_dir_and_write_files("module", module_files);
 
   std::ofstream writeFile("CMakeLists.txt");
   if(writeFile.is_open()){
     writeFile << "add_subdirectory(functional_common)\n";
     writeFile << "add_subdirectory(functional_additional)\n";
+    writeFile << "add_subdirectory(at)\n";
     writeFile << "add_subdirectory(module)\n\n";
     writeFile.close();
   } else {
