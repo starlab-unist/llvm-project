@@ -102,8 +102,8 @@ class Param {
     std::string to_string(int depth=0);
     void set_default(std::string param_name, const CXXRecordDecl* cdecl);
     size_t set_offset(size_t offset);
-    void constraint(std::vector<std::string>& strs, bool is_module);
-    std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code(std::string api_name, bool is_module);
+    void constraint(std::vector<std::string>& hard_ctrs, std::vector<std::string>& soft_ctrs, bool is_module, bool is_libfuzzer);
+    std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code(std::string api_name, bool is_module, bool is_libfuzzer);
     bool is_map() { return ptype == MAP; }
   private:
     ParamType ptype;
@@ -228,7 +228,8 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
   }
 }
 
-void Param::constraint(std::vector<std::string>& strs, bool is_module) {
+void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::string>& soft_ctrs, bool is_module, bool is_libfuzzer) {
+  std::string sep = is_libfuzzer ? " && " : ", ";
   switch(ptype) {
     case INT: {
       int min =
@@ -236,55 +237,59 @@ void Param::constraint(std::vector<std::string>& strs, bool is_module) {
         default_int.getValue() :
         (is_module ? 1 : 0);
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back(arg + " >= " + std::to_string(min));
+      soft_ctrs.push_back(arg + " >= " + std::to_string(min));
       break;
     }
     case BOOL: {
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + arg + ", " + arg + " <= 1");
+      hard_ctrs.push_back("0 <= " + arg + sep + arg + " <= 1");
       break;
     }
     case FLOAT: {
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(DOUBLE_DICT_SIZE));
+      hard_ctrs.push_back("0 <= " + arg + sep + arg + " < " + std::to_string(DOUBLE_DICT_SIZE));
       break;
     }
     case DTYPE: {
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("DtypeFirst <= " + arg + ", " + arg + " < DtypeLast");
+      hard_ctrs.push_back("DtypeFirst <= " + arg + sep + arg + " < DtypeLast");
       break;
     }
     case TENSOR: {
       if (tensor_rank) {
-        for (size_t i = offset_start; i < offset_start + offset_size; i++)
-          strs.push_back("arg[" + std::to_string(i) + "] >= 1");
+        for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+          hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 0");
+          soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
+        }
       } else {
         std::string rank = "arg[" + std::to_string(offset_start) + "]";
-        strs.push_back("0 <= " + rank + ", " + rank + " <= " + std::to_string(MAX_RANK));
-        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-          strs.push_back("arg[" + std::to_string(i) + "] >= 1");
+        hard_ctrs.push_back("0 <= " + rank + sep + rank + " <= " + std::to_string(MAX_RANK));
+        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
+          hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 0");
+          soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
+        }
       }
       break;
     }
     case INTVECTOR: {
       std::string size = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + size + ", " + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
+      hard_ctrs.push_back("0 <= " + size + sep + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-        strs.push_back("arg[" + std::to_string(i) + "] >= 0");
+        soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 0");
       break;
     }
     case FLOATVECTOR: {
       std::string size = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + size + ", " + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
+      hard_ctrs.push_back("0 <= " + size + sep + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-        strs.push_back("0 <= arg[" + std::to_string(i) + "], arg[" + std::to_string(i) + "] < " + std::to_string(DOUBLE_DICT_SIZE));
+        soft_ctrs.push_back("0 <= arg[" + std::to_string(i) + "], arg[" + std::to_string(i) + "] < " + std::to_string(DOUBLE_DICT_SIZE));
       break;
     }
     case INTARRAYREF: {
       std::string size = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + size + ", " + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
+      hard_ctrs.push_back("0 <= " + size + sep + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-        strs.push_back("arg[" + std::to_string(i) + "] >= 0");
+        soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 0");
       break;
     }
     case EXPANDINGARRAY: {
@@ -293,35 +298,35 @@ void Param::constraint(std::vector<std::string>& strs, bool is_module) {
         default_int.getValue() :
         (is_module ? 1 : 0);
       for (size_t i = offset_start; i < offset_start + offset_size; i++)
-        strs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
+        soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
       break;
     }
     case EXPANDINGARRAYWITHOPTIONALELEM: {
       int min = default_int ? default_int.getValue() : 0;
       for (size_t i = offset_start; i < offset_start + offset_size; i++)
-        strs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
+        soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= " + std::to_string(min));
       break;
     }
     case OPTIONAL: {
       std::string is_some = "arg[" + std::to_string(offset_start) + "]";
-      strs.push_back("0 <= " + is_some + ", " + is_some + " <= 1");
-      base->constraint(strs, is_module);
+      hard_ctrs.push_back("0 <= " + is_some + sep + is_some + " <= 1");
+      base->constraint(hard_ctrs, soft_ctrs, is_module, is_libfuzzer);
       break;
     }
     case VARIANT: {
       if (enums.size() > 0) {
         std::string arg = "arg[" + std::to_string(offset_start) + "]";
-        strs.push_back("0 <= " + arg + ", " + arg + " < " + std::to_string(enums.size()));
+        hard_ctrs.push_back("0 <= " + arg + sep + arg + " < " + std::to_string(enums.size()));
       } else {
-        expandingarray->constraint(strs, is_module);
+        expandingarray->constraint(hard_ctrs, soft_ctrs, is_module, is_libfuzzer);
       }
       break;
     }
     case MAP: {
       for (auto&& p: ctor_params)
-        p.second->constraint(strs, is_module);
+        p.second->constraint(hard_ctrs, soft_ctrs, is_module, is_libfuzzer);
       for (auto&& p: entries)
-        p.second->constraint(strs, is_module);
+        p.second->constraint(hard_ctrs, soft_ctrs, is_module, is_libfuzzer);
       break;
     }
     default:
@@ -329,22 +334,40 @@ void Param::constraint(std::vector<std::string>& strs, bool is_module) {
   }
 }
 
-std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
+std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& params, bool is_module, bool is_libfuzzer) {
   std::string code;
-  code += "void PathFinderSetup() {\n";
-  code += "  PathFinderSetArgSize(" + std::to_string(offset_size) + ");\n";
-  //code += "  PathFinderWeakArg(arg[0], Float32);\n";
-  code += "  PathFinderAddConstraint({\n";
-  code += "    DtypeFirst <= arg[0], arg[0] <= DtypeLast,\n";
+  if (is_libfuzzer) {
+    code += "  if (Size < " + std::to_string(offset_size) + " * sizeof (long)) return 0;\n";
+    code += "  const long* arg = reinterpret_cast<const long*>(Data);\n\n";
+    code += "  if (!(DtypeFirst <= arg[0] && arg[0] <= DtypeLast)) return 0;\n";
+  } else {
+    code += "void PathFinderSetup() {\n";
+    code += "  PathFinderSetArgSize(" + std::to_string(offset_size) + ");\n";
+    //code += "  PathFinderWeakArg(arg[0], Float32);\n";
+    code += "  PathFinderAddHardConstraint({\n";
+    code += "    DtypeFirst <= arg[0], arg[0] <= DtypeLast,\n";
+  }
 
-  std::vector<std::string> constraints;
+  std::vector<std::string> hard_ctrs;
+  std::vector<std::string> soft_ctrs;
   for (auto&& param: params)
-    param->constraint(constraints, is_module);
-  for (std::string constraint: constraints)
-    code += "    " + constraint + ",\n";
+    param->constraint(hard_ctrs, soft_ctrs, is_module, is_libfuzzer);
+  for (std::string hard_ctr: hard_ctrs) {
+    if (is_libfuzzer) {
+      code += "  if (!(" + hard_ctr + ")) return 0;\n";
+    } else {
+      code += "    " + hard_ctr + ",\n";
+    }
+  }
 
-  code += "  });\n";
-  code += "}\n\n";
+  if (!is_libfuzzer) {
+    code += "  });\n";
+    code += "  PathFinderAddSoftConstraint({\n";
+    for (std::string soft_ctr: soft_ctrs)
+      code += "    " + soft_ctr + ",\n";
+    code += "  });\n";
+    code += "}\n\n";
+  }
   
   return code;
 }
@@ -360,7 +383,7 @@ to_quad(std::vector<std::string> first, std::vector<std::string> second, std::st
       std::move(first), std::move(second), std::move(third), std::move(fourth));
 }
 
-std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code(std::string api_name, bool is_module) {
+std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code(std::string api_name, bool is_module, bool is_libfuzzer) {
   switch(ptype) {
     case INT:
     case BOOL:
@@ -397,8 +420,9 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         }
         shape += "}";
         std::string tensor_guard = "if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))";
+        std::string tensor_guard_return = is_libfuzzer ? "  return 0;" : "  return -1;";
         std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(offset_start) + "], " + shape + ");";
-        return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
+        return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, tensor_guard_return});
       }
     }
     case INTVECTOR: {
@@ -466,7 +490,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
     case OPTIONAL: {
       std::vector<std::string> option_check;
       option_check.push_back("if (arg[" + std::to_string(offset_start) + "])");
-      auto t = base->to_code(api_name, is_module);
+      auto t = base->to_code(api_name, is_module, is_libfuzzer);
       std::vector<std::string> preparation = std::get<0>(t);
       std::string expr = std::get<2>(t);
       std::vector<std::string> guard = std::get<3>(t);
@@ -497,7 +521,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         enum_init.push_back("};");
         return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
       } else {
-        return expandingarray->to_code(api_name, is_module);
+        return expandingarray->to_code(api_name, is_module, is_libfuzzer);
       }
     }
     case MAP: {
@@ -525,7 +549,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       } else {
         std::string ctor_param_str;
         for (auto&& p: ctor_params) {
-          auto t = p.second->to_code(api_name, is_module);
+          auto t = p.second->to_code(api_name, is_module, is_libfuzzer);
           auto preparation_ = std::get<0>(t);
           auto option_check_ = std::get<1>(t);
           auto exp_ = std::get<2>(t);
@@ -547,7 +571,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       }
 
       for (auto&& p: entries) {
-        auto t = p.second->to_code(api_name, is_module);
+        auto t = p.second->to_code(api_name, is_module, is_libfuzzer);
         auto preparation_ = std::get<0>(t);
         auto option_check_ = std::get<1>(t);
         auto exp_ = std::get<2>(t);
@@ -589,18 +613,16 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
   }
 }
 
-std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor) {
+std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor, bool is_libfuzzer) {
   std::string code;
-  code += "int PathFinderTestOneInput(const long* arg) {\n";
-  code += "  torch::set_num_threads(1);\n";
-  code += "  torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);\n";
-  code += "  torch::Dtype dtype(get_dtype(arg[0]));\n\n";
+  if (!is_libfuzzer)
+    code += "int PathFinderTestOneInput(const long* arg) {";
 
   std::vector<std::string> preparation;
   std::vector<std::string> positional_arg;
   std::vector<std::string> guard;
   for (auto&& param: params) {
-    auto t = param->to_code(api_name, is_module);
+    auto t = param->to_code(api_name, is_module, is_libfuzzer);
     auto preparation_ = std::get<0>(t);
     auto exp_ = std::get<2>(t);
     auto guard_ = std::get<3>(t);
@@ -614,13 +636,18 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
       guard.insert(guard.end(), guard_.begin(), guard_.end());
   }
 
+  code += "\n";
   for (auto line: guard) {
     if (line != "")
       code += "  " + line;
     code += "\n";
   }
 
-  code += "\n  try {\n";
+  code += "\n  torch::set_num_threads(1);\n";
+  code += "  torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);\n";
+  code += "  torch::Dtype dtype(get_dtype(arg[0]));\n\n";
+
+  code += "  try {\n";
   for (auto line: preparation) {
     if (line != "")
       code += "    " + line;
@@ -639,32 +666,44 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
     code += "    m->to(dtype);\n";
   }
 
-  code += "\n    PathFinderExecuteTarget(\n";
+  std::string api_call;
   if (is_module) {
     if (api_name == "torch::nn::LSTM" ||
         api_name == "torch::nn::LSTMCell") {
-      code += "      auto result = m->forward(tensor_0, {{tensor_1, tensor_2}}));\n";
+      api_call += "auto result = m->forward(tensor_0, {{tensor_1, tensor_2}})\n";
     } else {
-      code += "      auto result = m->forward(";
+      api_call += "auto result = m->forward(";
       for (size_t i = 0; i < num_input_tensor; i++) {
-        code += "tensor_" + std::to_string(i);
+        api_call += "tensor_" + std::to_string(i);
         if (i != num_input_tensor - 1)
-          code += ", ";
+          api_call += ", ";
       }
-      code += "));\n";
+      api_call += ")";
     }
   } else {
-    code += "      auto result = " + api_name + "(";
+    api_call += "auto result = " + api_name + "(";
     for (size_t i = 0; i < positional_arg.size(); i++) {
-      code += positional_arg[i];
+      api_call += positional_arg[i];
       if (i != positional_arg.size()-1) {
-        code += ", ";
+        api_call += ", ";
       }
     }
-    code += "));\n";
+    api_call += ")";
   }
-  code += "  } catch (std::exception& e) {\n";
-  code += "    return -2;\n";
+
+  if (is_libfuzzer) {
+    code += "\n    " + api_call + ";\n";
+  } else {
+    code += "\n    PathFinderExecuteTarget(\n";
+    code += "      " + api_call + ");\n";
+  }
+
+  code += "  } catch (::c10::Error& e) {\n";
+  if (is_libfuzzer) {
+    code += "    return 0;\n";
+  } else {
+    code += "    return -2;\n";
+  }
   code += "  }\n\n";
 
   code += "  return 0;\n";
@@ -673,7 +712,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   return code;
 }
 
-std::string gen_header() {
+std::string gen_header(bool is_libfuzzer) {
   std::string code;
 
   code += "#include <stdint.h>\n";
@@ -682,25 +721,30 @@ std::string gen_header() {
   code += "#include <cassert>\n";
   code += "#include <cstdlib>\n";
   code += "#include <torch/torch.h>\n";
-  code += "#include \"pathfinder.h\"\n";
+  if (!is_libfuzzer)
+    code += "#include \"pathfinder.h\"\n";
   code += "#include \"fuzzer_util.h\"\n\n";
 
   code += "using namespace fuzzer_util;\n\n";
 
-  code += "extern \"C\" {\n\n";
+  if (is_libfuzzer)
+    code += "extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {\n";
+  else
+    code += "extern \"C\" {\n\n";
 
   return code;
 }
 
-std::string gen_footer() {
+std::string gen_footer(bool is_libfuzzer) {
   std::string code;
 
-  code += "}  // extern \"C\"\n\n";
+  if (!is_libfuzzer)
+    code += "}  // extern \"C\"\n\n";
 
   return code;
 }
 
-std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor) {
+std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor, bool is_libfuzzer) {
   tensor_id = 0;
   int_vector_id = 0;
   float_vector_id = 0;
@@ -712,10 +756,10 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
     offset = param->set_offset(offset);
 
   std::string code;
-  code += gen_header();
-  code += gen_setup(offset, params, is_module);
-  code += gen_api_call(api_name, params, is_module, num_input_tensor);
-  code += gen_footer();
+  code += gen_header(is_libfuzzer);
+  code += gen_setup(offset, params, is_module, is_libfuzzer);
+  code += gen_api_call(api_name, params, is_module, num_input_tensor, is_libfuzzer);
+  code += gen_footer(is_libfuzzer);
 
   return code;
 

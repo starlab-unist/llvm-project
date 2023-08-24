@@ -873,10 +873,15 @@ std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
   return nullptr;
 }
 
-std::vector<std::pair<std::string, std::string>> functional_common_files;
-std::vector<std::pair<std::string, std::string>> functional_additional_files;
-std::vector<std::pair<std::string, std::string>> at_files;
-std::vector<std::pair<std::string, std::string>> module_files;
+std::vector<std::pair<std::string, std::string>> functional_common_files_pathfinder;
+std::vector<std::pair<std::string, std::string>> functional_additional_files_pathfinder;
+std::vector<std::pair<std::string, std::string>> at_files_pathfinder;
+std::vector<std::pair<std::string, std::string>> module_files_pathfinder;
+
+std::vector<std::pair<std::string, std::string>> functional_common_files_libfuzzer;
+std::vector<std::pair<std::string, std::string>> functional_additional_files_libfuzzer;
+std::vector<std::pair<std::string, std::string>> at_files_libfuzzer;
+std::vector<std::pair<std::string, std::string>> module_files_libfuzzer;
 
 void map_concat(std::map<std::string, std::set<tensor_rank>>& orig,std::map<std::string, std::set<tensor_rank>>& other) {
   orig.insert(other.begin(), other.end());
@@ -923,13 +928,22 @@ public:
           continue;
 
         bool is_module = false;
-        std::string code = gen_code(current_target, params, is_module, 0);
+        std::string code_pathfinder = gen_code(current_target, params, is_module, 0, false);
         if (in (current_target, functional_common))
-          functional_common_files.push_back(std::make_pair(current_target_unqualified, code));
+          functional_common_files_pathfinder.push_back(std::make_pair(current_target_unqualified, code_pathfinder));
         else if (in (current_target, functional_additional))
-          functional_additional_files.push_back(std::make_pair(current_target_unqualified, code));
+          functional_additional_files_pathfinder.push_back(std::make_pair(current_target_unqualified, code_pathfinder));
         else if (in (current_target, at))
-          at_files.push_back(std::make_pair(current_target_unqualified, code));
+          at_files_pathfinder.push_back(std::make_pair(current_target_unqualified, code_pathfinder));
+
+        std::string code_libfuzzer = gen_code(current_target, params, is_module, 0, true);
+        if (in (current_target, functional_common))
+          functional_common_files_libfuzzer.push_back(std::make_pair(current_target_unqualified, code_libfuzzer));
+        else if (in (current_target, functional_additional))
+          functional_additional_files_libfuzzer.push_back(std::make_pair(current_target_unqualified, code_libfuzzer));
+        else if (in (current_target, at))
+          at_files_libfuzzer.push_back(std::make_pair(current_target_unqualified, code_libfuzzer));
+
         api_id++;
         if (general_tensor_rank)
           break;
@@ -1095,8 +1109,11 @@ public:
         current_target_unqualified + "_" + std::to_string(target_id++) +
         ".cpp";
       bool is_module = true;
-      std::string code = gen_code(current_target, params, is_module, num_input_tensor);
-      module_files.push_back(std::make_pair(filename, code));
+      std::string code_pathfinder = gen_code(current_target, params, is_module, num_input_tensor, false);
+      module_files_pathfinder.push_back(std::make_pair(filename, code_pathfinder));
+      std::string code_libfuzzer = gen_code(current_target, params, is_module, num_input_tensor, true);
+      module_files_libfuzzer.push_back(std::make_pair(filename, code_libfuzzer));
+
       if (general_tensor_rank)
         break;
     }
@@ -1135,13 +1152,21 @@ bool is_file_exist(std::string filename) {
   return infile.good();
 }
 
-void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string, std::string>> files) {
+void make_dir(std::string dir) {
+  if (mkdir(dir.c_str(), 0775) != 0) {
+    std::cout << "Failed to create directory " << dir << std::endl;
+    exit(0);
+  }
+}
+
+void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string, std::string>> files, bool is_libfuzzer) {
   if (mkdir(dir.c_str(), 0775) != 0) {
     std::cout << "Failed to create directory " << dir << std::endl;
     exit(0);
   }
 
-  std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
+  //std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
+  std::string cmake_contents;
   for (auto p: files) {
     std::string target_name = p.first;
     std::string code = p.second;
@@ -1155,7 +1180,10 @@ void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string
     if(writeFile.is_open()){
       writeFile << code;
       writeFile.close();
-      cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
+      if (is_libfuzzer)
+        cmake_contents += "add_libfuzzer_fuzz_target(" + strip_ext(filename) + ")\n";
+      else
+        cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
     } else {
       assert(false);
     }
@@ -1178,12 +1206,19 @@ int main(int argc, const char **argv) {
   general_tensor_rank = true;
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  make_dir_and_write_files("functional_common", functional_common_files);
-  make_dir_and_write_files("functional_additional", functional_additional_files);
-  make_dir_and_write_files("at", at_files);
-  make_dir_and_write_files("module", module_files);
+  make_dir("pathfinder");
+  make_dir_and_write_files("pathfinder/functional_common", functional_common_files_pathfinder, false);
+  make_dir_and_write_files("pathfinder/functional_additional", functional_additional_files_pathfinder, false);
+  make_dir_and_write_files("pathfinder/at", at_files_pathfinder, false);
+  make_dir_and_write_files("pathfinder/module", module_files_pathfinder, false);
 
-  std::ofstream writeFile("CMakeLists.txt");
+  make_dir("libfuzzer");
+  make_dir_and_write_files("libfuzzer/functional_common", functional_common_files_libfuzzer, true);
+  make_dir_and_write_files("libfuzzer/functional_additional", functional_additional_files_libfuzzer, true);
+  make_dir_and_write_files("libfuzzer/at", at_files_libfuzzer, true);
+  make_dir_and_write_files("libfuzzer/module", module_files_libfuzzer, true);
+
+  /* std::ofstream writeFile("CMakeLists.txt");
   if(writeFile.is_open()){
     writeFile << "add_subdirectory(functional_common)\n";
     writeFile << "add_subdirectory(functional_additional)\n";
@@ -1192,7 +1227,7 @@ int main(int argc, const char **argv) {
     writeFile.close();
   } else {
     assert(false);
-  }
+  } */
 
   return 0;
 }
