@@ -258,15 +258,15 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
     case TENSOR: {
       if (tensor_rank) {
         for (size_t i = offset_start; i < offset_start + offset_size; i++) {
-          hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 0");
-          soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
+          hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
+          //soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
         }
       } else {
         std::string rank = "arg[" + std::to_string(offset_start) + "]";
         hard_ctrs.push_back("0 <= " + rank + sep + rank + " <= " + std::to_string(MAX_RANK));
         for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-          hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 0");
-          soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
+          hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
+          //soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
         }
       }
       break;
@@ -282,7 +282,7 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
       std::string size = "arg[" + std::to_string(offset_start) + "]";
       hard_ctrs.push_back("0 <= " + size + sep + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-        soft_ctrs.push_back("0 <= arg[" + std::to_string(i) + "], arg[" + std::to_string(i) + "] < " + std::to_string(DOUBLE_DICT_SIZE));
+        hard_ctrs.push_back("0 <= arg[" + std::to_string(i) + "], arg[" + std::to_string(i) + "] < " + std::to_string(DOUBLE_DICT_SIZE));
       break;
     }
     case INTARRAYREF: {
@@ -408,9 +408,12 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
             shape += ",";
         }
         shape += "}";
-        std::string tensor_guard = "if (is_too_big(" + shape + "))";
+        std::vector<std::string> tensor_guard =
+          is_libfuzzer ?
+          std::vector<std::string>({"if (is_too_big(" + shape + "))", "  return 0;"}) :
+          std::vector<std::string>({"PathFinderPassIf(is_too_big(" + shape + "));"});
         std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", " + shape + ");";
-        return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, "  return -1;"});
+        return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
       } else {
         std::string shape = "{";
         for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
@@ -419,10 +422,12 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
             shape += ",";
         }
         shape += "}";
-        std::string tensor_guard = "if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))";
-        std::string tensor_guard_return = is_libfuzzer ? "  return 0;" : "  return -1;";
+        std::vector<std::string> tensor_guard =
+          is_libfuzzer ?
+          std::vector<std::string>({"if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))", "  return 0;"}) :
+          std::vector<std::string>({"PathFinderPassIf(is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "));"});
         std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(offset_start) + "], " + shape + ");";
-        return to_quad({tensor_init},empty_strvec(),var_name,{tensor_guard, tensor_guard_return});
+        return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
       }
     }
     case INTVECTOR: {
@@ -698,7 +703,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
     code += "      " + api_call + ");\n";
   }
 
-  code += "  } catch (::c10::Error& e) {\n";
+  code += "  } catch (std::exception& e) {\n";
   if (is_libfuzzer) {
     code += "    return 0;\n";
   } else {
