@@ -80,12 +80,10 @@ class Param {
       : ptype(ptype_), enums(std::move(enums_)), expandingarray(std::move(expandingarray_))
     {
       assert(ptype == VARIANT);
-      assert((enums.size() > 0 && expandingarray == nullptr) || (enums.size() == 0 && expandingarray != nullptr));
-      if (enums.size() > 0) {
-        offset_size = 1;
-      } else {
-        offset_size = expandingarray->offset_size;
-      }
+      assert(enums.size() > 0);
+      offset_size = 1;
+      if (expandingarray != nullptr)
+        offset_size += expandingarray->offset_size;
     }
     Param(
       ParamType ptype_,
@@ -106,6 +104,9 @@ class Param {
     std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> to_code(std::string api_name, bool is_module, bool is_libfuzzer);
     bool is_map() { return ptype == MAP; }
   private:
+    std::string type_str();
+    std::string array_str();
+
     ParamType ptype;
 
     // INT
@@ -166,12 +167,11 @@ size_t Param::set_offset(size_t offset) {
       offset = base->set_offset(offset+1);
       break;
     case VARIANT:
-      if (enums.size() > 0) {
-        offset_start = offset;
+      offset_start = offset;
+      if (expandingarray != nullptr)
+        offset = expandingarray->set_offset(offset+1);
+      else
         offset += offset_size;
-      } else if (expandingarray != nullptr) {
-        offset = expandingarray->set_offset(offset);
-      }
       break;
     case MAP:
       for (auto&& p: ctor_params)
@@ -217,8 +217,8 @@ void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
         if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
           //std::cout << "bbb\n";
           unsigned long val = il->getValue().getZExtValue();
-          assert(expandingarray != nullptr);
-          expandingarray->default_int = val;
+          if(expandingarray != nullptr)
+            expandingarray->default_int = val;
         }
         break;
       }
@@ -247,7 +247,7 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
     }
     case FLOAT: {
       std::string arg = "arg[" + std::to_string(offset_start) + "]";
-      hard_ctrs.push_back("0 <= " + arg + sep + arg + " < " + std::to_string(DOUBLE_DICT_SIZE));
+      hard_ctrs.push_back("0 <= " + arg + sep + arg + " < DOUBLE_DICT_SIZE");
       break;
     }
     case DTYPE: {
@@ -282,7 +282,7 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
       std::string size = "arg[" + std::to_string(offset_start) + "]";
       hard_ctrs.push_back("0 <= " + size + sep + size + " <= " + std::to_string(MAX_VECTOR_SIZE));
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++)
-        hard_ctrs.push_back("0 <= arg[" + std::to_string(i) + "], arg[" + std::to_string(i) + "] < " + std::to_string(DOUBLE_DICT_SIZE));
+        hard_ctrs.push_back("0 <= arg[" + std::to_string(i) + "]" + sep + "arg[" + std::to_string(i) + "] < DOUBLE_DICT_SIZE");
       break;
     }
     case INTARRAYREF: {
@@ -314,12 +314,11 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
       break;
     }
     case VARIANT: {
-      if (enums.size() > 0) {
-        std::string arg = "arg[" + std::to_string(offset_start) + "]";
-        hard_ctrs.push_back("0 <= " + arg + sep + arg + " < " + std::to_string(enums.size()));
-      } else {
+      size_t enum_size = expandingarray == nullptr ? enums.size() : enums.size() + 1 ;
+      std::string arg = "arg[" + std::to_string(offset_start) + "]";
+      hard_ctrs.push_back("0 <= " + arg + sep + arg + " < " + std::to_string(enum_size));
+      if (expandingarray != nullptr)
         expandingarray->constraint(hard_ctrs, soft_ctrs, is_module, is_libfuzzer);
-      }
       break;
     }
     case MAP: {
@@ -383,6 +382,49 @@ to_quad(std::vector<std::string> first, std::vector<std::string> second, std::st
       std::move(first), std::move(second), std::move(third), std::move(fourth));
 }
 
+std::string Param::type_str() {
+  switch(ptype) {
+    case ENUM: return "torch::enumtype::" + enum_name;
+    case TENSOR: return "auto";
+    case INTVECTOR:
+    case INTARRAYREF: return "std::vector<long>";
+    case FLOATVECTOR: return "std::vector<double>";
+    case EXPANDINGARRAY: return "torch::ExpandingArray<" + std::to_string(expandingarray_size) + ">";
+    case EXPANDINGARRAYWITHOPTIONALELEM:
+      return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(expandingarray_size) + ">";
+    default:
+      assert(false);
+  }
+}
+
+std::string Param::array_str() {
+  switch(ptype) {
+    case EXPANDINGARRAY: {
+      std::string array_init = type_str() + "({";
+      for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+        array_init += "arg[" + std::to_string(i) + "]";
+        if (i != offset_start + offset_size - 1)
+          array_init += ",";
+      }
+      array_init += "})";
+      return array_init;
+    }
+    case EXPANDINGARRAYWITHOPTIONALELEM: {
+      std::string array_init =
+        "expandingarray_with_optional_elem<" + std::to_string(expandingarray_size) + ">({";
+      for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+        array_init += "arg[" + std::to_string(i) + "]";
+        if (i != offset_start + offset_size - 1)
+          array_init += ",";
+      }
+      array_init += "})";
+      return array_init;
+    }
+    default:
+      assert(false);
+  }
+}
+
 std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code(std::string api_name, bool is_module, bool is_libfuzzer) {
   switch(ptype) {
     case INT:
@@ -412,7 +454,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
           is_libfuzzer ?
           std::vector<std::string>({"if (is_too_big(" + shape + "))", "  return 0;"}) :
           std::vector<std::string>({"PathFinderPassIf(is_too_big(" + shape + "));"});
-        std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", " + shape + ");";
+        std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + dtype + ", " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
       } else {
         std::string shape = "{";
@@ -426,70 +468,54 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
           is_libfuzzer ?
           std::vector<std::string>({"if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))", "  return 0;"}) :
           std::vector<std::string>({"PathFinderPassIf(is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "));"});
-        std::string tensor_init = "auto " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(offset_start) + "], " + shape + ");";
+        std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(offset_start) + "], " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
       }
     }
     case INTVECTOR: {
       std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
-      std::string vec_init = "std::vector<long> " + var_name + "_ = {";
+      std::string vec_init = type_str() + " " + var_name + "_ = {";
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
         vec_init += "arg[" + std::to_string(i) + "]";
         if (i != offset_start + offset_size - 1)
           vec_init += ",";
       }
       vec_init += "};";
-      std::string vec_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
       return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case FLOATVECTOR: {
       std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
-      std::string vec_init = "std::vector<double> " + var_name + "_ = {";
+      std::string vec_init = type_str() + " " + var_name + "_ = {";
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
         vec_init += "double_dict[arg[" + std::to_string(i) + "]]";
         if (i != offset_start + offset_size - 1)
           vec_init += ",";
       }
       vec_init += "};";
-      std::string vec_size_set = "std::vector<double> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
       return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case INTARRAYREF: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = "std::vector<long> " + var_name + "_ = {";
+      std::string array_init = type_str() + " " + var_name + "_ = {";
       for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
         array_init += "arg[" + std::to_string(i) + "]";
         if (i != offset_start + offset_size - 1)
           array_init += ",";
       }
       array_init += "};";
-      std::string array_size_set = "std::vector<long> " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string array_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
       return to_quad({array_init, array_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case EXPANDINGARRAY: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = "torch::ExpandingArray<" + std::to_string(expandingarray_size) + "> " + var_name + " = {";
-      for (size_t i = offset_start; i < offset_start + offset_size; i++) {
-        array_init += "arg[" + std::to_string(i) + "]";
-        if (i != offset_start + offset_size - 1)
-          array_init += ",";
-      }
-      array_init += "};";
-
+      std::string array_init = type_str() + " " + var_name + " = " + array_str() + ";";
       return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
     }
     case EXPANDINGARRAYWITHOPTIONALELEM: {
       std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init =
-        "torch::ExpandingArrayWithOptionalElem<" + std::to_string(expandingarray_size) + "> " + var_name +
-        " = expandingarray_with_optional_elem<" + std::to_string(expandingarray_size) + ">({";
-      for (size_t i = offset_start; i < offset_start + offset_size; i++) {
-        array_init += "arg[" + std::to_string(i) + "]";
-        if (i != offset_start + offset_size - 1)
-          array_init += ",";
-      }
-      array_init += "});";
-
+      std::string array_init = type_str() + " " + var_name + " = " + array_str() + ";";
       return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
     }
     case OPTIONAL: {
@@ -502,32 +528,32 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       return to_quad(preparation,option_check,expr,guard);
     }
     case VARIANT: {
-      if (enums.size() > 0) {
-        std::string var_name = "enum_" + std::to_string(enum_id++);
-        std::vector<std::string> enum_init;
-        enum_init.push_back("typedef");
-        enum_init.push_back("  c10::variant<");
-        for (size_t i = 0; i < enums.size(); i++) {
-          std::string enum_type = "    torch::enumtype::" + enums[i]->enum_name;
-          if (i != enums.size()-1)
-            enum_type += ",";
-          else
-            enum_type += ">";
-          enum_init.push_back(enum_type);
-        }
-        enum_init.push_back("  " + var_name + "_t;");
-        enum_init.push_back("std::vector<" + var_name + "_t> " + var_name + " = {");
-        for (size_t i = 0; i < enums.size(); i++) {
-          std::string enum_elem = "  torch::" + enums[i]->enum_name;
-          if (i != enums.size()-1)
-            enum_elem += ",";
-          enum_init.push_back(enum_elem);
-        }
-        enum_init.push_back("};");
-        return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
-      } else {
-        return expandingarray->to_code(api_name, is_module, is_libfuzzer);
+      std::string var_name = "enum_" + std::to_string(enum_id++);
+      std::vector<std::string> enum_init;
+      enum_init.push_back("typedef");
+      enum_init.push_back("  c10::variant<");
+      if (expandingarray != nullptr)
+        enum_init.push_back("    " + expandingarray->type_str() + ",");
+      for (size_t i = 0; i < enums.size(); i++) {
+        std::string enum_type = "    " + enums[i]->type_str();
+        if (i != enums.size()-1)
+          enum_type += ",";
+        else
+          enum_type += ">";
+        enum_init.push_back(enum_type);
       }
+      enum_init.push_back("  " + var_name + "_t;");
+      enum_init.push_back("std::vector<" + var_name + "_t> " + var_name + " = {");
+      if (expandingarray != nullptr)
+        enum_init.push_back("  " + expandingarray->array_str() + ",");
+      for (size_t i = 0; i < enums.size(); i++) {
+        std::string enum_elem = "  torch::" + enums[i]->enum_name;
+        if (i != enums.size()-1)
+          enum_elem += ",";
+        enum_init.push_back(enum_elem);
+      }
+      enum_init.push_back("};");
+      return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
     }
     case MAP: {
       std::vector<std::string> preparation;
@@ -704,6 +730,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   }
 
   code += "  } catch (std::exception& e) {\n";
+  //code += "  } catch (::c10::Error& e) {\n";
   if (is_libfuzzer) {
     code += "    return 0;\n";
   } else {

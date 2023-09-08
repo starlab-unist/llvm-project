@@ -200,6 +200,69 @@ std::map<std::string, std::set<tensor_rank>> at = {
   {"at::atleast_3d",{{}}},
 };
 
+std::map<std::string, std::set<tensor_rank>> linalg = {
+  {"torch::linalg::cholesky",{{}}},
+  {"torch::linalg::cholesky_out",{{}}},
+  {"torch::linalg::det",{{}}},
+  {"torch::linalg::eig",{{}}},
+  {"torch::linalg::eig_out",{{}}},
+  //{"torch::linalg::eigh",{{}}},
+  //{"torch::linalg::eigh_out",{{}}},
+  {"torch::linalg::eigvals",{{}}},
+  {"torch::linalg::eigvals_out",{{}}},
+  //{"torch::linalg::eigvalsh",{{}}},
+  //{"torch::linalg::eigvalsh_out",{{}}},
+  {"torch::linalg::householder_product",{{}}},
+  {"torch::linalg::householder_product_out",{{}}},
+  {"torch::linalg::inv",{{}}},
+  {"torch::linalg::inv_out",{{}}},
+  {"torch::linalg::ldl_factor_ex",{{}}},
+  {"torch::linalg::ldl_factor_ex_out",{{}}},
+  {"torch::linalg::ldl_solve",{{}}},
+  {"torch::linalg::ldl_solve_out",{{}}},
+  {"torch::linalg::linalg_det",{{}}},
+  {"torch::linalg::linalg_norm",{{}}},
+  {"torch::linalg::linalg_norm_out",{{}}},
+  {"torch::linalg::lstsq",{{}}},
+  {"torch::linalg::lu",{{}}},
+  {"torch::linalg::lu_factor",{{}}},
+  {"torch::linalg::lu_factor_out",{{}}},
+  {"torch::linalg::lu_out",{{}}},
+  {"torch::linalg::matrix_exp",{{}}},
+  {"torch::linalg::matrix_norm",{{}}},
+  {"torch::linalg::matrix_norm_out",{{}}},
+  {"torch::linalg::matrix_power",{{}}},
+  {"torch::linalg::matrix_power_out",{{}}},
+  {"torch::linalg::matrix_rank",{{}}},
+  {"torch::linalg::matrix_rank_out",{{}}},
+  {"torch::linalg::multi_dot",{{}}},
+  {"torch::linalg::multi_dot_out",{{}}},
+  {"torch::linalg::norm",{{}}},
+  {"torch::linalg::norm_out",{{}}},
+  {"torch::linalg::pinv",{{}}},
+  {"torch::linalg::pinv_out",{{}}},
+  {"torch::linalg::qr",{{}}},
+  {"torch::linalg::qr_out",{{}}},
+  {"torch::linalg::slogdet",{{}}},
+  {"torch::linalg::slogdet_out",{{}}},
+  {"torch::linalg::solve",{{}}},
+  {"torch::linalg::solve_ex",{{}}},
+  {"torch::linalg::solve_ex_out",{{}}},
+  {"torch::linalg::solve_out",{{}}},
+  {"torch::linalg::solve_triangular",{{}}},
+  {"torch::linalg::solve_triangular_out",{{}}},
+  {"torch::linalg::svd",{{}}},
+  {"torch::linalg::svd_out",{{}}},
+  {"torch::linalg::svdvals",{{}}},
+  {"torch::linalg::svdvals_out",{{}}},
+  {"torch::linalg::tensorinv",{{}}},
+  {"torch::linalg::tensorinv_out",{{}}},
+  {"torch::linalg::tensorsolve",{{}}},
+  {"torch::linalg::tensorsolve_out",{{}}},
+  {"torch::linalg::vector_norm",{{}}},
+  {"torch::linalg::vector_norm_out",{{}}},
+};
+
 std::map<std::string, std::set<tensor_rank>> module = {
   // Convolution Layers
   {"torch::nn::Conv1d",{{2},{3}}},
@@ -635,11 +698,13 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
                   }
                 }
                 assert(enums.size() > 0);
-                if (expandingarray != nullptr) {
+                /* if (expandingarray != nullptr) {
                   return std::make_unique<Param>(VARIANT, std::vector<std::unique_ptr<Param>>(), std::move(expandingarray));
                 } else {
                   return std::make_unique<Param>(VARIANT, std::move(enums), nullptr);
-                }
+                } */
+                //return std::make_unique<Param>(VARIANT, std::move(enums), nullptr);
+                return std::make_unique<Param>(VARIANT, std::move(enums), std::move(expandingarray));
               }
             }
           }
