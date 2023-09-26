@@ -793,6 +793,19 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
 
 }
 
+std::string gen_torch_function_pathfinder(std::string api_name, std::vector<std::unique_ptr<Param>>& params) {
+  return gen_code(api_name, params, false, 0, false);
+}
+std::string gen_torch_module_pathfinder(std::string api_name, std::vector<std::unique_ptr<Param>>& params, size_t num_input_tensor) {
+  return gen_code(api_name, params, true, num_input_tensor, false);
+}
+std::string gen_torch_function_libfuzzer(std::string api_name, std::vector<std::unique_ptr<Param>>& params) {
+  return gen_code(api_name, params, false, 0, true);
+}
+std::string gen_torch_module_libfuzzer(std::string api_name, std::vector<std::unique_ptr<Param>>& params, size_t num_input_tensor) {
+  return gen_code(api_name, params, true, num_input_tensor, true);
+}
+
 std::string str_mult(size_t n, std::string str) {
   std::string s;
   for (size_t i = 0; i < n; i++)
