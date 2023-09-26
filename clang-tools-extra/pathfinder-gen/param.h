@@ -12,7 +12,7 @@ using namespace llvm;
 using namespace clang;
 
 const size_t MAX_RANK = 5;
-const size_t MAX_VECTOR_SIZE = 5;
+const size_t MAX_VECTOR_SIZE = 6;
 const size_t DOUBLE_DICT_SIZE = 20;
 
 size_t tensor_id;
@@ -46,7 +46,7 @@ class Param {
       if (ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == DTYPE) {
         offset_size = 1;
       } else if (ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF) {
-        offset_size = 6;
+        offset_size = 1 + MAX_VECTOR_SIZE;
       }
     }
     Param(ParamType ptype_, std::string enum_name_)
@@ -58,9 +58,9 @@ class Param {
       assert(ptype == TENSOR);
       tensor_rank = rank;
       if (tensor_rank) {
-        offset_size = tensor_rank.getValue();
+        offset_size = 1 + tensor_rank.getValue();
       } else {
-        offset_size = 6;
+        offset_size = 2 + MAX_RANK; // one for dtype, one for rank
       }
     }
     Param(ParamType ptype_, long size)
@@ -256,15 +256,17 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
       break;
     }
     case TENSOR: {
+      std::string arg_dtype = "arg[" + std::to_string(offset_start) + "]";
+      hard_ctrs.push_back("DtypeFirst <= " + arg_dtype + sep + arg_dtype + " <= DtypeLast");
       if (tensor_rank) {
-        for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
           hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
           //soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
         }
       } else {
-        std::string rank = "arg[" + std::to_string(offset_start) + "]";
-        hard_ctrs.push_back("0 <= " + rank + sep + rank + " <= " + std::to_string(MAX_RANK));
-        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
+        std::string arg_rank = "arg[" + std::to_string(offset_start + 1) + "]";
+        hard_ctrs.push_back("0 <= " + arg_rank + sep + arg_rank + " <= " + std::to_string(MAX_RANK));
+        for (size_t i = offset_start + 2; i < offset_start + offset_size; i++) {
           hard_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
           //soft_ctrs.push_back("arg[" + std::to_string(i) + "] >= 1");
         }
@@ -338,13 +340,11 @@ std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& p
   if (is_libfuzzer) {
     code += "  if (Size < " + std::to_string(offset_size) + " * sizeof (long)) return 0;\n";
     code += "  const long* arg = reinterpret_cast<const long*>(Data);\n\n";
-    code += "  if (!(DtypeFirst <= arg[0] && arg[0] <= DtypeLast)) return 0;\n";
   } else {
     code += "void PathFinderSetup() {\n";
     code += "  PathFinderSetArgSize(" + std::to_string(offset_size) + ");\n";
     //code += "  PathFinderWeakArg(arg[0], Float32);\n";
     code += "  PathFinderAddHardConstraint({\n";
-    code += "    DtypeFirst <= arg[0], arg[0] <= DtypeLast,\n";
   }
 
   std::vector<std::string> hard_ctrs;
@@ -437,14 +437,10 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
     case TENSOR: {
       std::string var_name = "tensor_" + std::to_string(tensor_id++);
       std::string device = "device";
-      std::string dtype =
-        (api_name == "torch::nn::MaxUnpool1d" ||
-         api_name == "torch::nn::MaxUnpool2d" ||
-         api_name == "torch::nn::MaxUnpool3d") && var_name == "tensor_1" ?
-        "torch::kInt64" : "dtype";
+      std::string dtype = "get_dtype(arg[" + std::to_string(offset_start) + "])";
       if (tensor_rank) {
         std::string shape = "{";
-        for (size_t i = offset_start; i < offset_start + offset_size; i++) {
+        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
           shape += "arg[" + std::to_string(i) + "]";
           if (i != offset_start + offset_size - 1)
             shape += ",";
@@ -458,17 +454,18 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
       } else {
         std::string shape = "{";
-        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
+        for (size_t i = offset_start + 2; i < offset_start + offset_size; i++) {
           shape += "arg[" + std::to_string(i) + "]";
           if (i != offset_start + offset_size - 1)
             shape += ",";
         }
         shape += "}";
+        size_t rank = offset_start + 1;
         std::vector<std::string> tensor_guard =
           is_libfuzzer ?
-          std::vector<std::string>({"if (is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "))", "  return 0;"}) :
-          std::vector<std::string>({"PathFinderPassIf(is_too_big(arg[" + std::to_string(offset_start) + "], " + shape + "));"});
-        std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(offset_start) + "], " + shape + ");";
+          std::vector<std::string>({"if (is_too_big(arg[" + std::to_string(rank) + "], " + shape + "))", "  return 0;"}) :
+          std::vector<std::string>({"PathFinderPassIf(is_too_big(arg[" + std::to_string(rank) + "], " + shape + "));"});
+        std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(rank) + "], " + shape + ");";
         return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
       }
     }
@@ -675,8 +672,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   }
 
   code += "\n  torch::set_num_threads(1);\n";
-  code += "  torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);\n";
-  code += "  torch::Dtype dtype(get_dtype(arg[0]));\n\n";
+  code += "  torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);\n\n";
 
   code += "  try {\n";
   for (auto line: preparation) {
@@ -783,7 +779,7 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
   array_id = 0;
   enum_id = 0;
 
-  size_t offset = 1; // offset 0 is reserved for dtype
+  size_t offset = 0;
   for (auto&& param: params)
     offset = param->set_offset(offset);
 
