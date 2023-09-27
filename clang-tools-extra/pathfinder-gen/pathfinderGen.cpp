@@ -730,15 +730,15 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, std::string nam
 }
 
 std::string get_specialized_name(const ClassTemplateSpecializationDecl* ctsdecl) {
-  std::cout << "get_specialized_name:\n";
-  ctsdecl->dump();
+  //std::cout << "get_specialized_name:\n";
+  //ctsdecl->dump();
   std::string name = ctsdecl->getQualifiedNameAsString() + "<";
 
   const auto& targs = ctsdecl->getTemplateArgs();
   for (size_t i = 0; i < targs.size(); i++) {
     if (targs[i].getKind() == TemplateArgument::ArgKind::Type) {
       auto t = targs[i].getAsType();
-      std::cout << "t: " << t.getAsString() << std::endl;
+      //std::cout << "t: " << t.getAsString() << std::endl;
       if (const auto* rtype = t->getAs<RecordType>()) {
         if (const auto* ctsdecl2 = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl()))
           name += get_specialized_name(ctsdecl2);
@@ -810,9 +810,9 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, A
       option_class_done = true;
       if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
         api_option_name = get_specialized_name(ctsdecl);
-        std::cout << "============================================================\n";
-        std::cout << "specialized name: " << api_option_name << std::endl;
-        std::cout << "============================================================\n";
+        //std::cout << "============================================================\n";
+        //std::cout << "specialized name: " << api_option_name << std::endl;
+        //std::cout << "============================================================\n";
       }
     }
   }
@@ -825,8 +825,8 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, A
 
   const auto* cdecl = rtype->getAsCXXRecordDecl();
   assert(cdecl != nullptr);
-  std::cout << "cdecl:\n";
-  cdecl->dump();
+  //std::cout << "cdecl:\n";
+  //cdecl->dump();
   std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params;
   std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
   std::vector<std::string> ctor_param_names;
@@ -874,6 +874,7 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, A
       if (param->ptype == TENSOR)
         param = std::make_unique<Param>(
           OPTIONAL,
+          param_name + "_opt",
           std::move(param));
       //std::cout << "cdecl:\n";
       //cdecl->dump();
@@ -1012,8 +1013,8 @@ public:
   }
 
   Optional<std::vector<std::unique_ptr<Param>>> parseModuleCtor(CXXConstructorDecl* ctor, size_t num_input_tensor) {
-    std::cout << "ctor:\n";
-    ctor->dump();
+    //std::cout << "ctor:\n";
+    //ctor->dump();
 
     if (//ctor->isDefaultConstructor() ||
         ctor->isCopyOrMoveConstructor() ||
@@ -1024,7 +1025,7 @@ public:
     option_class_done = false;
     std::vector<std::unique_ptr<Param>> params;
     for (size_t i = 0; i < num_input_tensor; i++)
-      params.push_back(std::make_unique<Param>(TENSOR));
+      params.push_back(std::make_unique<Param>(TENSOR, "tensor" + std::to_string(i)));
     for (const auto* param: ctor->parameters()) {
       clang::QualType t = param->getType();
       std::string name = param->getNameAsString();
@@ -1064,7 +1065,7 @@ public:
       return true;
 
     current_target = Declaration->getQualifiedNameAsString();
-    std::cout << current_target << std::endl;
+    //std::cout << current_target << std::endl;
     std::string current_target_unqualified = Declaration->getNameAsString();
 
     assert(!Declaration->bases().empty());
@@ -1077,10 +1078,10 @@ public:
     auto targs = tstype->template_arguments();
     assert(targs.size() == 1);
     auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
-    std::cout << "========================================================================\n";
-    std::cout << "class_decl:\n";
-    class_decl->dump();
-    std::cout << "========================================================================\n";
+    //std::cout << "========================================================================\n";
+    //std::cout << "class_decl:\n";
+    //class_decl->dump();
+    //std::cout << "========================================================================\n";
 
     std::vector<std::vector<std::unique_ptr<Param>>> candidates;
 
@@ -1088,8 +1089,8 @@ public:
       if (auto parsed = parseModuleCtor(ctor, num_input_tensor(current_target)))
         candidates.push_back(std::move(parsed.getValue()));
     if (!class_decl->bases().empty()) {
-      std::cout << "base type:\n";
-      class_decl->bases_begin()->getType()->dump();
+      //std::cout << "base type:\n";
+      //class_decl->bases_begin()->getType()->dump();
       const TemplateSpecializationType* tstype2;
       if (const auto* etype = dyn_cast<ElaboratedType>(class_decl->bases_begin()->getType())) {
         tstype2 = dyn_cast<TemplateSpecializationType>(etype->desugar());
@@ -1108,13 +1109,13 @@ public:
             option_class_done = false;
             std::vector<std::unique_ptr<Param>> params;
             for (size_t i = 0; i < num_input_tensor(current_target); i++)
-              params.push_back(std::make_unique<Param>(TENSOR));
+              params.push_back(std::make_unique<Param>(TENSOR, "tensor" + std::to_string(i)));
             if (auto p = parseTorchParam(targs[2].getAsType(), "options", *Context))
               params.push_back(std::move(p));
             candidates.push_back(std::move(params));
           } else {
-            std::cout << "ctsdecl:\n";
-            ctsdecl->dump();
+            //std::cout << "ctsdecl:\n";
+            //ctsdecl->dump();
             for (auto ctor: ctsdecl->ctors())
               if (auto parsed = parseModuleCtor(ctor, num_input_tensor(current_target)))
                 candidates.push_back(std::move(parsed.getValue()));

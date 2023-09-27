@@ -43,9 +43,9 @@ enum ParamType {
 class Param {
   public:
     Param(ParamType ptype_, std::string name_): ptype(ptype_), name(name_) {
-      assert(ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == DTYPE ||
+      assert(ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == DTYPE || ptype == ENUM ||
              ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF);
-      if (ptype == BOOL | ptype == DTYPE | ptype == FLOAT) {
+      if (ptype == BOOL || ptype == DTYPE || ptype == FLOAT) {
         enum_offset_size = 1;
       } else if (ptype == INTVECTOR || ptype == INTARRAYREF) {
         enum_offset_size = 1;
@@ -69,9 +69,6 @@ class Param {
         int_offset_size = 1;
       }
     }
-    Param(ParamType ptype_, std::string name_)
-      : ptype(ptype_), name(name_)
-    { assert(ptype == ENUM); }
     Param(ParamType ptype_, std::string name_, long size)
       : ptype(ptype_), name(name_)
     {
@@ -161,6 +158,7 @@ class Param {
     std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries;
 
     friend size_t set_idx(std::vector<std::unique_ptr<Param>>& params);
+    friend std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor);
     friend void gen_pathfinder_fuzz_target(
       std::string target_api_name,
       std::vector<std::unique_ptr<Param>>& params,
@@ -276,25 +274,25 @@ void Param::setup_arg(std::vector<std::string>& args) {
     case TENSOR: {
       args.push_back("PathFinderEnumArg(\"" + name_dtype + "\", dtype_str);");
       args.push_back("PathFinderEnumArg(\"" + name_rank + "\", " + std::to_string(MAX_RANK + 1) +");");
-      for (size_t i = 0; i <= MAX_RANK; i++)
+      for (size_t i = 0; i < MAX_RANK; i++)
         args.push_back("PathFinderIntArg(\"" + name_dim[i] + "\");");
       break;
     }
     case INTVECTOR: {
       args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
-      for (size_t i = 0; i <= MAX_VECTOR_SIZE; i++)
+      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
         args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
       break;
     }
     case FLOATVECTOR: {
       args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
-      for (size_t i = 0; i <= MAX_VECTOR_SIZE; i++)
+      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
         args.push_back("PathFinderEnumArg(\"" + name_elem[i] + "\", double_dict_str);");
       break;
     }
     case INTARRAYREF: {
       args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
-      for (size_t i = 0; i <= MAX_VECTOR_SIZE; i++)
+      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
         args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
       break;
     }
@@ -314,7 +312,6 @@ void Param::setup_arg(std::vector<std::string>& args) {
       break;
     }
     case VARIANT: {
-      size_t enum_size = expandingarray == nullptr ? enums.size() : enums.size() + 1 ;
       std::string str = "PathFinderEnumArg(\"" + name + "\", {";
       if (expandingarray != nullptr)
         str += "\"" + expandingarray->name + "\", ";
@@ -343,29 +340,29 @@ void Param::setup_arg(std::vector<std::string>& args) {
 
 void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::string>& soft_ctrs, bool is_module) {
   std::string sep = ", ";
+  std::string arg = var_ctr + "[\"" + name + "\"]";
   switch(ptype) {
     case INT: {
       int min =
         default_int ?
         default_int.getValue() :
         (is_module ? 1 : 0);
-      std::string arg = var_ctr + "[" + std::to_string(int_offset_start) + "]";
       soft_ctrs.push_back(arg + " >= " + std::to_string(min));
       break;
     }
     case TENSOR: {
-      for (size_t i = int_offset_start; i < int_offset_start + int_offset_size; i++)
-        hard_ctrs.push_back(var_ctr + "[" + std::to_string(i) + "] >= 1");
+      for (size_t i = 0; i < int_offset_size; i++)
+        hard_ctrs.push_back(var_ctr + "[\"" + name_dim[i] + "\"] >= 1");
       break;
     }
     case INTVECTOR: {
-      for (size_t i = int_offset_start + 1; i < int_offset_start + int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[" + std::to_string(i) + "] >= 0");
+      for (size_t i = 0; i < int_offset_size; i++)
+        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= 0");
       break;
     }
     case INTARRAYREF: {
-      for (size_t i = int_offset_start + 1; i < int_offset_start + int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[" + std::to_string(i) + "] >= 0");
+      for (size_t i = 0; i < int_offset_size; i++)
+        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= 0");
       break;
     }
     case EXPANDINGARRAY: {
@@ -373,14 +370,14 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
         default_int ?
         default_int.getValue() :
         (is_module ? 1 : 0);
-      for (size_t i = int_offset_start; i < int_offset_start + int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[" + std::to_string(i) + "] >= " + std::to_string(min));
+      for (size_t i = 0; i < int_offset_size; i++)
+        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= " + std::to_string(min));
       break;
     }
     case EXPANDINGARRAYWITHOPTIONALELEM: {
       int min = default_int ? default_int.getValue() : 0;
-      for (size_t i = int_offset_start; i < int_offset_start + int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[" + std::to_string(i) + "] >= " + std::to_string(min));
+      for (size_t i = 0; i < int_offset_size; i++)
+        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= " + std::to_string(min));
       break;
     }
     case OPTIONAL: {
@@ -738,7 +735,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
     }
     code += ");\n";
     code += "    m->to(device);\n";
-    code += "    m->to(dtype);\n";
+    code += "    m->to(get_dtype(" + var_caller + "[\"" + params[0]->name_dtype + "\"]));\n";
   }
 
   std::string api_call;
@@ -749,7 +746,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
     } else {
       api_call += "auto result = m->forward(";
       for (size_t i = 0; i < num_input_tensor; i++) {
-        api_call += "tensor_" + std::to_string(i);
+        api_call += positional_arg[i];
         if (i != num_input_tensor - 1)
           api_call += ", ";
       }
