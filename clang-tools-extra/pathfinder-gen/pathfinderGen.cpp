@@ -455,9 +455,9 @@ size_t num_input_tensor(std::string& module_name) {
 std::string current_target;
 bool option_class_done;
 
-std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx);
+std::unique_ptr<Param> parseTorchParam(clang::QualType t, std::string name, ASTContext &Ctx);
 
-Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx) {
   //std::cout << "Parse builtin\n";
   if (const auto* builtin = t->getAs<BuiltinType>()) {
     if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
@@ -465,9 +465,9 @@ Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx
       //t->dump();
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
       if (t == "int" || t == "long") {
-        return std::make_unique<Param>(INT);
+        return std::make_unique<Param>(INT, name);
       } else if (t == "bool") {
-        return std::make_unique<Param>(BOOL);
+        return std::make_unique<Param>(BOOL, name);
       } else {
         //std::cout << "dd: " << t << std::endl;
         assert(false);
@@ -475,7 +475,7 @@ Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx
     } else if (builtin->isFloatingPoint()) {
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
       if (t == "float" || t == "double") {
-        return std::make_unique<Param>(FLOAT);
+        return std::make_unique<Param>(FLOAT, name);
       } else {
         //std::cout << "dd: " << t << std::endl;
         assert(false);
@@ -488,13 +488,13 @@ Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, ASTContext &Ctx
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseDtype(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseDtype(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (const auto* etype = t->getAs<EnumType>()) {
     //std::cout << "EnumType: " << etype->getDecl()->getNameAsString() << "\n";
     //std::cout << "          " << etype->getDecl()->getQualifiedNameAsString() << "\n";
     //etype->getDecl()->dump();
     if (etype->getDecl()->getNameAsString() == "ScalarType") {
-      return std::make_unique<Param>(DTYPE);
+      return std::make_unique<Param>(DTYPE, name);
     }
   }
 
@@ -516,7 +516,7 @@ Optional<std::unique_ptr<Param>> parseEnum(clang::QualType t, ASTContext &Ctx) {
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, std::string name, ASTContext &Ctx) {
   //std::cout << "Parse int vector\n";
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
@@ -525,11 +525,11 @@ Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, ASTContext &Ctx)
         if (rtype->getDecl()->getNameAsString() == "vector") {
           auto targs = tstype->template_arguments();
           if (targs.size() == 1) {
-            if (auto p = parseTorchParam(targs[0].getAsType(), Ctx)) {
+            if (auto p = parseTorchParam(targs[0].getAsType(), "", Ctx)) {
               if (p->ptype == INT)
-                return std::make_unique<Param>(INTVECTOR);
+                return std::make_unique<Param>(INTVECTOR, name);
               if (p->ptype == FLOAT)
-                return std::make_unique<Param>(FLOATVECTOR);
+                return std::make_unique<Param>(FLOATVECTOR, name);
             }
           }
         }
@@ -540,41 +540,41 @@ Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, ASTContext &Ctx)
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t) {
+Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t, std::string name) {
   //std::cout << "Parse tensor\n";
   if (const auto* elaborated = t->getAs<ElaboratedType>()) {
     if (elaborated->isSugared())
       if (const auto* rtype = elaborated->desugar()->getAs<RecordType>())
         if (rtype->getDecl()->getNameAsString() == "Tensor") {
-          return std::make_unique<Param>(TENSOR);
+          return std::make_unique<Param>(TENSOR, name);
         }
   } else if (const auto* underlying = t.getTypePtrOrNull()) {
     if (const auto* rtype = underlying->getAs<RecordType>())
       if (rtype->getDecl()->getNameAsString() == "Tensor") {
-        return std::make_unique<Param>(TENSOR);
+        return std::make_unique<Param>(TENSOR, name);
       }
   }
 
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
     if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
       if (ctsdecl->getNameAsString() == "ArrayRef") {
         const auto& targ = ctsdecl->getTemplateArgs();
         assert(targ.size() == 1);
         assert(targ[0].getKind() == TemplateArgument::ArgKind::Type);
-        auto p = parseTorchParam(targ[0].getAsType(), Ctx);
+        auto p = parseTorchParam(targ[0].getAsType(), "",  Ctx);
         if (p->ptype == INT)
-          return std::make_unique<Param>(INTARRAYREF);
+          return std::make_unique<Param>(INTARRAYREF, name);
       }
     }
   }
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx) {
   //std::cout << "Parse expending array\n";
 
   const RecordType* rtype;
@@ -591,7 +591,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
       //t->dump();
-      return std::make_unique<Param>(EXPANDINGARRAY, expandingarray_size);
+      return std::make_unique<Param>(EXPANDINGARRAY, name, expandingarray_size);
     }
   } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
     assert(sttptype->isSugared());
@@ -611,7 +611,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
           assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
           int64_t expandingarray_size =
             targ[0].getAsIntegral().getExtValue();
-          return std::make_unique<Param>(EXPANDINGARRAY, expandingarray_size);
+          return std::make_unique<Param>(EXPANDINGARRAY, name, expandingarray_size);
         }
       }
       /* std::cout << "sttptype->getReplacementType()->getDecl(): " << rtype2->getDecl()->getNameAsString() <<  "\n";
@@ -628,7 +628,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, ASTConte
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx) {
   const RecordType* rtype;
   const TemplateSpecializationType* tstype;
   const SubstTemplateTypeParmType* sttptype;
@@ -641,7 +641,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::Qual
         return None;
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
-      return std::make_unique<Param>(EXPANDINGARRAYWITHOPTIONALELEM, expandingarray_size);
+      return std::make_unique<Param>(EXPANDINGARRAYWITHOPTIONALELEM, name, expandingarray_size);
     }
   } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
     assert(sttptype->isSugared());
@@ -653,7 +653,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::Qual
           assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
           int64_t expandingarray_size =
             targ[0].getAsIntegral().getExtValue();
-          return std::make_unique<Param>(EXPANDINGARRAYWITHOPTIONALELEM, expandingarray_size);
+          return std::make_unique<Param>(EXPANDINGARRAYWITHOPTIONALELEM, name, expandingarray_size);
         }
       }
     }
@@ -662,7 +662,7 @@ Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::Qual
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
     if (tstype->isSugared()) {
       if (const auto* rtype = dyn_cast<RecordType>(tstype->desugar())) {
@@ -671,10 +671,10 @@ Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, ASTContext &Ct
           auto targ = tstype->template_arguments();
           assert(targ.size() == 1);
           //targ[0].getAsType()->dump();
-          auto p = parseTorchParam(targ[0].getAsType(), Ctx);
+          auto p = parseTorchParam(targ[0].getAsType(), name, Ctx);
           //TODO: dtype
           if (p != nullptr)
-            return std::make_unique<Param>(OPTIONAL, std::move(p));
+            return std::make_unique<Param>(OPTIONAL, name + "_opt", std::move(p));
         }
       }
     }
@@ -683,7 +683,7 @@ Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, ASTContext &Ct
   return None;
 }
 
-Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, std::string name, ASTContext &Ctx) {
   //std::cout << "Parse variant\n";
   //t->dump();
   //if (const auto* tstype = t->getAs<TemplateSpecializationType>()) {
@@ -701,7 +701,7 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
                 std::vector<std::unique_ptr<Param>> enums;
                 std::unique_ptr<Param> expandingarray;
                 for (auto targ: targs) {
-                  auto p = parseTorchParam(targ.getAsType(), Ctx);
+                  auto p = parseTorchParam(targ.getAsType(), name + "_array", Ctx);
                   if (p->ptype == ENUM) {
                     enums.push_back(std::move(p));
                   } else if (p->ptype == EXPANDINGARRAY || p->ptype == EXPANDINGARRAYWITHOPTIONALELEM) {
@@ -717,7 +717,7 @@ Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, ASTContext &Ctx
                   return std::make_unique<Param>(VARIANT, std::move(enums), nullptr);
                 } */
                 //return std::make_unique<Param>(VARIANT, std::move(enums), nullptr);
-                return std::make_unique<Param>(VARIANT, std::move(enums), std::move(expandingarray));
+                return std::make_unique<Param>(VARIANT, name, std::move(enums), std::move(expandingarray));
               }
             }
           }
@@ -761,7 +761,7 @@ std::string get_specialized_name(const ClassTemplateSpecializationDecl* ctsdecl)
   return name;
 }
 
-Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
+Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (option_class_done) return None;
 
   //std::cout << "Parse API Option\n";
@@ -809,11 +809,10 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
           option_suffix.length(), option_suffix) == 0) {
       option_class_done = true;
       if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
-        std::string name = get_specialized_name(ctsdecl);
+        api_option_name = get_specialized_name(ctsdecl);
         std::cout << "============================================================\n";
-        std::cout << "specialized name: " << name << std::endl;
+        std::cout << "specialized name: " << api_option_name << std::endl;
         std::cout << "============================================================\n";
-        api_option_name = name;
       }
     }
   }
@@ -870,7 +869,7 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
     //std::cout << "method name: " << param_name << std::endl;
     //std::cout << "param type:\n" << std::endl;
     //method->parameters()[0]->getType()->dump();
-    std::unique_ptr<Param> param = parseTorchParam(method->parameters()[0]->getType(), Ctx);
+    std::unique_ptr<Param> param = parseTorchParam(method->parameters()[0]->getType(), param_name, Ctx);
     if (param != nullptr) {
       if (param->ptype == TENSOR)
         param = std::make_unique<Param>(
@@ -889,59 +888,60 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, ASTContext &Ctx) {
   return
     std::make_unique<Param>(
       MAP,
+      name,
       api_option_name,
       std::move(ctor_params),
       std::move(entries));
 }
 
-std::unique_ptr<Param> parseTorchParam(clang::QualType t, ASTContext &Ctx) {
+std::unique_ptr<Param> parseTorchParam(clang::QualType t, std::string name, ASTContext &Ctx) {
   //std::cout << "parseTorchParam\n";
   //t->dump();
-  if (auto builtin_opt = parseBuiltin(t, Ctx))
+  if (auto builtin_opt = parseBuiltin(t, name, Ctx))
     return std::move(builtin_opt.getValue());
-  if (auto dtype_opt = parseDtype(t, Ctx))
+  if (auto dtype_opt = parseDtype(t, name, Ctx))
     return std::move(dtype_opt.getValue());
   if (auto enum_opt = parseEnum(t, Ctx))
     return std::move(enum_opt.getValue());
-  if (auto int_vec_opt = parseVector(t, Ctx))
+  if (auto int_vec_opt = parseVector(t, name, Ctx))
     return std::move(int_vec_opt.getValue());
-  if (auto tensor_opt = parseTensor(t))
+  if (auto tensor_opt = parseTensor(t, name))
     return std::move(tensor_opt.getValue());
-  if (auto intarrayref_opt = parseIntArrayRef(t, Ctx))
+  if (auto intarrayref_opt = parseIntArrayRef(t, name, Ctx))
     return std::move(intarrayref_opt.getValue());
-  if (auto expandingarray_opt = parseExpandingArray(t, Ctx))
+  if (auto expandingarray_opt = parseExpandingArray(t, name, Ctx))
     return std::move(expandingarray_opt.getValue());
-  if (auto expandingarraywithoptionalelem_opt = parseExpandingArrayWithOptionalElem(t, Ctx))
+  if (auto expandingarraywithoptionalelem_opt = parseExpandingArrayWithOptionalElem(t, name, Ctx))
     return std::move(expandingarraywithoptionalelem_opt.getValue());
-  if (auto optional_opt = parseOptional(t, Ctx))
+  if (auto optional_opt = parseOptional(t, name, Ctx))
     return std::move(optional_opt.getValue());
-  if (auto variant_opt = parseVariant(t, Ctx))
+  if (auto variant_opt = parseVariant(t, name, Ctx))
     return std::move(variant_opt.getValue());
-  if (auto api_option_opt = parseMAP(t, Ctx))
+  if (auto api_option_opt = parseMAP(t, name, Ctx))
     return std::move(api_option_opt.getValue());
 
   // simplify
   if (t->isLValueReferenceType()) {
-    return parseTorchParam(t->getAs<LValueReferenceType>()->getPointeeType(), Ctx);
+    return parseTorchParam(t->getAs<LValueReferenceType>()->getPointeeType(), name, Ctx);
   } else if (t->isRValueReferenceType()) {
-    return parseTorchParam(t->getAs<RValueReferenceType>()->getPointeeType(), Ctx);
+    return parseTorchParam(t->getAs<RValueReferenceType>()->getPointeeType(), name, Ctx);
   } else if (const auto* elaborated = t->getAs<ElaboratedType>()) {
     //std::cout << "elaborated~~\n";
     if (elaborated->isSugared()) {
       //std::cout << "is sugared~~\n";
-      return parseTorchParam(elaborated->desugar(), Ctx);
+      return parseTorchParam(elaborated->desugar(), name, Ctx);
     }
   } else if (const auto* tdtype = t->getAs<TypedefType>()) {
     //std::cout << "typedeftype~~\n";
     if (tdtype->isSugared()) {
       //std::cout << "is sugared~~\n";
-      return parseTorchParam(tdtype->desugar(), Ctx);
+      return parseTorchParam(tdtype->desugar(), name, Ctx);
     }
   } else if (const auto* tstype = t->getAs<TemplateSpecializationType>()) {
     //std::cout << "templateSpecialized~~\n";
     if (tstype->isSugared()) {
       //std::cout << "is sugared~~\n";
-      return parseTorchParam(tstype->desugar(), Ctx);
+      return parseTorchParam(tstype->desugar(), name, Ctx);
     }
   }
 
@@ -953,8 +953,6 @@ std::vector<std::pair<std::string, std::string>> functional_common_files_pathfin
 std::vector<std::pair<std::string, std::string>> functional_additional_files_pathfinder;
 std::vector<std::pair<std::string, std::string>> at_files_pathfinder;
 std::vector<std::pair<std::string, std::string>> module_files_pathfinder;
-
-std::vector<std::pair<std::string, std::string>> functional_common_files_libfuzzer;
 
 void set_union(std::set<std::string>& orig,std::set<std::string>& other) {
   orig.insert(other.begin(), other.end());
@@ -990,8 +988,9 @@ public:
     for (auto param_decl: param_decls) {
       //std::cout << "param: " << param_decl->getNameAsString() << std::endl;
       clang::QualType t = param_decl->getType();
+      std::string name = param_decl->getNameAsString();
       //t->dump();
-      std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+      std::unique_ptr<Param> p = parseTorchParam(t, name, *Context);
       if (p != nullptr)
         params.push_back(std::move(p));
     }
@@ -1008,10 +1007,6 @@ public:
       functional_additional_files_pathfinder.push_back(std::make_pair(fname, code_pathfinder));
     else if (in (fname_qualified, at))
       at_files_pathfinder.push_back(std::make_pair(fname, code_pathfinder));
-
-    std::string code_libfuzzer = gen_torch_function_libfuzzer(fname_qualified, params);
-    if (in (fname_qualified, functional_common))
-      functional_common_files_libfuzzer.push_back(std::make_pair(fname, code_libfuzzer));
 
     return true;
   }
@@ -1032,8 +1027,9 @@ public:
       params.push_back(std::make_unique<Param>(TENSOR));
     for (const auto* param: ctor->parameters()) {
       clang::QualType t = param->getType();
+      std::string name = param->getNameAsString();
       //t->dump();
-      std::unique_ptr<Param> p = parseTorchParam(t, *Context);
+      std::unique_ptr<Param> p = parseTorchParam(t, name, *Context);
       if (p != nullptr)
         params.push_back(std::move(p));
     }
@@ -1113,7 +1109,7 @@ public:
             std::vector<std::unique_ptr<Param>> params;
             for (size_t i = 0; i < num_input_tensor(current_target); i++)
               params.push_back(std::make_unique<Param>(TENSOR));
-            if (auto p = parseTorchParam(targs[2].getAsType(), *Context))
+            if (auto p = parseTorchParam(targs[2].getAsType(), "options", *Context))
               params.push_back(std::move(p));
             candidates.push_back(std::move(params));
           } else {
@@ -1161,24 +1157,15 @@ public:
 
 static llvm::cl::OptionCategory MyToolCategory("my-tool options");
 
-bool file_exist(std::string filename, bool is_libfuzzer) {
+bool file_exist(std::string filename) {
   static std::set<std::string> generated_pathfinder;
-  static std::set<std::string> generated_libfuzzer;
 
-  if (is_libfuzzer)
-    if (generated_libfuzzer.find(filename) == generated_libfuzzer.end()) {
-      generated_libfuzzer.insert(filename);
-      return false;
-    } else {
-      return true;
-    }
-  else
-    if (generated_pathfinder.find(filename) == generated_pathfinder.end()) {
-      generated_pathfinder.insert(filename);
-      return false;
-    } else {
-      return true;
-    }
+  if (generated_pathfinder.find(filename) == generated_pathfinder.end()) {
+    generated_pathfinder.insert(filename);
+    return false;
+  } else {
+    return true;
+  }
 }
 
 void make_dir(std::string dir) {
@@ -1188,7 +1175,7 @@ void make_dir(std::string dir) {
   }
 }
 
-void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string, std::string>> files, bool is_libfuzzer) {
+void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string, std::string>> files) {
   if (mkdir(dir.c_str(), 0775) != 0) {
     std::cout << "Failed to create directory " << dir << std::endl;
     exit(0);
@@ -1202,17 +1189,14 @@ void make_dir_and_write_files(std::string dir, std::vector<std::pair<std::string
 
     size_t id = 0;
     std::string filename = target_name + "_" + std::to_string(id) + ".cpp";
-    while (file_exist(filename, is_libfuzzer))
+    while (file_exist(filename))
       filename = target_name + "_" + std::to_string(++id) + ".cpp";
 
     std::ofstream writeFile(dir + "/" + filename);
     if(writeFile.is_open()){
       writeFile << code;
       writeFile.close();
-      if (is_libfuzzer)
-        cmake_contents += "add_libfuzzer_fuzz_target(" + strip_ext(filename) + ")\n";
-      else
-        cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
+      cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
     } else {
       assert(false);
     }
@@ -1236,14 +1220,10 @@ int main(int argc, const char **argv) {
 
   make_dir("pathfinder");
   make_dir("pathfinder/generated");
-  make_dir_and_write_files("pathfinder/generated/functional_common", functional_common_files_pathfinder, false);
-  make_dir_and_write_files("pathfinder/generated/functional_additional", functional_additional_files_pathfinder, false);
-  make_dir_and_write_files("pathfinder/generated/at", at_files_pathfinder, false);
-  make_dir_and_write_files("pathfinder/generated/module", module_files_pathfinder, false);
-
-  make_dir("libfuzzer");
-  make_dir("libfuzzer/generated");
-  make_dir_and_write_files("libfuzzer/generated/functional_common", functional_common_files_libfuzzer, true);
+  make_dir_and_write_files("pathfinder/generated/functional_common", functional_common_files_pathfinder);
+  make_dir_and_write_files("pathfinder/generated/functional_additional", functional_additional_files_pathfinder);
+  make_dir_and_write_files("pathfinder/generated/at", at_files_pathfinder);
+  make_dir_and_write_files("pathfinder/generated/module", module_files_pathfinder);
 
   std::string cmake_pathfinder_contents;
   cmake_pathfinder_contents += "add_subdirectory(functional_common)\n";
@@ -1251,16 +1231,10 @@ int main(int argc, const char **argv) {
   cmake_pathfinder_contents += "add_subdirectory(at)\n";
   cmake_pathfinder_contents += "add_subdirectory(module)\n";
 
-  std::string cmake_libfuzzer_contents;
-  cmake_libfuzzer_contents += "add_subdirectory(functional_common)\n";
-
   std::ofstream cmake_pathfinder("pathfinder/generated/CMakeLists.txt");
-  std::ofstream cmake_libfuzzer("libfuzzer/generated/CMakeLists.txt");
-  if(cmake_pathfinder.is_open() || cmake_libfuzzer.is_open()){
+  if(cmake_pathfinder.is_open()){
     cmake_pathfinder << cmake_pathfinder_contents;
-    cmake_libfuzzer << cmake_libfuzzer_contents;
     cmake_pathfinder.close();
-    cmake_libfuzzer.close();
   } else {
     assert(false);
   }
