@@ -47,25 +47,39 @@ class Param {
              ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF);
       if (ptype == BOOL | ptype == DTYPE | ptype == FLOAT) {
         enum_offset_size = 1;
-      } else if (ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF) {
+      } else if (ptype == INTVECTOR || ptype == INTARRAYREF) {
         enum_offset_size = 1;
         int_offset_size = MAX_VECTOR_SIZE;
+        name_size = name + "_size";
+        for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
+          name_elem.push_back(name + std::to_string(i));
+      } else if (ptype == FLOATVECTOR) {
+        enum_offset_size = 1 + MAX_VECTOR_SIZE;
+        name_size = name + "_size";
+        for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
+          name_elem.push_back(name + std::to_string(i));
       } else if (ptype == TENSOR) {
         enum_offset_size = 2; // dtype, rank
         int_offset_size = MAX_RANK;
+        name_dtype = name + "_dtype";
+        name_rank = name + "_rank";
+        for (size_t i = 0; i < MAX_RANK; i++)
+          name_dim.push_back(name + std::to_string(i));
       } else { // INT
         int_offset_size = 1;
       }
     }
-    Param(ParamType ptype_, std::string name_, std::string enum_name_)
-      : ptype(ptype_), name(name_), enum_name(enum_name_)
+    Param(ParamType ptype_, std::string name_)
+      : ptype(ptype_), name(name_)
     { assert(ptype == ENUM); }
     Param(ParamType ptype_, std::string name_, long size)
       : ptype(ptype_), name(name_)
     {
       assert(ptype == EXPANDINGARRAY || ptype == EXPANDINGARRAYWITHOPTIONALELEM);
-      expandingarray_size = size;
-      int_offset_size = expandingarray_size;
+      array_size = size;
+      int_offset_size = array_size;
+      for (size_t i = 0; i < array_size; i++)
+        name_elem.push_back(name + std::to_string(i));
     }
     Param(ParamType ptype_, std::string name_, std::unique_ptr<Param> base_)
       : ptype(ptype_), name(name_), base(std::move(base_))
@@ -117,18 +131,22 @@ class Param {
     ParamType ptype;
     std::string name;
     size_t enum_offset_start;
-    size_t enum_offset_size;
+    size_t enum_offset_size = 0;
     size_t int_offset_start;
-    size_t int_offset_size;
+    size_t int_offset_size = 0;
 
     // INT
     Optional<size_t> default_int = None;
 
-    // ENUM
-    std::string enum_name;
+    // TENSOR
+    std::string name_dtype;
+    std::string name_rank;
+    std::vector<std::string> name_dim;
 
-    // EXPENDINGARRAY
-    size_t expandingarray_size;
+    // ARRAY, VECTOR
+    size_t array_size;
+    std::string name_size;
+    std::vector<std::string> name_elem;
 
     // OPTIONAL
     std::unique_ptr<Param> base;
@@ -256,42 +274,42 @@ void Param::setup_arg(std::vector<std::string>& args) {
       break;
     }
     case TENSOR: {
-      args.push_back("PathFinderEnumArg(\"" + name + "_dtype\", dtype_str);");
-      args.push_back("PathFinderEnumArg(\"" + name + "_rank\", " + std::to_string(MAX_RANK + 1) +");");
+      args.push_back("PathFinderEnumArg(\"" + name_dtype + "\", dtype_str);");
+      args.push_back("PathFinderEnumArg(\"" + name_rank + "\", " + std::to_string(MAX_RANK + 1) +");");
       for (size_t i = 0; i <= MAX_RANK; i++)
-        args.push_back("PathFinderIntArg(\"" + name + "_" + std::to_string(i) + "\");");
+        args.push_back("PathFinderIntArg(\"" + name_dim[i] + "\");");
       break;
     }
     case INTVECTOR: {
-      args.push_back("PathFinderEnumArg(\"" + name + "_size\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
+      args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
       for (size_t i = 0; i <= MAX_VECTOR_SIZE; i++)
-        args.push_back("PathFinderIntArg(\"" + name + "_" + std::to_string(i) + "\");");
+        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
       break;
     }
     case FLOATVECTOR: {
-      args.push_back("PathFinderEnumArg(\"" + name + "_size\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
+      args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
       for (size_t i = 0; i <= MAX_VECTOR_SIZE; i++)
-        args.push_back("PathFinderEnumArg(\"" + name + "_" + std::to_string(i) + "\", double_dict_str);");
+        args.push_back("PathFinderEnumArg(\"" + name_elem[i] + "\", double_dict_str);");
       break;
     }
     case INTARRAYREF: {
-      args.push_back("PathFinderEnumArg(\"" + name + "_size\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
+      args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
       for (size_t i = 0; i <= MAX_VECTOR_SIZE; i++)
-        args.push_back("PathFinderIntArg(\"" + name + "_" + std::to_string(i) + "\");");
+        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
       break;
     }
     case EXPANDINGARRAY: {
       for (size_t i = 0; i < int_offset_size; i++)
-        args.push_back("PathFinderIntArg(\"" + name + "_" + std::to_string(i) + "\");");
+        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
       break;
     }
     case EXPANDINGARRAYWITHOPTIONALELEM: {
       for (size_t i = 0; i < int_offset_size; i++)
-        args.push_back("PathFinderIntArg(\"" + name + "_" + std::to_string(i) + "\");");
+        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
       break;
     }
     case OPTIONAL: {
-      args.push_back("PathFinderEnumArg(\"" + name + "_opt\", {\"some\", \"none\"});");
+      args.push_back("PathFinderEnumArg(\"" + name + "\", {\"some\", \"none\"});");
       base->setup_arg(args);
       break;
     }
@@ -299,7 +317,7 @@ void Param::setup_arg(std::vector<std::string>& args) {
       size_t enum_size = expandingarray == nullptr ? enums.size() : enums.size() + 1 ;
       std::string str = "PathFinderEnumArg(\"" + name + "\", {";
       if (expandingarray != nullptr)
-        str += "\"array\", ";
+        str += "\"" + expandingarray->name + "\", ";
       for (size_t i = 0; i < enums.size(); i++) {
         str += "\"" + enums[i]->name + "\"";
         if (i != enums.size() - 1)
@@ -386,7 +404,7 @@ void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::str
   }
 }
 
-std::string gen_setup(size_t offset_size, std::vector<std::unique_ptr<Param>>& params, bool is_module) {
+std::string gen_setup(std::vector<std::unique_ptr<Param>>& params, bool is_module) {
   std::vector<std::string> args;
   std::vector<std::string> hard_ctrs;
   std::vector<std::string> soft_ctrs;
@@ -429,14 +447,14 @@ to_quad(std::vector<std::string> first, std::vector<std::string> second, std::st
 
 std::string Param::type_str() {
   switch(ptype) {
-    case ENUM: return "torch::enumtype::" + enum_name;
+    case ENUM: return "torch::enumtype::" + name;
     case TENSOR: return "auto";
     case INTVECTOR:
     case INTARRAYREF: return "std::vector<long>";
     case FLOATVECTOR: return "std::vector<double>";
-    case EXPANDINGARRAY: return "torch::ExpandingArray<" + std::to_string(expandingarray_size) + ">";
+    case EXPANDINGARRAY: return "torch::ExpandingArray<" + std::to_string(array_size) + ">";
     case EXPANDINGARRAYWITHOPTIONALELEM:
-      return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(expandingarray_size) + ">";
+      return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(array_size) + ">";
     default:
       assert(false);
   }
@@ -446,9 +464,9 @@ std::string Param::array_str() {
   switch(ptype) {
     case EXPANDINGARRAY: {
       std::string array_init = type_str() + "({";
-      for (size_t i = int_offset_start; i < int_offset_start + int_offset_size; i++) {
-        array_init += var_caller + "[" + std::to_string(i) + "]";
-        if (i != int_offset_start + int_offset_size - 1)
+      for (size_t i = 0; i < int_offset_size; i++) {
+        array_init += var_caller + "[\"" + name_elem[i] + "\"]";
+        if (i != int_offset_size - 1)
           array_init += ",";
       }
       array_init += "})";
@@ -456,10 +474,10 @@ std::string Param::array_str() {
     }
     case EXPANDINGARRAYWITHOPTIONALELEM: {
       std::string array_init =
-        "expandingarray_with_optional_elem<" + std::to_string(expandingarray_size) + ">({";
-      for (size_t i = int_offset_start; i < int_offset_start + int_offset_size; i++) {
-        array_init += var_caller + "[" + std::to_string(i) + "]";
-        if (i != int_offset_start + int_offset_size - 1)
+        "expandingarray_with_optional_elem<" + std::to_string(array_size) + ">({";
+      for (size_t i = 0; i < int_offset_size; i++) {
+        array_init += var_caller + "[\"" + name_elem[i] + "\"]";
+        if (i != int_offset_size - 1)
           array_init += ",";
       }
       array_init += "})";
@@ -471,7 +489,8 @@ std::string Param::array_str() {
 }
 
 std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code(std::string api_name, bool is_module) {
-  std::string arg = var_caller + "[" + name + "]";
+  std::string arg = var_caller + "[\"" + name + "\"]";
+  std::string var_name = name;
   switch(ptype) {
     case INT:
     case BOOL:
@@ -481,87 +500,73 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
     case DTYPE:
       return to_quad(empty_strvec(),empty_strvec(),"get_dtype(" + arg + ")",empty_strvec());
     case TENSOR: {
-      std::string var_name = "tensor_" + std::to_string(tensor_id++);
+      //std::string var_name = "tensor_" + std::to_string(tensor_id++);
+      std::string arg_dtype = var_caller + "[\"" + name_dtype + "\"]";
+      std::string arg_rank = var_caller + "[\"" + name_rank + "\"]";
       std::string device = "device";
-      std::string dtype = "get_dtype(arg[" + std::to_string(offset_start) + "])";
-      if (tensor_rank) {
-        std::string shape = "{";
-        for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-          shape += "arg[" + std::to_string(i) + "]";
-          if (i != offset_start + offset_size - 1)
-            shape += ",";
-        }
-        shape += "}";
-        std::vector<std::string> tensor_guard =
-          std::vector<std::string>({"PathFinderPassIf(is_too_big(" + shape + "));"});
-          
-        std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + dtype + ", " + shape + ");";
-        return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
-      } else {
-        std::string shape = "{";
-        for (size_t i = offset_start + 2; i < offset_start + offset_size; i++) {
-          shape += "arg[" + std::to_string(i) + "]";
-          if (i != offset_start + offset_size - 1)
-            shape += ",";
-        }
-        shape += "}";
-        size_t rank = offset_start + 1;
-        std::vector<std::string> tensor_guard =
-          std::vector<std::string>({"PathFinderPassIf(is_too_big(arg[" + std::to_string(rank) + "], " + shape + "));"});
-          
-        std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + dtype + ", arg[" + std::to_string(rank) + "], " + shape + ");";
-        return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
+      std::string dtype = "get_dtype(" + arg_dtype + ")";
+      std::string shape = "{";
+      for (size_t i = 0; i < int_offset_size; i++) {
+        shape += var_caller + "[\"" + name_dim[i] + "\"]";
+        if (i != int_offset_size - 1)
+          shape += ",";
       }
+      shape += "}";
+      std::vector<std::string> tensor_guard =
+        std::vector<std::string>({"PathFinderPassIf(is_too_big(" + arg_rank + ", " + shape + "));"});
+        
+      std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + arg_dtype + ", " + arg_rank + ", " + shape + ");";
+      return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
     }
     case INTVECTOR: {
-      std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
+      //std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
       std::string vec_init = type_str() + " " + var_name + "_ = {";
-      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-        vec_init += "arg[" + std::to_string(i) + "]";
-        if (i != offset_start + offset_size - 1)
+      for (size_t i = 0; i < int_offset_size; i++) {
+        vec_init += var_caller + "[\"" + name_elem[i] + "\"]";
+        if (i != int_offset_size - 1)
           vec_init += ",";
       }
       vec_init += "};";
-      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[" + var_caller + "[\""+ name_size + "\"]" + "]);";
       return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case FLOATVECTOR: {
-      std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
+      //std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
       std::string vec_init = type_str() + " " + var_name + "_ = {";
-      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-        vec_init += "double_dict[arg[" + std::to_string(i) + "]]";
-        if (i != offset_start + offset_size - 1)
+      for (size_t i = 0; i < enum_offset_size - 1; i++) {
+        vec_init += "double_dict[" + var_caller + "[\"" + name_elem[i] + "\"]" + "]";
+        if (i != enum_offset_size - 2)
           vec_init += ",";
       }
       vec_init += "};";
-      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[" + var_caller + "[\""+ name_size + "\"]" + "]);";
       return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case INTARRAYREF: {
-      std::string var_name = "array_" + std::to_string(array_id++);
+      //std::string var_name = "array_" + std::to_string(array_id++);
       std::string array_init = type_str() + " " + var_name + "_ = {";
-      for (size_t i = offset_start + 1; i < offset_start + offset_size; i++) {
-        array_init += "arg[" + std::to_string(i) + "]";
-        if (i != offset_start + offset_size - 1)
+      for (size_t i = 0; i < int_offset_size; i++) {
+        array_init += var_caller + "[\"" + name_elem[i] + "\"]";
+        if (i != int_offset_size - 1)
           array_init += ",";
       }
       array_init += "};";
-      std::string array_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[arg[" + std::to_string(offset_start) + "]]);";
+      std::string array_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[" + var_caller + "[\""+ name_size + "\"]" + "]);";
       return to_quad({array_init, array_size_set},empty_strvec(),var_name,empty_strvec());
     }
     case EXPANDINGARRAY: {
-      std::string var_name = "array_" + std::to_string(array_id++);
+      //std::string var_name = "array_" + std::to_string(array_id++);
       std::string array_init = type_str() + " " + var_name + " = " + array_str() + ";";
       return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
     }
     case EXPANDINGARRAYWITHOPTIONALELEM: {
-      std::string var_name = "array_" + std::to_string(array_id++);
+      //std::string var_name = "array_" + std::to_string(array_id++);
       std::string array_init = type_str() + " " + var_name + " = " + array_str() + ";";
       return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
     }
     case OPTIONAL: {
       std::vector<std::string> option_check;
-      option_check.push_back("if (arg[" + std::to_string(offset_start) + "])");
+      option_check.push_back("if (" + var_caller + "[\"" + name + "\"])");
       auto t = base->to_code(api_name, is_module);
       std::vector<std::string> preparation = std::get<0>(t);
       std::string expr = std::get<2>(t);
@@ -569,7 +574,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       return to_quad(preparation,option_check,expr,guard);
     }
     case VARIANT: {
-      std::string var_name = "enum_" + std::to_string(enum_id++);
+      //std::string var_name = "enum_" + std::to_string(enum_id++);
       std::vector<std::string> enum_init;
       enum_init.push_back("typedef");
       enum_init.push_back("  c10::variant<");
@@ -588,35 +593,35 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
       if (expandingarray != nullptr)
         enum_init.push_back("  " + expandingarray->array_str() + ",");
       for (size_t i = 0; i < enums.size(); i++) {
-        std::string enum_elem = "  torch::" + enums[i]->enum_name;
+        std::string enum_elem = "  torch::" + enums[i]->name;
         if (i != enums.size()-1)
           enum_elem += ",";
         enum_init.push_back(enum_elem);
       }
       enum_init.push_back("};");
-      return to_quad(enum_init, empty_strvec(), var_name + "[arg[" + std::to_string(offset_start) + "]]",empty_strvec());
+      return to_quad(enum_init, empty_strvec(), var_name + "[" + var_caller + "[\"" + name + "\"]]",empty_strvec());
     }
     case MAP: {
       std::vector<std::string> preparation;
       std::vector<std::string> option_check;
       std::vector<std::string> map_init;
       std::vector<std::string> guard;
-      std::string options_var = is_module ? "moptions" : "foptions";
+      //std::string var_name = is_module ? "moptions" : "foptions";
 
       bool separate_init = false;
       if (ctor_params.size() == 1 &&
           ctor_params[0].second->ptype == VARIANT &&
           ctor_params[0].second->enums.size() > 0) {
-        map_init.push_back(map_name + " " + options_var + ";");
-        map_init.push_back("if (arg[" + std::to_string(ctor_params[0].second->offset_start) + "] == 0) {");
-        map_init.push_back("  " + options_var + " = " + map_name + "(torch::" + ctor_params[0].second->enums[0]->enum_name + ");");
+        map_init.push_back(map_name + " " + var_name + ";");
+        map_init.push_back("if (" + var_caller + "[\"" + ctor_params[0].second->name + "\"] == 0) {");
+        map_init.push_back("  " + var_name + " = " + map_name + "(torch::" + ctor_params[0].second->enums[0]->name + ");");
         for (size_t i = 1; i < ctor_params[0].second->enums.size(); i++) {
-          map_init.push_back("} else if (arg[" + std::to_string(ctor_params[0].second->offset_start) + "] == " + std::to_string(i) + ") {");
-          map_init.push_back("  " + options_var + " = " + map_name + "(torch::" + ctor_params[0].second->enums[i]->enum_name + ");");
+          map_init.push_back("} else if (" + var_caller + "[\"" + ctor_params[0].second->name + "\"] == " + std::to_string(i) + ") {");
+          map_init.push_back("  " + var_name + " = " + map_name + "(torch::" + ctor_params[0].second->enums[i]->name + ");");
         }
         map_init.push_back("}");
         if (entries.size() > 0)
-          map_init.push_back(options_var);
+          map_init.push_back(var_name);
         separate_init = true;
       } else {
         std::string ctor_param_str;
@@ -638,7 +643,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
           if (guard_.size() > 0) 
             guard.insert(guard.end(), guard_.begin(), guard_.end());
         }
-        map_init.push_back("auto " + options_var + " =");
+        map_init.push_back("auto " + var_name + " =");
         map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
       }
 
@@ -656,7 +661,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         if (option_check_.size() > 0) {
           assert(option_check_.size() == 1);
           option_check.push_back(option_check_[0]);
-          option_check.push_back("  " + options_var + "." + p.first + "(" + exp_ + ");");
+          option_check.push_back("  " + var_name + "." + p.first + "(" + exp_ + ");");
         } else {
           std::string param_set = "." + p.first + "(" + exp_ + ")";
           if (separate_init) {
@@ -678,7 +683,7 @@ std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std:
         preparation.push_back("");
       preparation.insert(preparation.end(), map_init.begin(), map_init.end());
       preparation.insert(preparation.end(), option_check.begin(), option_check.end());
-      return to_quad(preparation,empty_strvec(),options_var,guard);
+      return to_quad(preparation,empty_strvec(),var_name,guard);
     }
     default:
       assert(false);
@@ -740,7 +745,7 @@ std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param
   if (is_module) {
     if (api_name == "torch::nn::LSTM" ||
         api_name == "torch::nn::LSTMCell") {
-      api_call += "auto result = m->forward(tensor_0, {{tensor_1, tensor_2}})\n";
+      api_call += "auto result = m->forward(" + positional_arg[0] + ", {{" + positional_arg[1] + ", " + positional_arg[2] + "}})\n";
     } else {
       api_call += "auto result = m->forward(";
       for (size_t i = 0; i < num_input_tensor; i++) {
@@ -808,13 +813,14 @@ std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& 
   array_id = 0;
   enum_id = 0;
 
-  size_t offset = 0;
+  size_t enum_offset = 0;
+  size_t int_offset = 0;
   for (auto&& param: params)
-    offset = param->set_offset(offset);
+    std::tie(enum_offset, int_offset) = param->set_offset(enum_offset, int_offset);
 
   std::string code;
   code += gen_header();
-  code += gen_setup(offset, params, is_module);
+  code += gen_setup( params, is_module);
   code += gen_api_call(api_name, params, is_module, num_input_tensor);
   code += gen_footer();
 
@@ -836,7 +842,7 @@ std::string str_mult(size_t n, std::string str) {
   return s;
 }
 
-std::string Param::to_string(int depth) {
+/* std::string Param::to_string(int depth) {
   static const std::string indent = std::string("  ");
 
   std::string str;
@@ -908,6 +914,6 @@ std::string Param::to_string(int depth) {
     default: assert(false);
   }
   return str;
-}
+} */
 
 #endif
