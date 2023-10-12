@@ -1,0 +1,155 @@
+# Convolution Layers
+torch::nn::Conv1d
+torch::nn::Conv2d
+torch::nn::Conv3d
+torch::nn::ConvTranspose1d
+torch::nn::ConvTranspose2d
+torch::nn::ConvTranspose3d
+torch::nn::Unfold
+torch::nn::Fold
+
+# Pooling Layers
+torch::nn::MaxPool1d
+torch::nn::MaxPool2d
+torch::nn::MaxPool3d
+torch::nn::MaxUnpool1d
+torch::nn::MaxUnpool2d
+torch::nn::MaxUnpool3d
+torch::nn::AvgPool1d
+torch::nn::AvgPool2d
+torch::nn::AvgPool3d
+torch::nn::FractionalMaxPool2d
+torch::nn::FractionalMaxPool3d
+torch::nn::LPPool1d
+torch::nn::LPPool2d
+torch::nn::AdaptiveMaxPool1d
+torch::nn::AdaptiveMaxPool2d
+torch::nn::AdaptiveMaxPool3d
+torch::nn::AdaptiveAvgPool1d
+torch::nn::AdaptiveAvgPool2d
+torch::nn::AdaptiveAvgPool3d
+
+# Padding Layers
+torch::nn::ReflectionPad1d
+torch::nn::ReflectionPad2d
+torch::nn::ReflectionPad3d
+torch::nn::ReplicationPad1d
+torch::nn::ReplicationPad2d
+torch::nn::ReplicationPad3d
+torch::nn::ZeroPad1d
+torch::nn::ZeroPad2d
+torch::nn::ZeroPad3d
+torch::nn::ConstantPad1d
+torch::nn::ConstantPad2d
+torch::nn::ConstantPad3d
+
+# Non-linear Activations (weighted sum, nonlinearity)
+torch::nn::ELU
+torch::nn::Hardshrink
+torch::nn::Hardtanh
+torch::nn::LeakyReLU
+torch::nn::LogSigmoid
+# torch::nn::MultiheadAttention
+torch::nn::PReLU
+torch::nn::ReLU
+torch::nn::ReLU6
+torch::nn::RReLU
+torch::nn::SELU
+torch::nn::CELU
+torch::nn::Sigmoid
+torch::nn::SiLU
+torch::nn::Mish
+torch::nn::Softplus
+torch::nn::Softshrink
+torch::nn::Softsign
+torch::nn::Tanh
+torch::nn::Tanhshrink
+torch::nn::Threshold
+torch::nn::GLU
+
+# Non-linear Activations (other)
+torch::nn::Softmin
+torch::nn::Softmax
+torch::nn::Softmax2d
+torch::nn::LogSoftmax
+torch::nn::AdaptiveLogSoftmaxWithLoss
+
+# Normalization Layers
+torch::nn::BatchNorm1d
+torch::nn::BatchNorm2d
+torch::nn::BatchNorm3d
+torch::nn::GroupNorm
+torch::nn::InstanceNorm1d
+torch::nn::InstanceNorm2d
+torch::nn::InstanceNorm3d
+torch::nn::LayerNorm
+torch::nn::LocalResponseNorm
+
+# Recurrent Layers
+torch::nn::RNN
+torch::nn::LSTM
+torch::nn::GRU
+torch::nn::RNNCell
+torch::nn::LSTMCell
+torch::nn::GRUCell
+
+# Transformer Layers
+# torch::nn::Transformer
+# torch::nn::TransformerEncoder
+# torch::nn::TransformerDecoder
+# torch::nn::TransformerEncoderLayer
+# torch::nn::TransformerDecoderLayer
+
+# Linear Layers
+torch::nn::Identity
+torch::nn::Linear
+torch::nn::Bilinear
+
+# Dropout Layers
+torch::nn::Dropout
+torch::nn::Dropout2d
+torch::nn::Dropout3d
+torch::nn::AlphaDropout
+torch::nn::FeatureAlphaDropout
+
+# Sparse Layers
+torch::nn::Embedding
+torch::nn::EmbeddingBag
+
+# Distance Functions
+torch::nn::CosineSimilarity
+torch::nn::PairwiseDistance
+
+# Loss Functions
+torch::nn::L1Loss
+torch::nn::MSELoss
+torch::nn::CrossEntropyLoss
+torch::nn::CTCLoss
+torch::nn::NLLLoss
+torch::nn::PoissonNLLLoss
+torch::nn::KLDivLoss
+torch::nn::BCELoss
+torch::nn::BCEWithLogitsLoss
+torch::nn::MarginRankingLoss
+torch::nn::HingeEmbeddingLoss
+torch::nn::MultiLabelMarginLoss
+torch::nn::HuberLoss
+torch::nn::SmoothL1Loss
+torch::nn::SoftMarginLoss
+torch::nn::MultiLabelSoftMarginLoss
+torch::nn::CosineEmbeddingLoss
+torch::nn::MultiMarginLoss
+torch::nn::TripletMarginLoss
+torch::nn::TripletMarginWithDistanceLoss
+  
+# Vision Layers
+torch::nn::PixelShuffle
+torch::nn::PixelUnshuffle
+torch::nn::Upsample
+  
+# Utilities
+torch::nn::Flatten
+torch::nn::Unflatten
+  
+# etc
+torch::nn::CrossMapLRN2d

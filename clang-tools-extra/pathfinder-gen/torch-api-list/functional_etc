@@ -1,0 +1,12 @@
+torch::nn::functional::adaptive_max_pool2d_with_indices
+torch::nn::functional::fractional_max_pool2d
+torch::nn::functional::fractional_max_pool2d_with_indices
+torch::nn::functional::fractional_max_pool3d
+torch::nn::functional::fractional_max_pool3d_with_indices
+torch::nn::functional::group_norm
+torch::nn::functional::huber_loss
+torch::nn::functional::max_pool1d_with_indices
+torch::nn::functional::max_pool2d_with_indices
+torch::nn::functional::max_pool3d_with_indices
+torch::nn::functional::mish
+torch::nn::functional::multi_head_attention_forward
