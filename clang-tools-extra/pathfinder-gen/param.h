@@ -22,6 +22,7 @@ static const std::string double_dict_list = "double_dict_list";
 static const std::string dtype_list = "dtype_list";
 
 static const std::string gte = " >= ";
+static const std::string assign = " = ";
 static const std::string comma = ", ";
 static const std::string semicolon = ";";
 
@@ -52,6 +53,15 @@ std::string double_dict(std::string param_name) {
 std::string get_dtype(std::string param_name) {
   return "get_dtype(" + callback_var(param_name) + ")";
 }
+std::string join(const std::vector<std::string>& strs, std::string sep=comma) {
+  std::string joined;
+  for (size_t i = 0; i < strs.size(); i++) {
+    joined += strs[i];
+    if (i != strs.size() - 1)
+      joined += sep;
+  }
+  return joined;
+}
 
 template<typename T>
 void concat(std::vector<T>& left, const std::vector<T>& right) {
@@ -59,7 +69,10 @@ void concat(std::vector<T>& left, const std::vector<T>& right) {
     left.push_back(elem);
 }
 
-
+static bool module_mode;
+void set_function_mode() { module_mode = false; }
+void set_module_mode() { module_mode = true; }
+bool is_module_mode() { return module_mode; }
 
 class TorchParam {
   public:
@@ -75,7 +88,7 @@ class TorchParam {
     virtual std::vector<std::string> enum_arg_string() const { return {}; }
     virtual std::vector<std::string> int_arg_string() const { return {}; }
 
-    virtual void set_default(const CXXRecordDecl* cdecl) {}
+    virtual void set_default(Expr* default_expr) {}
 
     virtual std::string expression() const = 0;
     virtual std::vector<std::string> gen_soft_constraint() const { return {}; }
@@ -97,8 +110,15 @@ class TorchIntParam: public TorchParam {
     virtual std::string expression() const {
       return callback_var(name);
     }
-    virtual void set_default(const CXXRecordDecl* cdecl) {
-      // TODO
+    virtual void set_default(Expr* default_expr) {
+      if (default_expr == nullptr)
+        return;
+
+      if (const auto* il = dyn_cast<IntegerLiteral>(default_expr)) {
+        assert(il != nullptr);
+        unsigned long val = il->getValue().getZExtValue();
+        default_value = val;
+      }
     }
     void set_default(int value) {
       default_value = value;
@@ -108,65 +128,84 @@ class TorchIntParam: public TorchParam {
         return {};
 
       return
-        { ctr_var(name) + gte + std::to_string(default_value.getValue()) };  
+        {ctr_var(name) + gte + std::to_string(default_value.getValue())};  
     }
   private:
     Optional<int> default_value = None;
 };
 
-class TorchBoolParam: public TorchParam {
+class TorchEnumParam: public TorchParam {
   public:
-    TorchBoolParam(std::string name_): TorchParam(name_) {}
+    TorchEnumParam(std::string name_, size_t size_): TorchParam(name_) {
+      size = size_;
+    }
+    TorchEnumParam(std::string name_, const std::vector<std::string>& enumerators_)
+      : TorchParam(name_)
+    {
+      for (auto enumerator_: enumerators_)
+        enumerators.push_back(quoted(enumerator_));
+    }
+    TorchEnumParam(std::string name_, const std::string& enum_list_var): TorchParam(name_) {
+      enumerators.push_back(enum_list_var);
+    }
     virtual std::vector<std::string> enum_arg_string() const {
-      return { quoted(name) + comma + curly(quoted("true") + comma + quoted("false")) };
+      if (size.hasValue())
+        return {quoted(name) + comma + std::to_string(size.getValue())};
+      else if (!enumerators.empty())
+        return {quoted(name) + comma + curly(join(enumerators))};
+      else
+        return {quoted(name) + comma + enum_list_var};
     }
     virtual std::string expression() const {
       return callback_var(name);
     }
   private:
+    Optional<size_t> size;
+    std::vector<std::string> enumerators;
+    std::string enum_list_var;
 };
 
-class TorchFloatParam: public TorchParam {
+class TorchBoolParam: public TorchEnumParam {
   public:
-    TorchFloatParam(std::string name_): TorchParam(name_) {}
-    virtual std::vector<std::string> enum_arg_string() const {
-      return { quoted(name) + comma + double_dict_list };
-    }
+    TorchBoolParam(std::string name_)
+      : TorchEnumParam(name_, std::vector<std::string>({"true", "false"})) {}
+};
+
+class TorchFloatParam: public TorchEnumParam {
+  public:
+    TorchFloatParam(std::string name_): TorchEnumParam(name_, double_dict_list) {}
     virtual std::string expression() const {
       return double_dict(name);
     }
 };
 
-class TorchDtypeParam: public TorchParam {
+class TorchDtypeParam: public TorchEnumParam {
   public:
-    TorchDtypeParam(std::string name_): TorchParam(name_) {}
-    virtual std::vector<std::string> enum_arg_string() const {
-      return { quoted(name) + comma + dtype_list };
-    }
+    TorchDtypeParam(std::string name_): TorchEnumParam(name_, dtype_list) {}
     virtual std::string expression() const {
       return get_dtype(name);
     }
 };
 
-class TorchEnumParam: public TorchParam {
+/* class TorchEnumParam: public TorchParam {
   public:
     TorchEnumParam(std::string name_): TorchParam(name_) {}
     virtual std::string expression() const {
       return name;
     }
-};
+}; */
 
 class TorchIntVectorParam: public TorchParam {
   public:
     TorchIntVectorParam(std::string name_): TorchParam(name_) {
-      size = name + "_size";
+      vec_size = std::make_unique<TorchEnumParam>(name + "_size", MAX_VECTOR_SIZE + 1);
       for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
         int_params.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i)));
       for (auto&& int_param: int_params)
         int_param->set_default(0);
     }
     virtual std::vector<std::string> enum_arg_string() const {
-      return { quoted(size) + comma + std::to_string(MAX_VECTOR_SIZE + 1) };
+      return vec_size->enum_arg_string();
     }
     virtual std::vector<std::string> int_arg_string() const {
       std::vector<std::string> int_arg_str;
@@ -195,25 +234,26 @@ class TorchIntVectorParam: public TorchParam {
       std::string vec_init = type + temp_var + " = " + curly(exp_list) + semicolon;
       std::string vec_set_size =
         type + expression() +
-        bracket("&" + temp_var + square(std::to_string(0)) + comma + "&" + temp_var + square(callback_var(size)));
+        bracket(
+          "&" + temp_var + square(std::to_string(0)) + comma +
+          "&" + temp_var + square(vec_size->expression()));
 
       return {vec_init, vec_set_size};
     }
   private:
-    std::string size;
+    std::unique_ptr<TorchEnumParam> vec_size;
     std::vector<std::unique_ptr<TorchIntParam>> int_params;
 };
 
 class TorchFloatVectorParam: public TorchParam {
   public:
     TorchFloatVectorParam(std::string name_): TorchParam(name_) {
-      size = name + "_size";
+      vec_size = std::make_unique<TorchEnumParam>(name + "_size", MAX_VECTOR_SIZE + 1);
       for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
         float_params.push_back(std::make_unique<TorchFloatParam>(name + "_" + std::to_string(i)));
     }
     virtual std::vector<std::string> enum_arg_string() const {
-      std::vector<std::string> float_arg_str =
-        { quoted(size) + comma + std::to_string(MAX_VECTOR_SIZE + 1) };
+      std::vector<std::string> float_arg_str = vec_size->enum_arg_string();
       for (auto& float_param: float_params)
         concat(float_arg_str, float_param->enum_arg_string());
       return float_arg_str;
@@ -233,26 +273,106 @@ class TorchFloatVectorParam: public TorchParam {
       std::string vec_init = type + temp_var + " = " + curly(exp_list) + semicolon;
       std::string vec_set_size =
         type + expression() +
-        bracket("&" + temp_var + square(std::to_string(0)) + comma + "&" + temp_var + square(callback_var(size)));
+        bracket(
+          "&" + temp_var + square(std::to_string(0)) + comma +
+          "&" + temp_var + square(vec_size->expression()));
 
       return {vec_init, vec_set_size};
     }
   private:
-    std::string size;
+    std::unique_ptr<TorchEnumParam> vec_size;
     std::vector<std::unique_ptr<TorchFloatParam>> float_params;
 };
 
-class TorchIntVectorParam: public TorchParam {
+class TorchExpandingArrayParam: public TorchParam {
   public:
-    TorchIntVectorParam(std::string name_): TorchParam(name_) {
-      size = name + "_size";
-      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
+    TorchExpandingArrayParam(std::string name_, size_t size_): TorchParam(name_) {
+      size = size_;
+      for (size_t i = 0; i < size; i++)
         int_params.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i)));
+      for (auto&& int_param: int_params)
+        int_param->set_default(is_module_mode() ? 1 : 0); // TDOO: is it required?
+    }
+    virtual void set_default(Expr* default_expr) {
+      for (auto&& int_param: int_params)
+        int_param->set_default(default_expr);
+    }
+    virtual std::vector<std::string> int_arg_string() const {
+      std::vector<std::string> int_arg_str;
+      for (auto& int_param: int_params)
+        concat(int_arg_str, int_param->int_arg_string());
+      return int_arg_str;
+    }
+    virtual std::string expression() const {
+      return name;
+    }
+    virtual std::vector<std::string> gen_soft_constraint() const {
+      std::vector<std::string> soft_ctrs;
+      for (auto& int_param: int_params)
+        concat(soft_ctrs, int_param->gen_soft_constraint());
+      return soft_ctrs;
+    }
+    virtual std::vector<std::string> gen_preparation() const {
+      std::string exp_list;
+      for (size_t i = 0; i < int_params.size(); i++) {
+        exp_list += int_params[i]->expression();
+        if (i != int_params.size() - 1)
+          exp_list += comma;
+      }
+      std::string type = "torch::ExpandingArray<" + std::to_string(size) + "> ";
+      std::string array_init = type + expression() + bracket(curly(exp_list)) + semicolon;
+
+      return {array_init};
+    }
+  protected:
+    size_t size;
+    std::vector<std::unique_ptr<TorchIntParam>> int_params;
+};
+
+class TorchExpandingArrayWithOptionalElemParam: public TorchExpandingArrayParam {
+  public:
+    TorchExpandingArrayWithOptionalElemParam(std::string name_, size_t size_)
+      : TorchExpandingArrayParam(name_, size_)
+    {
       for (auto&& int_param: int_params)
         int_param->set_default(0);
     }
+    virtual std::vector<std::string> gen_preparation() const {
+      std::string exp_list;
+      for (size_t i = 0; i < int_params.size(); i++) {
+        exp_list += int_params[i]->expression();
+        if (i != int_params.size() - 1)
+          exp_list += comma;
+      }
+      std::string type = "torch::ExpandingArrayWithOptionalElem<" + std::to_string(size) + "> ";
+      std::string initializer = "expandingarray_with_optional_elem<" + std::to_string(size) + ">";
+      std::string array_init = type + expression() + assign + initializer + bracket(curly(exp_list)) + semicolon;
+
+      return {array_init};
+    }
+  private:
+    size_t size;
+    std::vector<std::unique_ptr<TorchIntParam>> int_params;
+};
+
+class TorchTensorParam: public TorchParam {
+  public:
+    TorchTensorParam(std::string name_): TorchParam(name_) {
+      dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
+      rank = std::make_unique<TorchEnumParam>(name + "_rank", MAX_RANK + 1);
+      for (size_t i = 0; i < MAX_RANK; i++)
+        dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i)));
+      for (auto&& dim: dims)
+        dim->set_default(1);
+    }
     virtual std::vector<std::string> enum_arg_string() const {
-      return { quoted(size) + comma + std::to_string(MAX_VECTOR_SIZE + 1) };
+      std::vector<std::string> enum_arg_str = dtype->enum_arg_string();
+      concat(enum_arg_str, rank->enum_arg_string());
+
+
+      std::string arg_dtype = quoted(dtype) + comma + 
+
+      return { quoted(size) + comma + dtype_list };
     }
     virtual std::vector<std::string> int_arg_string() const {
       std::vector<std::string> int_arg_str;
@@ -286,11 +406,10 @@ class TorchIntVectorParam: public TorchParam {
       return {vec_init, vec_set_size};
     }
   private:
-    std::string size;
-    std::vector<std::unique_ptr<TorchIntParam>> int_params;
+    std::unique_ptr<TorchDtypeParam> dtype;
+    std::unique_ptr<TorchEnumParam> rank;
+    std::vector<std::unique_ptr<TorchIntParam>> dims;
 };
-
-
 
 
 

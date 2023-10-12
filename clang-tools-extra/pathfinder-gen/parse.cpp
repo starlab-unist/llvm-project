@@ -260,6 +260,17 @@ void push_back_unique(std::vector<std::pair<std::string,std::unique_ptr<Param>>>
     vec.push_back({name, std::move(param)});
 }
 
+Expr* get_default_expr(std::string param_name, const CXXRecordDecl* cdecl) {
+  for (auto field: cdecl->fields()) {
+    std::string field_name = field->getNameAsString();
+    if (param_name.length() + 1 == field_name.length() &&
+        field_name.compare(0, field_name.length(), param_name + "_") == 0) {
+      return field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
+    }
+  }
+  return nullptr;
+}
+
 Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (option_class_done) return None;
 
@@ -344,7 +355,7 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, A
           OPTIONAL,
           param_name + "_opt",
           std::move(param));
-      param->set_default(param_name, cdecl);
+      param->set_default(get_default_expr(param_name, cdecl));
 
       if (include(ctor_param_names, param_name))
         push_back_unique(ctor_params, param_name, std::move(param));
