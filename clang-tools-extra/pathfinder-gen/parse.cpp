@@ -350,11 +350,11 @@ Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, A
 
     std::unique_ptr<Param> param = parseTorchParam(method->parameters()[0]->getType(), param_name, Ctx);
     if (param != nullptr) {
-      if (param->ptype == TENSOR)
+      /* if (param->ptype == TENSOR)
         param = std::make_unique<Param>(
           OPTIONAL,
           param_name + "_opt",
-          std::move(param));
+          std::move(param)); */
       param->set_default(get_default_expr(param_name, cdecl));
 
       if (include(ctor_param_names, param_name))
