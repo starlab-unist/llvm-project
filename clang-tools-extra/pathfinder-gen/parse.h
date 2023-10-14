@@ -5,23 +5,21 @@
 
 extern bool option_class_done;
 
-std::unique_ptr<Param> parseTorchParam(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseTorchParam(clang::QualType t, std::string name, ASTContext &Ctx);
 
 // Base case
-Optional<std::unique_ptr<Param>> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseDtype(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseEnum(clang::QualType t, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseTensor(clang::QualType t, std::string name);
-Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseDtype(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseEnum(clang::QualType t, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseTensor(clang::QualType t, std::string name);
+std::unique_ptr<TorchParam> parseIntArrayRef(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx);
 
 // Recursive case
-Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, std::string name, ASTContext &Ctx);
-Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, ASTContext &Ctx);
-
-size_t num_input_tensor(std::string& module_name);
+std::unique_ptr<TorchParam> parseOptional(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseVariant(clang::QualType t, std::string name, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseMAP(clang::QualType t, std::string name, ASTContext &Ctx);
 
 #endif
