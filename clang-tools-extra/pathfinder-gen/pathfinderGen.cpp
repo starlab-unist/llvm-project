@@ -42,11 +42,11 @@ public:
 
     option_class_done = false;
     auto param_decls = Declaration->parameters();
-    std::vector<std::unique_ptr<Param>> params;
+    std::vector<std::unique_ptr<TorchParam>> params;
     for (auto param_decl: param_decls) {
       clang::QualType t = param_decl->getType();
       std::string name = param_decl->getNameAsString();
-      std::unique_ptr<Param> p = parseTorchParam(t, name, *Context);
+      std::unique_ptr<TorchParam> p = parseTorchParam(t, name, *Context);
       if (p != nullptr)
         params.push_back(std::move(p));
     }
@@ -56,37 +56,38 @@ public:
       return true;
     }
 
-    generated_code[function_group][function_name] = gen_torch_function_pathfinder(function_name_qualified, params);
+    generated_code[function_group][function_name] =
+      TorchFunction(function_name_qualified, std::move(params)).gen_fuzz_target();
 
     return true;
   }
 
-  Optional<std::vector<std::unique_ptr<Param>>> parseModuleCtor(CXXConstructorDecl* ctor, size_t num_input_tensor) {
+  Optional<std::vector<std::unique_ptr<TorchParam>>> parseModuleCtor(CXXConstructorDecl* ctor, size_t num_input_tensor) {
     if (ctor->isCopyOrMoveConstructor() ||
         ctor->isSpecializationCopyingObject() ||
         ctor->isInheritingConstructor())
       return None;
 
     option_class_done = false;
-    std::vector<std::unique_ptr<Param>> params;
+    std::vector<std::unique_ptr<TorchParam>> params;
     for (size_t i = 0; i < num_input_tensor; i++)
-      params.push_back(std::make_unique<Param>(TENSOR, "tensor" + std::to_string(i)));
+      params.push_back(std::make_unique<TorchParam>(TENSOR, "tensor" + std::to_string(i)));
     for (const auto* param: ctor->parameters()) {
       clang::QualType t = param->getType();
       std::string name = param->getNameAsString();
-      std::unique_ptr<Param> p = parseTorchParam(t, name, *Context);
+      std::unique_ptr<TorchParam> p = parseTorchParam(t, name, *Context);
       if (p != nullptr)
         params.push_back(std::move(p));
     }
     return params;
   }
 
-  std::vector<std::unique_ptr<Param>> pickBest(std::vector<std::vector<std::unique_ptr<Param>>> candidates) {
+  std::vector<std::unique_ptr<TorchParam>> pickBest(std::vector<std::vector<std::unique_ptr<TorchParam>>> candidates) {
     assert(!candidates.empty());
 
     for (auto&& params: candidates)
       for (auto&& param: params)
-        if (param->is_map())
+        if (dynamic_cast<TorchAPIOptionsParam*>(param.get()))
           return std::move(params);
 
     size_t num_params_best = 0;
@@ -121,7 +122,7 @@ public:
     assert(targs.size() == 1);
     auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
 
-    std::vector<std::vector<std::unique_ptr<Param>>> candidates;
+    /* std::vector<std::vector<std::unique_ptr<TorchParam>>> candidates;
 
     for (auto ctor: class_decl->ctors())
       if (auto parsed = parseModuleCtor(ctor, num_input_tensor(module_name_qualified)))
@@ -141,9 +142,9 @@ public:
             auto targs = ctsdecl->bases_begin()->getType()->getAs<TemplateSpecializationType>()->template_arguments();
             assert(targs.size() == 3 && targs[2].getKind() == TemplateArgument::ArgKind::Type);
             option_class_done = false;
-            std::vector<std::unique_ptr<Param>> params;
+            std::vector<std::unique_ptr<TorchParam>> params;
             for (size_t i = 0; i < num_input_tensor(module_name_qualified); i++)
-              params.push_back(std::make_unique<Param>(TENSOR, "tensor" + std::to_string(i)));
+              params.push_back(std::make_unique<TorchParam>(TENSOR, "tensor" + std::to_string(i)));
             if (auto p = parseTorchParam(targs[2].getAsType(), "options", *Context))
               params.push_back(std::move(p));
             candidates.push_back(std::move(params));
@@ -163,7 +164,7 @@ public:
     }
 
     generated_code[torch_module_list_file_name()][module_name] =
-      gen_torch_module_pathfinder(module_name_qualified, params, num_input_tensor(module_name_qualified));
+      gen_torch_module_pathfinder(module_name_qualified, params, num_input_tensor(module_name_qualified)); */
 
     return true;
   }
