@@ -70,8 +70,8 @@ public:
 
     option_class_done = false;
     std::vector<std::unique_ptr<TorchParam>> params;
-    for (size_t i = 0; i < num_input_tensor; i++)
-      params.push_back(std::make_unique<TorchParam>(TENSOR, "tensor" + std::to_string(i)));
+    //for (size_t i = 0; i < num_input_tensor; i++)
+    //  params.push_back(std::make_unique<TorchParam>(TENSOR, "tensor" + std::to_string(i)));
     for (const auto* param: ctor->parameters()) {
       clang::QualType t = param->getType();
       std::string name = param->getNameAsString();

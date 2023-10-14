@@ -6,27 +6,52 @@
 
 bool option_class_done;
 
-std::unique_ptr<TorchParam> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TorchParam> torch_param;
-
+bool is_int_type(clang::QualType t, ASTContext &Ctx) {
   if (const auto* builtin = t->getAs<BuiltinType>()) {
     if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
-      if (t == "int" || t == "long") {
-        torch_param = std::make_unique<TorchIntParam>(name);
-      } else if (t == "bool") {
-        torch_param = std::make_unique<TorchBoolParam>(name);
-      } else {
+      if (t == "int" || t == "long")
+        return true;
+      else
         assert(false);
-      }
-    } else if (builtin->isFloatingPoint()) {
-      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
-      if (t == "float" || t == "double") {
-        torch_param = std::make_unique<TorchFloatParam>(name);
-      } else {
-        assert(false);
-      }
     }
+  }
+  return false;
+}
+
+bool is_bool_type(clang::QualType t, ASTContext &Ctx) {
+  if (const auto* builtin = t->getAs<BuiltinType>())
+    if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
+      if (builtin->getNameAsCString(Ctx.getPrintingPolicy()) == "bool")
+        return true;
+      else
+        assert(false);
+    }
+  return false;
+}
+
+bool is_float_type(clang::QualType t, ASTContext &Ctx) {
+  if (const auto* builtin = t->getAs<BuiltinType>()) {
+    if (builtin->isFloatingPoint()) {
+      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
+      if (t == "float" || t == "double")
+        return true;
+      else
+        assert(false);
+    }
+  }
+  return false;
+}
+
+std::unique_ptr<TorchParam> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  if (is_int_type(t, Ctx)) {
+    torch_param = std::make_unique<TorchIntParam>(name);
+  } else if (is_bool_type(t, Ctx)) {
+    torch_param = std::make_unique<TorchBoolParam>(name);
+  } else if (is_float_type(t, Ctx)) {
+    torch_param = std::make_unique<TorchFloatParam>(name);
   }
 
   return torch_param;
@@ -64,13 +89,12 @@ std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, AST
         if (rtype->getDecl()->getNameAsString() == "vector") {
           auto targs = tstype->template_arguments();
           if (targs.size() == 1) {
-            if (auto p = parseTorchParam(targs[0].getAsType(), "", Ctx)) {
-              if (dynamic_cast<TorchIntParam*>(p.get()))
-                torch_param = std::make_unique<TorchIntVectorParam>(name);
-              else if (dynamic_cast<TorchFloatParam*>(p.get()))
-                torch_param = std::make_unique<TorchFloatVectorParam>(name);
-              else
-                assert(false);
+            if (is_int_type(targs[0].getAsType(), Ctx)) {
+              torch_param = std::make_unique<TorchIntVectorParam>(name);
+            } else if (is_float_type(targs[0].getAsType(), Ctx)) {
+              torch_param = std::make_unique<TorchFloatVectorParam>(name);
+            } else {
+              assert(false);
             }
           }
         }
@@ -108,8 +132,11 @@ std::unique_ptr<TorchParam> parseIntArrayRef(clang::QualType t, std::string name
         assert(targ.size() == 1);
         assert(targ[0].getKind() == TemplateArgument::ArgKind::Type);
         auto p = parseTorchParam(targ[0].getAsType(), "",  Ctx);
-        if (dynamic_cast<TorchIntParam*>(p.get()))
+        if (is_int_type(targ[0].getAsType(), Ctx)) {
           torch_param = std::make_unique<TorchIntVectorParam>(name);
+        } else {
+          assert(false);
+        }
       }
     }
   }
@@ -168,7 +195,7 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
         return nullptr;
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
-      torch_param = std::make_unique<TorchParam>(EXPANDINGARRAYWITHOPTIONALELEM, name, expandingarray_size);
+      torch_param = std::make_unique<TorchExpandingArrayWithOptionalElemParam>(name, expandingarray_size);
     }
   } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
     assert(sttptype->isSugared());
@@ -180,7 +207,7 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
           assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
           int64_t expandingarray_size =
             targ[0].getAsIntegral().getExtValue();
-          torch_param = std::make_unique<TorchParam>(EXPANDINGARRAYWITHOPTIONALELEM, name, expandingarray_size);
+          torch_param = std::make_unique<TorchExpandingArrayWithOptionalElemParam>(name, expandingarray_size);
         }
       }
     }
@@ -200,7 +227,7 @@ std::unique_ptr<TorchParam> parseOptional(clang::QualType t, std::string name, A
           assert(targ.size() == 1);
           auto p = parseTorchParam(targ[0].getAsType(), name, Ctx);
           if (p != nullptr)
-            torch_param = std::make_unique<TorchParam>(OPTIONAL, name + "_opt", std::move(p));
+            torch_param = std::make_unique<TorchOptionalParam>(name, std::move(p));
         }
       }
     }
@@ -381,29 +408,29 @@ std::unique_ptr<TorchParam> parseAPIOptions(clang::QualType t, std::string name,
 std::unique_ptr<TorchParam> parseTorchParam(clang::QualType t, std::string name, ASTContext &Ctx) {
   // Base case
   if (auto builtin_param = parseBuiltin(t, name, Ctx))
-    return std::move(builtin_param);
+    return builtin_param;
   if (auto dtype_param = parseDtype(t, name, Ctx))
-    return std::move(dtype_param);
+    return dtype_param;
   if (auto enum_param = parseEnum(t, name, Ctx))
-    return std::move(enum_param);
+    return enum_param;
   if (auto vector_param = parseVector(t, name, Ctx))
-    return std::move(vector_param);
+    return vector_param;
   if (auto tensor_param = parseTensor(t, name, Ctx))
-    return std::move(tensor_param);
+    return tensor_param;
   if (auto intarrayref_param = parseIntArrayRef(t, name, Ctx))
-    return std::move(intarrayref_param);
+    return intarrayref_param;
   if (auto expandingarray_param = parseExpandingArray(t, name, Ctx))
-    return std::move(expandingarray_param);
+    return expandingarray_param;
   if (auto expandingarraywithoptionalelem_param = parseExpandingArrayWithOptionalElem(t, name, Ctx))
-    return std::move(expandingarraywithoptionalelem_param);
+    return expandingarraywithoptionalelem_param;
 
   // Recursive case
   if (auto optional_param = parseOptional(t, name, Ctx))
-    return std::move(optional_param);
+    return optional_param;
   if (auto variant_param = parseVariant(t, name, Ctx))
-    return std::move(variant_param);
+    return variant_param;
   if (auto api_options_param = parseAPIOptions(t, name, Ctx))
-    return std::move(api_options_param);
+    return api_options_param;
 
   // Simplifying sugars
   if (t->isLValueReferenceType()) {

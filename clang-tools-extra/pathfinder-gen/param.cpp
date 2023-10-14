@@ -9,9 +9,9 @@
 using namespace llvm;
 using namespace clang;
 
-const size_t MAX_RANK = 5;
+/* const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 6;
-const size_t DOUBLE_DICT_SIZE = 20;
+const size_t DOUBLE_DICT_SIZE = 20; */
 
 std::string var_ctr = "sym_int_arg";
 std::string var_caller = "x";
