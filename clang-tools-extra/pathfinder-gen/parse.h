@@ -10,9 +10,9 @@ std::unique_ptr<TorchParam> parseTorchParam(clang::QualType t, std::string name,
 // Base case
 std::unique_ptr<TorchParam> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx);
 std::unique_ptr<TorchParam> parseDtype(clang::QualType t, std::string name, ASTContext &Ctx);
-std::unique_ptr<TorchParam> parseEnum(clang::QualType t, ASTContext &Ctx);
+std::unique_ptr<TorchParam> parseEnum(clang::QualType t, std::string name, ASTContext &Ctx);
 std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, ASTContext &Ctx);
-std::unique_ptr<TorchParam> parseTensor(clang::QualType t, std::string name);
+std::unique_ptr<TorchParam> parseTensor(clang::QualType t, std::string name, ASTContext &Ctx);
 std::unique_ptr<TorchParam> parseIntArrayRef(clang::QualType t, std::string name, ASTContext &Ctx);
 std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx);
 std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx);

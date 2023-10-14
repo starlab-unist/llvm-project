@@ -43,7 +43,7 @@ std::string square(std::string str) {
 std::string curly(std::string str) {
   return "{" + str + "}";
 }
-std::string ctr_var(std::string param_name) {
+std::string setup_var(std::string param_name) {
   return symbolic_int_var + sq_quoted(param_name);
 }
 std::string callback_var(std::string param_name) {
@@ -167,7 +167,7 @@ class TorchIntParam: public TorchParam {
         default_value.hasValue() ?
         default_value.getValue() :
         (is_module_mode() ? 1 : 0);
-      return { callback_var(name) + gte + std::to_string(min) };
+      return { setup_var(name) + gte + std::to_string(min) };
     }
   private:
     Optional<int> default_value = None;
@@ -933,11 +933,11 @@ class Param {
       std::string target_api_name,
       std::vector<std::unique_ptr<Param>>& params,
       std::ostream& os);
-    friend Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, std::string name, ASTContext &Ctx);
+    /* friend Optional<std::unique_ptr<Param>> parseVector(clang::QualType t, std::string name, ASTContext &Ctx);
     friend Optional<std::unique_ptr<Param>> parseIntArrayRef(clang::QualType t, std::string name, ASTContext &Ctx);
     friend Optional<std::unique_ptr<Param>> parseOptional(clang::QualType t, std::string name, ASTContext &Ctx);
     friend Optional<std::unique_ptr<Param>> parseVariant(clang::QualType t, std::string name, ASTContext &Ctx);
-    friend Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, ASTContext &Ctx);
+    friend Optional<std::unique_ptr<Param>> parseMAP(clang::QualType t, std::string name, ASTContext &Ctx); */
 };
 
 std::string gen_torch_function_pathfinder(std::string api_name, std::vector<std::unique_ptr<Param>>& params);
