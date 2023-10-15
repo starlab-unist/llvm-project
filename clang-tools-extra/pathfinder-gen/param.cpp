@@ -417,10 +417,10 @@ TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, na
     dim->set_default(1);
 }
 
-std::string TorchTensorParam::type() const { return "torch::Tensor "; }
+std::string TorchTensorParam::type() const { return "torch::Tensor"; }
 std::string TorchTensorParam::var() const { return name; }
 std::string TorchTensorParam::initializer() const {
-  return "torch_tensor" +  bracket(dtype->expr() + comma + rank->expr() + comma + to_string(dims));
+  return "torch_tensor" + bracket(dtype->expr() + comma + rank->expr() + comma + to_string(dims));
 };
 
 std::vector<std::string> TorchTensorParam::gen_arg_setup() const {

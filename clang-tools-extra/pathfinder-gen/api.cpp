@@ -86,7 +86,7 @@ std::vector<std::string> TorchAPI::callback() const {
 
   concat(callback_code, "  ", input_pass_condition_code());
 
-  callback_code.push_back("\n  try\n");
+  callback_code.push_back("\n  try {\n");
   concat(callback_code, "    ", arg_initialization_code());
   concat(callback_code, "    ", api_call_code());
   callback_code.push_back("  } catch (std::exception& e) {");
