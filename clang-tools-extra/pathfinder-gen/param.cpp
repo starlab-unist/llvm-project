@@ -107,7 +107,7 @@ std::string TorchBoundedIntParam::type() const {
   return "size_t";
 }
 std::string TorchBoundedIntParam::initializer() const {
-  return quoted(type()) + bracket(callback_var(name));
+  return bracket(type()) + bracket(callback_var(name));
 }
 
 bool TorchBoundedIntParam::classof(const TorchParam *param) {
@@ -122,7 +122,7 @@ std::string TorchBoolParam::type() const {
   return "bool";
 }
 std::string TorchBoolParam::initializer() const {
-  return quoted(type()) + bracket(callback_var(name));
+  return  bracket(type()) + bracket(callback_var(name));
 }
 
 bool TorchBoolParam::classof(const TorchParam *param) {
@@ -164,8 +164,6 @@ TorchVariantParam::TorchVariantParam(
   : TorchBoundedParam(TPK_Variant, name_, get_names(params_))
 {
   params = std::move(params_);
-  for (size_t i = 0; i < params.size(); i++)
-    value_names.push_back(name + "_" + std::to_string(i));
 }
 void TorchVariantParam::set_default(Expr* default_expr) {
   for (auto& param: params)
@@ -253,13 +251,17 @@ std::vector<std::string> TorchVariantParam::gen_vector() const {
 }
 
 
-TorchEnumParam::TorchEnumParam(std::string name_): TorchParam(TPK_Enum, name_) {}
+TorchEnumParam::TorchEnumParam(std::string name_, std::string enum_name_)
+  : TorchParam(TPK_Enum, name_)
+{
+  enum_name = enum_name_;
+}
 
 std::string TorchEnumParam::type() const {
-  return "torch::enumtype::" + name;
+  return "torch::enumtype::" + enum_name;
 }
 std::string TorchEnumParam::initializer() const {
-  return "torch::" + name;
+  return "torch::" + enum_name;
 }
 
 bool TorchEnumParam::classof(const TorchParam *param) {

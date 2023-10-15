@@ -38,7 +38,7 @@ void concat(
   std::vector<std::string>& left,
   const std::string& prefix,
   const std::vector<std::string>& right,
-  const std::string& postfix=newline);
+  const std::string& postfix="");
 
 template<typename T>
 void concat(std::vector<T>& left, const std::vector<T>& right) {

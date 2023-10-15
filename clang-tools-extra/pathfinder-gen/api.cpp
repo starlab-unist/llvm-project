@@ -69,20 +69,8 @@ std::vector<std::string> TorchAPI::setup() const {
   setup_code.push_back("void PathFinderSetup() {");
 
   concat(setup_code, "  ", arg_setup_code());
-
-  std::vector<std::string> hard_constraint = hard_constraint_code();
-  if (!hard_constraint.empty()) {
-    setup_code.push_back("  PathFinderAddHardConstraint({");
-    concat(setup_code, "    ", hard_constraint, comma + newline);
-    setup_code.push_back("  });");
-  }
-
-  std::vector<std::string> soft_constraint = soft_constraint_code();
-  if (!soft_constraint.empty()) {
-    setup_code.push_back("  PathFinderAddSoftConstraint({");
-    concat(setup_code, "    ", soft_constraint, comma + newline);
-    setup_code.push_back("  });");
-  }
+  concat(setup_code, "  ", hard_constraint_code());
+  concat(setup_code, "  ", soft_constraint_code());
 
   setup_code.push_back("}\n");
 

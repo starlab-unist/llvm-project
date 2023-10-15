@@ -63,12 +63,15 @@ std::unique_ptr<TorchParam> parseDtype(clang::QualType t, std::string name, ASTC
 
 std::unique_ptr<TorchParam> parseEnum(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
-  static std::string enum_prefix = "torch::enumtype::";
+  static const std::string enum_prefix = "torch::enumtype::";
 
   if (const auto* rtype = t->getAs<RecordType>()) {
     std::string qualified_name = rtype->getDecl()->getQualifiedNameAsString();
     if (qualified_name.compare(0, enum_prefix.size(), enum_prefix) == 0)
-      torch_param = std::make_unique<TorchEnumParam>(name);
+      torch_param =
+        std::make_unique<TorchEnumParam>(
+          name,
+          qualified_name.substr(enum_prefix.size(), qualified_name.size() - enum_prefix.size()));
   }
 
   return torch_param;

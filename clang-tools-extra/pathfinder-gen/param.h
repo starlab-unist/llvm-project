@@ -174,12 +174,14 @@ class TorchVariantParam: public TorchBoundedParam {
 
 class TorchEnumParam: public TorchParam {
   public:
-    TorchEnumParam(std::string name_);
+    TorchEnumParam(std::string name_, std::string enum_name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
     static bool classof(const TorchParam *param);
+  private:
+    std::string enum_name;
 };
 
 class TorchVectorParam: public TorchParam {
