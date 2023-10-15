@@ -10,6 +10,13 @@
 #include <dirent.h>
 #include <fstream>
 
+static const std::string space = " ";
+static const std::string gte = " >= ";
+static const std::string assign = " = ";
+static const std::string comma = ", ";
+static const std::string semicolon = ";";
+static const std::string newline = "\n";
+
 bool startswith(std::string base, std::string prefix);
 bool endswith(std::string base, std::string suffix);
 bool include(std::vector<std::string>& vec, std::string name);
@@ -19,5 +26,34 @@ void init_torch_api_list();
 const std::map<std::string, std::set<std::string>>& get_torch_function_list();
 const std::set<std::string>& get_torch_module_list();
 void write_recursive(const std::map<std::string, std::map<std::string, std::string>>& contents);
+
+std::string quoted(std::string param_name);
+std::string sq_quoted(std::string param_name);
+std::string bracket(std::string str="");
+std::string square(std::string str);
+std::string curly(std::string str);
+std::string join_strs(const std::vector<std::string>& strs, std::string sep=comma);
+void concat(
+  std::vector<std::string>& left,
+  const std::string& prefix,
+  const std::vector<std::string>& right,
+  const std::string& postfix=newline);
+
+template<typename T>
+void concat(std::vector<T>& left, const std::vector<T>& right) {
+  for (auto& elem: right)
+    left.push_back(elem);
+}
+
+template<typename T>
+std::string to_string(const std::vector<std::unique_ptr<T>>& params) {
+  std::string str;
+  for (size_t i = 0; i < params.size(); i++) {
+    str += params[i]->expr();
+    if (i != params.size() - 1)
+      str += comma;
+  }
+  return curly(str);
+}
 
 #endif

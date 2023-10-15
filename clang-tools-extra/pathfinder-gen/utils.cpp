@@ -247,3 +247,42 @@ void write_recursive(const std::map<std::string, std::map<std::string, std::stri
   }
 }
 
+std::string quoted(std::string param_name) {
+  return "\"" + param_name + "\"";
+}
+
+std::string sq_quoted(std::string param_name) {
+  return "[" + quoted(param_name) + "]";
+}
+
+std::string bracket(std::string str) {
+  return "(" + str + ")";
+}
+
+std::string square(std::string str) {
+  return "[" + str + "]";
+}
+
+std::string curly(std::string str) {
+  return "{" + str + "}";
+}
+
+std::string join_strs(const std::vector<std::string>& strs, std::string sep) {
+  std::string joined;
+  for (size_t i = 0; i < strs.size(); i++) {
+    joined += strs[i];
+    if (i != strs.size() - 1)
+      joined += sep;
+  }
+  return joined;
+}
+
+void concat(
+  std::vector<std::string>& left,
+  const std::string& prefix,
+  const std::vector<std::string>& right,
+  const std::string& postfix)
+{
+  for (auto& elem: right)
+    left.push_back(prefix + elem + postfix);
+}

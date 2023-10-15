@@ -1,765 +1,605 @@
 #include "param.h"
-#include "clang/AST/AST.h"
-#include "llvm/ADT/Optional.h"
-#include <vector>
-#include <string>
-#include <map>
-#include <iostream>
 
-using namespace llvm;
-using namespace clang;
-
-/* const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 6;
-const size_t DOUBLE_DICT_SIZE = 20; */
 
-std::string var_ctr = "sym_int_arg";
-std::string var_caller = "x";
-size_t tensor_id;
-size_t int_vector_id;
-size_t float_vector_id;
-size_t array_id;
-size_t enum_id;
+std::string setup_var(std::string param_name) {
+  return symbolic_int_var + sq_quoted(param_name);
+}
+std::string callback_var(std::string param_name) {
+  return pathfinder_input_var + sq_quoted(param_name);
+}
+std::string double_dict(std::string param_name) {
+  return double_value_dictionary + callback_var(param_name);
+}
+std::string get_dtype(std::string param_name) {
+  return "get_dtype(" + callback_var(param_name) + ")";
+}
 
-Param::Param(ParamType ptype_, std::string name_): ptype(ptype_), name(name_) {
-  assert(ptype == INT || ptype == BOOL || ptype == FLOAT || ptype == DTYPE || ptype == ENUM ||
-          ptype == TENSOR || ptype == INTVECTOR || ptype == FLOATVECTOR || ptype == INTARRAYREF);
-  if (ptype == BOOL || ptype == DTYPE || ptype == FLOAT) {
-    enum_offset_size = 1;
-  } else if (ptype == INTVECTOR || ptype == INTARRAYREF) {
-    enum_offset_size = 1;
-    int_offset_size = MAX_VECTOR_SIZE;
-    name_size = name + "_size";
-    for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
-      name_elem.push_back(name + std::to_string(i));
-  } else if (ptype == FLOATVECTOR) {
-    enum_offset_size = 1 + MAX_VECTOR_SIZE;
-    name_size = name + "_size";
-    for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
-      name_elem.push_back(name + std::to_string(i));
-  } else if (ptype == TENSOR) {
-    enum_offset_size = 2; // dtype, rank
-    int_offset_size = MAX_RANK;
-    name_dtype = name + "_dtype";
-    name_rank = name + "_rank";
-    for (size_t i = 0; i < MAX_RANK; i++)
-      name_dim.push_back(name + std::to_string(i));
-  } else { // INT
-    int_offset_size = 1;
+std::vector<std::string> get_names(const std::vector<std::unique_ptr<TorchParam>>& params) {
+  std::vector<std::string> names;
+  for (auto& param: params)
+    names.push_back(param->get_name());
+  return names;
+}
+
+static bool module_mode;
+void set_function_mode() { module_mode = false; }
+void set_module_mode() { module_mode = true; }
+bool is_module_mode() { return module_mode; }
+
+
+TorchIntParam::TorchIntParam(std::string name_): TorchParam(TPK_Int, name_) {}
+void TorchIntParam::set_default(Expr* default_expr) {
+  if (default_expr == nullptr)
+    return;
+
+  if (const auto* il = dyn_cast<IntegerLiteral>(default_expr)) {
+    assert(il != nullptr);
+    unsigned long val = il->getValue().getZExtValue();
+    default_value = val;
   }
 }
-Param::Param(ParamType ptype_, std::string name_, long size)
-  : ptype(ptype_), name(name_)
-{
-  assert(ptype == EXPANDINGARRAY || ptype == EXPANDINGARRAYWITHOPTIONALELEM);
-  array_size = size;
-  int_offset_size = array_size;
-  for (size_t i = 0; i < array_size; i++)
-    name_elem.push_back(name + std::to_string(i));
+void TorchIntParam::set_default(int value) {
+  default_value = value;
 }
-Param::Param(ParamType ptype_, std::string name_, std::unique_ptr<Param> base_)
-  : ptype(ptype_), name(name_), base(std::move(base_))
-{
-  assert(ptype == OPTIONAL);
-  enum_offset_size = base->enum_offset_size + 1;
-  int_offset_size = base->int_offset_size;
+
+std::string TorchIntParam::type() const {
+  return "long";
 }
-Param::Param(ParamType ptype_, std::string name_, std::vector<std::unique_ptr<Param>> enums_, std::unique_ptr<Param> expandingarray_)
-  : ptype(ptype_), name(name_), enums(std::move(enums_)), expandingarray(std::move(expandingarray_))
-{
-  assert(ptype == VARIANT);
-  assert(enums.size() > 0);
-  enum_offset_size = 1;
-  if (expandingarray != nullptr)
-    int_offset_size = expandingarray->int_offset_size;
+std::string TorchIntParam::initializer() const {
+  return callback_var(name);
 }
-Param::Param(
-  ParamType ptype_,
+
+std::vector<std::string> TorchIntParam::gen_arg_setup() const {
+  return { "PathFinderIntArg" + bracket(quoted(name)) + semicolon  };
+}
+std::vector<std::string> TorchIntParam::gen_soft_constraint() const {
+  int min =
+    default_value.hasValue() ?
+    default_value.getValue() :
+    (is_module_mode() ? 1 : 0);
+  return { setup_var(name) + gte + std::to_string(min) };
+}
+
+bool TorchIntParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Int;
+}
+
+
+
+TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, const std::vector<std::string>& value_names_)
+  : TorchParam(kind_, name_)
+{
+  assert(TPK_Bounded_First <= get_kind() && get_kind() <= TPK_Bounded_Last);
+  for (auto value_name_: value_names_)
+    value_names.push_back(quoted(value_name_));
+}
+TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, size_t size_)
+  : TorchParam(kind_, name_)
+{
+  assert(TPK_Bounded_First <= get_kind() && get_kind() <= TPK_Bounded_Last);
+  size = size_;
+}
+TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, const std::string& value_list_var_)
+  : TorchParam(kind_, name_)
+{
+  assert(TPK_Bounded_First <= get_kind() && get_kind() <= TPK_Bounded_Last);
+  value_list_var = value_list_var_;
+}
+
+std::vector<std::string> TorchBoundedParam::gen_arg_setup() const {
+  std::string setup_args;
+  if (!value_names.empty())
+    setup_args = quoted(name) + comma + curly(join_strs(value_names));
+  else if (size.hasValue())
+    setup_args = quoted(name) + comma + std::to_string(size.getValue());
+  else
+    setup_args = quoted(name) + comma + value_list_var;
+    
+  return {"PathFinderEnumArg" + bracket(setup_args) + semicolon};
+}
+
+
+TorchBoundedIntParam::TorchBoundedIntParam(std::string name_, size_t size_)
+  : TorchBoundedParam(TPK_BoundedInt, name_, size_) {}
+
+std::string TorchBoundedIntParam::type() const {
+  return "size_t";
+}
+std::string TorchBoundedIntParam::initializer() const {
+  return quoted(type()) + bracket(callback_var(name));
+}
+
+bool TorchBoundedIntParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_BoundedInt;
+}
+
+
+TorchBoolParam::TorchBoolParam(std::string name_)
+  : TorchBoundedParam(TPK_Bool, name_, std::vector<std::string>({"false", "true"})) {}
+
+std::string TorchBoolParam::type() const {
+  return "bool";
+}
+std::string TorchBoolParam::initializer() const {
+  return quoted(type()) + bracket(callback_var(name));
+}
+
+bool TorchBoolParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Bool;
+}
+
+
+TorchFloatParam::TorchFloatParam(std::string name_): TorchBoundedParam(TPK_Float, name_, double_dict_list) {}
+
+std::string TorchFloatParam::type() const {
+  return "double";
+}
+std::string TorchFloatParam::initializer() const {
+  return double_dict(name);
+}
+
+bool TorchFloatParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Float;
+}
+
+
+TorchDtypeParam::TorchDtypeParam(std::string name_): TorchBoundedParam(TPK_Dtype, name_, dtype_list) {}
+
+std::string TorchDtypeParam::type() const {
+  return "torch::Dtype";
+}
+std::string TorchDtypeParam::initializer() const {
+  return get_dtype(name);
+}
+
+bool TorchDtypeParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Dtype;
+}
+
+
+TorchVariantParam::TorchVariantParam(
   std::string name_,
-  std::string map_name_,
-  std::vector<std::pair<std::string,std::unique_ptr<Param>>> ctor_params_,
-  std::vector<std::pair<std::string,std::unique_ptr<Param>>> entries_)
-  : ptype(ptype_), name(name_), map_name(map_name_), ctor_params(std::move(ctor_params_)), entries(std::move(entries_))
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchBoundedParam(TPK_Variant, name_, get_names(params_))
 {
-  assert(ptype == MAP);
-  enum_offset_size = 0;
-  int_offset_size = 0;
-  for (auto&& p: ctor_params) {
-    enum_offset_size += p.second->enum_offset_size;
-    int_offset_size += p.second->int_offset_size;
-  }
-  for (auto&& p: entries) {
-    enum_offset_size += p.second->enum_offset_size;
-    int_offset_size += p.second->int_offset_size;
-  }
+  params = std::move(params_);
+  for (size_t i = 0; i < params.size(); i++)
+    value_names.push_back(name + "_" + std::to_string(i));
 }
-bool Param::is_map() { return ptype == MAP; }
-
-std::pair<size_t, size_t> Param::set_offset(size_t enum_offset, size_t int_offset) {
-  switch(ptype) {
-    case INT:
-    case BOOL:
-    case FLOAT:
-    case DTYPE:
-    case TENSOR:
-    case INTVECTOR:
-    case FLOATVECTOR:
-    case INTARRAYREF:
-    case EXPANDINGARRAY:
-    case EXPANDINGARRAYWITHOPTIONALELEM:
-      enum_offset_start = enum_offset;
-      enum_offset += enum_offset_size;
-      int_offset_start = int_offset;
-      int_offset += int_offset_size;
-      break;
-    case OPTIONAL:
-      enum_offset_start = enum_offset;
-      std::tie(enum_offset, int_offset) = base->set_offset(enum_offset + 1, int_offset);
-      break;
-    case VARIANT:
-      enum_offset_start = enum_offset;
-      if (expandingarray != nullptr)
-        std::tie(enum_offset, int_offset) = expandingarray->set_offset(enum_offset + 1, int_offset);
-      else
-        enum_offset += enum_offset_size;
-      break;
-    case MAP:
-      for (auto&& p: ctor_params)
-        std::tie(enum_offset, int_offset) = p.second->set_offset(enum_offset, int_offset);
-      for (auto&& p: entries)
-        std::tie(enum_offset, int_offset) = p.second->set_offset(enum_offset, int_offset);
-      break;
-    default:
-      assert(false);
-  }
-  return std::make_pair(enum_offset, int_offset);
+void TorchVariantParam::set_default(Expr* default_expr) {
+  for (auto& param: params)
+    param->set_default(default_expr);
 }
 
-void Param::set_default(std::string param_name, const CXXRecordDecl* cdecl) {
-  Expr* e = nullptr;
-  for (auto field: cdecl->fields()) {
-    std::string field_name = field->getNameAsString();
-    if (param_name.length() + 1 == field_name.length() &&
-        field_name.compare(0, field_name.length(), param_name + "_") == 0) {
-      //std::cout << "filed: \n";
-      //field->dump();
-      e = field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
-      //e->dump();
-    }
-  }
-
-  if (e !=nullptr) {
-    switch(ptype) {
-      case INT:
-      case EXPANDINGARRAY:
-      case EXPANDINGARRAYWITHOPTIONALELEM: {
-        //std::cout << "aaa\n";
-        if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
-          assert(il != nullptr);
-          //std::cout << "bbb\n";
-          unsigned long val = il->getValue().getZExtValue();
-          default_int = val;
-          //std::cout << "default value: " << std::to_string(val) << std::endl;
-        }
-        break;
-      }
-      case VARIANT: {
-        if (const auto* il = dyn_cast<IntegerLiteral>(e)) {
-          //std::cout << "bbb\n";
-          unsigned long val = il->getValue().getZExtValue();
-          if(expandingarray != nullptr)
-            expandingarray->default_int = val;
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  }
+std::string TorchVariantParam::type() const {
+  return name + "_t";
+}
+std::string TorchVariantParam::initializer() const {
+  return name + square(callback_var(name));
 }
 
-void Param::setup_arg(std::vector<std::string>& args) {
-  switch(ptype) {
-    case INT: {
-      args.push_back("PathFinderIntArg(\"" + name + "\");");
-      break;
-    }
-    case BOOL: {
-      args.push_back("PathFinderEnumArg(\"" + name + "\", {\"true\", \"false\"});");
-      break;
-    }
-    case FLOAT: {
-      args.push_back("PathFinderEnumArg(\"" + name + "\", double_dict_str);");
-      break;
-    }
-    case DTYPE: {
-      args.push_back("PathFinderEnumArg(\"" + name + "\", dtype_str);");
-      break;
-    }
-    case TENSOR: {
-      args.push_back("PathFinderEnumArg(\"" + name_dtype + "\", dtype_str);");
-      args.push_back("PathFinderEnumArg(\"" + name_rank + "\", " + std::to_string(MAX_RANK + 1) +");");
-      for (size_t i = 0; i < MAX_RANK; i++)
-        args.push_back("PathFinderIntArg(\"" + name_dim[i] + "\");");
-      break;
-    }
-    case INTVECTOR: {
-      args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
-      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
-        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
-      break;
-    }
-    case FLOATVECTOR: {
-      args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
-      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
-        args.push_back("PathFinderEnumArg(\"" + name_elem[i] + "\", double_dict_str);");
-      break;
-    }
-    case INTARRAYREF: {
-      args.push_back("PathFinderEnumArg(\"" + name_size + "\", " + std::to_string(MAX_VECTOR_SIZE + 1) +");");
-      for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
-        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
-      break;
-    }
-    case EXPANDINGARRAY: {
-      for (size_t i = 0; i < int_offset_size; i++)
-        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
-      break;
-    }
-    case EXPANDINGARRAYWITHOPTIONALELEM: {
-      for (size_t i = 0; i < int_offset_size; i++)
-        args.push_back("PathFinderIntArg(\"" + name_elem[i] + "\");");
-      break;
-    }
-    case OPTIONAL: {
-      args.push_back("PathFinderEnumArg(\"" + name + "\", {\"some\", \"none\"});");
-      base->setup_arg(args);
-      break;
-    }
-    case VARIANT: {
-      std::string str = "PathFinderEnumArg(\"" + name + "\", {";
-      if (expandingarray != nullptr)
-        str += "\"" + expandingarray->name + "\", ";
-      for (size_t i = 0; i < enums.size(); i++) {
-        str += "\"" + enums[i]->name + "\"";
-        if (i != enums.size() - 1)
-          str += ", ";
-      }
-      str += "});";
-      args.push_back(str);
-      if (expandingarray != nullptr)
-        expandingarray->setup_arg(args);
-      break;
-    }
-    case MAP: {
-      for (auto&& p: ctor_params)
-        p.second->setup_arg(args);
-      for (auto&& p: entries)
-        p.second->setup_arg(args);
-      break;
-    }
-    default:
-      assert(false);
-  }
+std::vector<std::string> TorchVariantParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, TorchBoundedParam::gen_arg_setup());
+  for (auto& param: params)
+    concat(arg_setup, param->gen_arg_setup());
+  return arg_setup;
 }
-
-void Param::constraint(std::vector<std::string>& hard_ctrs, std::vector<std::string>& soft_ctrs, bool is_module) {
-  std::string sep = ", ";
-  std::string arg = var_ctr + "[\"" + name + "\"]";
-  switch(ptype) {
-    case INT: {
-      int min =
-        default_int ?
-        default_int.getValue() :
-        (is_module ? 1 : 0);
-      soft_ctrs.push_back(arg + " >= " + std::to_string(min));
-      break;
-    }
-    case TENSOR: {
-      for (size_t i = 0; i < int_offset_size; i++)
-        hard_ctrs.push_back(var_ctr + "[\"" + name_dim[i] + "\"] >= 1");
-      break;
-    }
-    case INTVECTOR: {
-      for (size_t i = 0; i < int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= 0");
-      break;
-    }
-    case INTARRAYREF: {
-      for (size_t i = 0; i < int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= 0");
-      break;
-    }
-    case EXPANDINGARRAY: {
-      int min =
-        default_int ?
-        default_int.getValue() :
-        (is_module ? 1 : 0);
-      for (size_t i = 0; i < int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= " + std::to_string(min));
-      break;
-    }
-    case EXPANDINGARRAYWITHOPTIONALELEM: {
-      int min = default_int ? default_int.getValue() : 0;
-      for (size_t i = 0; i < int_offset_size; i++)
-        soft_ctrs.push_back(var_ctr + "[\"" + name_elem[i] + "\"] >= " + std::to_string(min));
-      break;
-    }
-    case OPTIONAL: {
-      base->constraint(hard_ctrs, soft_ctrs, is_module);
-      break;
-    }
-    case VARIANT: {
-      if (expandingarray != nullptr)
-        expandingarray->constraint(hard_ctrs, soft_ctrs, is_module);
-      break;
-    }
-    case MAP: {
-      for (auto&& p: ctor_params)
-        p.second->constraint(hard_ctrs, soft_ctrs, is_module);
-      for (auto&& p: entries)
-        p.second->constraint(hard_ctrs, soft_ctrs, is_module);
-      break;
-    }
-    default:
-      break;
-  }
-}
-
-std::string gen_setup(std::vector<std::unique_ptr<Param>>& params, bool is_module) {
-  std::vector<std::string> args;
+std::vector<std::string> TorchVariantParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
+  for (auto& param: params)
+    concat(hard_ctrs, param->gen_hard_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TorchVariantParam::gen_soft_constraint() const {
   std::vector<std::string> soft_ctrs;
-  for (auto&& param: params) {
-    param->setup_arg(args);
-    param->constraint(hard_ctrs, soft_ctrs, is_module);
-  }
-
-  std::string code;
-  code += "void PathFinderSetup() {\n";
-  for (auto arg: args)
-    code += "  " + arg + "\n";
-  if (hard_ctrs.size() > 0) {
-    code += "  PathFinderAddHardConstraint({\n";
-    for (auto hard_ctr: hard_ctrs)
-      code += "    " + hard_ctr + ",\n";
-    code += "  });\n";
-  }
-  if (soft_ctrs.size() > 0) {
-    code += "  PathFinderAddSoftConstraint({\n";
-    for (auto soft_ctr: soft_ctrs)
-      code += "    " + soft_ctr + ",\n";
-    code += "  });\n";
-  }
-  code += "}\n\n";
-  
-  return code;
+  for (auto& param: params)
+    concat(soft_ctrs, param->gen_soft_constraint());
+  return soft_ctrs;
+}
+std::vector<std::string> TorchVariantParam::gen_input_pass_condition() const {
+  std::vector<std::string> ignore_conds;
+  for (auto& param: params)
+    concat(ignore_conds, param->gen_input_pass_condition());
+  return ignore_conds;
+}
+std::vector<std::string> TorchVariantParam::gen_arg_initialization() const {
+  std::vector<std::string> preparation_str;
+  for (auto& param: params)
+    concat(preparation_str, param->gen_arg_initialization());
+  concat(preparation_str, gen_typedef());
+  concat(preparation_str, gen_vector());
+  preparation_str.back() = preparation_str.back() + newline;
+  return preparation_str;
 }
 
-std::vector<std::string> empty_strvec() {
-  return std::vector<std::string>();
+std::vector<std::string> TorchVariantParam::gen_api_options_init(
+  std::string api_optons_class_name, std::string api_optons_var_name) const
+{
+  std::vector<std::string> api_options_init;
+  api_options_init.push_back(api_optons_class_name + space + api_optons_var_name + semicolon);
+  for (size_t i = 0; i < params.size(); i++) {
+    std::string if_cond = i == 0 ? "" : "} else ";
+    api_options_init.push_back(if_cond + "if " + bracket(callback_var(name) + " == " + std::to_string(i)) + " {");
+    api_options_init.push_back(
+      "  " + api_optons_var_name + assign +
+      api_optons_class_name + bracket(params[i]->expr()) + semicolon);
+  }
+  api_options_init.push_back("}");
+  return api_options_init;
 }
 
-std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>>
-to_quad(std::vector<std::string> first, std::vector<std::string> second, std::string third, std::vector<std::string> fourth) {
-  return
-    std::make_tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>>(
-      std::move(first), std::move(second), std::move(third), std::move(fourth));
+bool TorchVariantParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Variant;
 }
 
-std::string Param::type_str() {
-  switch(ptype) {
-    case ENUM: return "torch::enumtype::" + name;
-    case TENSOR: return "auto";
-    case INTVECTOR:
-    case INTARRAYREF: return "std::vector<long>";
-    case FLOATVECTOR: return "std::vector<double>";
-    case EXPANDINGARRAY: return "torch::ExpandingArray<" + std::to_string(array_size) + ">";
-    case EXPANDINGARRAYWITHOPTIONALELEM:
-      return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(array_size) + ">";
-    default:
-      assert(false);
-  }
+std::vector<std::string> TorchVariantParam::gen_typedef() const {
+  std::vector<std::string> typedef_str;
+  typedef_str.push_back("typedef");
+  typedef_str.push_back("  c10::variant<");
+  for (auto& param: params)
+    typedef_str.push_back("    " + param->type() + comma);
+  typedef_str.push_back("  " + type() + semicolon);
+  return typedef_str;
+}
+std::vector<std::string> TorchVariantParam::gen_vector() const {
+  std::vector<std::string> vector_str;
+  vector_str.push_back("std::vector<" + type() + "> " + name + " = {");
+  for (auto& param: params)
+    vector_str.push_back("  " + param->expr() + comma);
+  vector_str.push_back("}" + semicolon);
+  return vector_str;
 }
 
-std::string Param::array_str() {
-  switch(ptype) {
-    case EXPANDINGARRAY: {
-      std::string array_init = type_str() + "({";
-      for (size_t i = 0; i < int_offset_size; i++) {
-        array_init += var_caller + "[\"" + name_elem[i] + "\"]";
-        if (i != int_offset_size - 1)
-          array_init += ",";
-      }
-      array_init += "})";
-      return array_init;
-    }
-    case EXPANDINGARRAYWITHOPTIONALELEM: {
-      std::string array_init =
-        "expandingarray_with_optional_elem<" + std::to_string(array_size) + ">({";
-      for (size_t i = 0; i < int_offset_size; i++) {
-        array_init += var_caller + "[\"" + name_elem[i] + "\"]";
-        if (i != int_offset_size - 1)
-          array_init += ",";
-      }
-      array_init += "})";
-      return array_init;
-    }
-    default:
-      assert(false);
-  }
+
+TorchEnumParam::TorchEnumParam(std::string name_): TorchParam(TPK_Enum, name_) {}
+
+std::string TorchEnumParam::type() const {
+  return "torch::enumtype::" + name;
+}
+std::string TorchEnumParam::initializer() const {
+  return "torch::" + name;
 }
 
-std::tuple<std::vector<std::string>, std::vector<std::string>, std::string, std::vector<std::string>> Param::to_code(std::string api_name, bool is_module) {
-  std::string arg = var_caller + "[\"" + name + "\"]";
-  std::string var_name = name;
-  switch(ptype) {
-    case INT:
-    case BOOL:
-      return to_quad(empty_strvec(),empty_strvec(), arg, empty_strvec());
-    case FLOAT:
-      return to_quad(empty_strvec(),empty_strvec(),"double_dict[" + arg + "]",empty_strvec());
-    case DTYPE:
-      return to_quad(empty_strvec(),empty_strvec(),"get_dtype(" + arg + ")",empty_strvec());
-    case TENSOR: {
-      //std::string var_name = "tensor_" + std::to_string(tensor_id++);
-      std::string arg_dtype = var_caller + "[\"" + name_dtype + "\"]";
-      std::string arg_rank = var_caller + "[\"" + name_rank + "\"]";
-      std::string device = "device";
-      std::string dtype = "get_dtype(" + arg_dtype + ")";
-      std::string shape = "{";
-      for (size_t i = 0; i < int_offset_size; i++) {
-        shape += var_caller + "[\"" + name_dim[i] + "\"]";
-        if (i != int_offset_size - 1)
-          shape += ",";
-      }
-      shape += "}";
-      std::vector<std::string> tensor_guard =
-        std::vector<std::string>({"PathFinderPassIf(is_too_big(" + arg_rank + ", " + shape + "));"});
-        
-      std::string tensor_init = type_str() + " " + var_name + " = torch_tensor(" + device + ", " + arg_dtype + ", " + arg_rank + ", " + shape + ");";
-      return to_quad({tensor_init},empty_strvec(),var_name,tensor_guard);
-    }
-    case INTVECTOR: {
-      //std::string var_name = "int_vector_" + std::to_string(int_vector_id++);
-      std::string vec_init = type_str() + " " + var_name + "_ = {";
-      for (size_t i = 0; i < int_offset_size; i++) {
-        vec_init += var_caller + "[\"" + name_elem[i] + "\"]";
-        if (i != int_offset_size - 1)
-          vec_init += ",";
-      }
-      vec_init += "};";
-      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[" + var_caller + "[\""+ name_size + "\"]" + "]);";
-      return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
-    }
-    case FLOATVECTOR: {
-      //std::string var_name = "float_vector_" + std::to_string(float_vector_id++);
-      std::string vec_init = type_str() + " " + var_name + "_ = {";
-      for (size_t i = 0; i < enum_offset_size - 1; i++) {
-        vec_init += "double_dict[" + var_caller + "[\"" + name_elem[i] + "\"]" + "]";
-        if (i != enum_offset_size - 2)
-          vec_init += ",";
-      }
-      vec_init += "};";
-      std::string vec_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[" + var_caller + "[\""+ name_size + "\"]" + "]);";
-      return to_quad({vec_init, vec_size_set},empty_strvec(),var_name,empty_strvec());
-    }
-    case INTARRAYREF: {
-      //std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = type_str() + " " + var_name + "_ = {";
-      for (size_t i = 0; i < int_offset_size; i++) {
-        array_init += var_caller + "[\"" + name_elem[i] + "\"]";
-        if (i != int_offset_size - 1)
-          array_init += ",";
-      }
-      array_init += "};";
-      std::string array_size_set = type_str() + " " + var_name + "(&" + var_name + "_[0],&" + var_name + "_[" + var_caller + "[\""+ name_size + "\"]" + "]);";
-      return to_quad({array_init, array_size_set},empty_strvec(),var_name,empty_strvec());
-    }
-    case EXPANDINGARRAY: {
-      //std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = type_str() + " " + var_name + " = " + array_str() + ";";
-      return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
-    }
-    case EXPANDINGARRAYWITHOPTIONALELEM: {
-      //std::string var_name = "array_" + std::to_string(array_id++);
-      std::string array_init = type_str() + " " + var_name + " = " + array_str() + ";";
-      return to_quad({array_init},empty_strvec(),var_name,empty_strvec());
-    }
-    case OPTIONAL: {
-      std::vector<std::string> option_check;
-      option_check.push_back("if (" + var_caller + "[\"" + name + "\"])");
-      auto t = base->to_code(api_name, is_module);
-      std::vector<std::string> preparation = std::get<0>(t);
-      std::string expr = std::get<2>(t);
-      std::vector<std::string> guard = std::get<3>(t);
-      return to_quad(preparation,option_check,expr,guard);
-    }
-    case VARIANT: {
-      //std::string var_name = "enum_" + std::to_string(enum_id++);
-      std::vector<std::string> enum_init;
-      enum_init.push_back("typedef");
-      enum_init.push_back("  c10::variant<");
-      if (expandingarray != nullptr)
-        enum_init.push_back("    " + expandingarray->type_str() + ",");
-      for (size_t i = 0; i < enums.size(); i++) {
-        std::string enum_type = "    " + enums[i]->type_str();
-        if (i != enums.size()-1)
-          enum_type += ",";
-        else
-          enum_type += ">";
-        enum_init.push_back(enum_type);
-      }
-      enum_init.push_back("  " + var_name + "_t;");
-      enum_init.push_back("std::vector<" + var_name + "_t> " + var_name + " = {");
-      if (expandingarray != nullptr)
-        enum_init.push_back("  " + expandingarray->array_str() + ",");
-      for (size_t i = 0; i < enums.size(); i++) {
-        std::string enum_elem = "  torch::" + enums[i]->name;
-        if (i != enums.size()-1)
-          enum_elem += ",";
-        enum_init.push_back(enum_elem);
-      }
-      enum_init.push_back("};");
-      return to_quad(enum_init, empty_strvec(), var_name + "[" + var_caller + "[\"" + name + "\"]]",empty_strvec());
-    }
-    case MAP: {
-      std::vector<std::string> preparation;
-      std::vector<std::string> option_check;
-      std::vector<std::string> map_init;
-      std::vector<std::string> guard;
-      //std::string var_name = is_module ? "moptions" : "foptions";
-
-      bool separate_init = false;
-      if (ctor_params.size() == 1 &&
-          ctor_params[0].second->ptype == VARIANT &&
-          ctor_params[0].second->enums.size() > 0) {
-        map_init.push_back(map_name + " " + var_name + ";");
-        map_init.push_back("if (" + var_caller + "[\"" + ctor_params[0].second->name + "\"] == 0) {");
-        map_init.push_back("  " + var_name + " = " + map_name + "(torch::" + ctor_params[0].second->enums[0]->name + ");");
-        for (size_t i = 1; i < ctor_params[0].second->enums.size(); i++) {
-          map_init.push_back("} else if (" + var_caller + "[\"" + ctor_params[0].second->name + "\"] == " + std::to_string(i) + ") {");
-          map_init.push_back("  " + var_name + " = " + map_name + "(torch::" + ctor_params[0].second->enums[i]->name + ");");
-        }
-        map_init.push_back("}");
-        if (entries.size() > 0)
-          map_init.push_back(var_name);
-        separate_init = true;
-      } else {
-        std::string ctor_param_str;
-        for (auto&& p: ctor_params) {
-          auto t = p.second->to_code(api_name, is_module);
-          auto preparation_ = std::get<0>(t);
-          auto option_check_ = std::get<1>(t);
-          auto exp_ = std::get<2>(t);
-          auto guard_ = std::get<3>(t);
-          assert(option_check.size() == 0);
-          if (preparation_.size() > 0) {
-            if (preparation.size() > 0)
-              preparation.push_back("");
-            preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
-          }
-          if (ctor_param_str.length() > 0)
-            ctor_param_str += ",";
-          ctor_param_str += exp_;
-          if (guard_.size() > 0) 
-            guard.insert(guard.end(), guard_.begin(), guard_.end());
-        }
-        map_init.push_back("auto " + var_name + " =");
-        map_init.push_back("  " + map_name + "(" + ctor_param_str + ")");
-      }
-
-      for (auto&& p: entries) {
-        auto t = p.second->to_code(api_name, is_module);
-        auto preparation_ = std::get<0>(t);
-        auto option_check_ = std::get<1>(t);
-        auto exp_ = std::get<2>(t);
-        auto guard_ = std::get<3>(t);
-        if (preparation_.size() > 0) {
-          if (preparation.size() > 0)
-            preparation.push_back("");
-          preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
-        }
-        if (option_check_.size() > 0) {
-          assert(option_check_.size() == 1);
-          option_check.push_back(option_check_[0]);
-          option_check.push_back("  " + var_name + "." + p.first + "(" + exp_ + ");");
-        } else {
-          std::string param_set = "." + p.first + "(" + exp_ + ")";
-          if (separate_init) {
-            if (entries.size() == 1) {
-              map_init[map_init.size()-1] = map_init[map_init.size()-1] + param_set;
-            } else {
-              map_init.push_back("  " + param_set);
-            }
-          } else {
-            map_init.push_back("    " + param_set);
-          }
-        }
-        if (guard_.size() > 0) 
-          guard.insert(guard.end(), guard_.begin(), guard_.end());
-      }
-      if (map_init.size() > 0)
-        map_init[map_init.size()-1] = map_init[map_init.size()-1] + ";";
-      if (preparation.size() > 0)
-        preparation.push_back("");
-      preparation.insert(preparation.end(), map_init.begin(), map_init.end());
-      preparation.insert(preparation.end(), option_check.begin(), option_check.end());
-      return to_quad(preparation,empty_strvec(),var_name,guard);
-    }
-    default:
-      assert(false);
-  }
+bool TorchEnumParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Enum;
 }
 
-std::string gen_api_call(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor) {
-  std::string code;
-  code += "int PathFinderTestOneInput(const pathfinder::Input& x) {";
 
-  std::vector<std::string> preparation;
-  std::vector<std::string> positional_arg;
-  std::vector<std::string> guard;
-  for (auto&& param: params) {
-    auto t = param->to_code(api_name, is_module);
-    auto preparation_ = std::get<0>(t);
-    auto exp_ = std::get<2>(t);
-    auto guard_ = std::get<3>(t);
-    if (preparation_.size() > 0) {
-      if (preparation.size() > 0)
-        preparation.push_back("");
-      preparation.insert(preparation.end(), preparation_.begin(), preparation_.end());
-    }
-    positional_arg.push_back(exp_);
-    if (guard_.size() > 0)
-      guard.insert(guard.end(), guard_.begin(), guard_.end());
-  }
-
-  code += "\n";
-  for (auto line: guard) {
-    if (line != "")
-      code += "  " + line;
-    code += "\n";
-  }
-
-  code += "\n  torch::set_num_threads(1);\n";
-  code += "  torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);\n\n";
-
-  code += "  try {\n";
-  for (auto line: preparation) {
-    if (line != "")
-      code += "    " + line;
-    code += "\n";
-  }
-  if (is_module) {
-    code += "\n    auto m = " + api_name + "(";
-    for (size_t i = num_input_tensor; i < positional_arg.size(); i++) {
-      code += positional_arg[i];
-      if (i != positional_arg.size()-1) {
-        code += ", ";
-      }
-    }
-    code += ");\n";
-    code += "    m->to(device);\n";
-    code += "    m->to(get_dtype(" + var_caller + "[\"" + params[0]->name_dtype + "\"]));\n";
-  }
-
-  std::string api_call;
-  if (is_module) {
-    if (api_name == "torch::nn::LSTM" ||
-        api_name == "torch::nn::LSTMCell") {
-      api_call += "auto result = m->forward(" + positional_arg[0] + ", {{" + positional_arg[1] + ", " + positional_arg[2] + "}})\n";
-    } else {
-      api_call += "auto result = m->forward(";
-      for (size_t i = 0; i < num_input_tensor; i++) {
-        api_call += positional_arg[i];
-        if (i != num_input_tensor - 1)
-          api_call += ", ";
-      }
-      api_call += ")";
-    }
-  } else {
-    api_call += "auto result = " + api_name + "(";
-    for (size_t i = 0; i < positional_arg.size(); i++) {
-      api_call += positional_arg[i];
-      if (i != positional_arg.size()-1) {
-        api_call += ", ";
-      }
-    }
-    api_call += ")";
-  }
-
-  code += "\n    PathFinderExecuteTarget(\n";
-  code += "      " + api_call + ");\n";
-
-  code += "  } catch (std::exception& e) {\n";
-  code += "    return -2;\n";
-  code += "  }\n\n";
-
-  code += "  return 0;\n";
-  code += "}\n\n";
-  
-  return code;
+TorchVectorParam::TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchParam(TPK_Vector, name_)
+{
+  vec_size = std::make_unique<TorchBoundedIntParam>(name + "_size", MAX_VECTOR_SIZE + 1);
+  params = std::move(params_);
+  assert(params.size() == MAX_VECTOR_SIZE);
 }
 
-std::string gen_header() {
-  std::string code;
-
-  code += "#include <stdint.h>\n";
-  code += "#include <stddef.h>\n";
-  code += "#include <c10/util/irange.h>\n";
-  code += "#include <cassert>\n";
-  code += "#include <cstdlib>\n";
-  code += "#include <torch/torch.h>\n";
-  code += "#include \"pathfinder.h\"\n";
-  code += "#include \"fuzzer_util.h\"\n\n";
-
-  code += "using namespace fuzzer_util;\n\n";
-
-  code += "extern \"C\" {\n\n";
-
-  return code;
+std::string TorchVectorParam::type() const {
+  return "std::vector<" + params[0]->type() + ">";
+}
+std::string TorchVectorParam::var() const {
+  return name;
+}
+std::string TorchVectorParam::initializer() const {
+  return "vector_init" + bracket(vec_size->expr() + comma + to_string(params));
 }
 
-std::string gen_footer() {
-  std::string code;
-
-  code += "}  // extern \"C\"\n\n";
-
-  return code;
+std::vector<std::string> TorchVectorParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, vec_size->gen_arg_setup());
+  for (auto& param: params)
+    concat(arg_setup, param->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TorchVectorParam::gen_hard_constraint() const {
+  std::vector<std::string> hard_ctrs;
+  for (auto& param: params)
+    concat(hard_ctrs, param->gen_hard_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TorchVectorParam::gen_soft_constraint() const {
+  std::vector<std::string> soft_ctrs;
+  for (auto& param: params)
+    concat(soft_ctrs, param->gen_soft_constraint());
+  return soft_ctrs;
+}
+std::vector<std::string> TorchVectorParam::gen_arg_initialization() const {
+  return {type() + space + var() + assign + initializer() + semicolon + newline};
 }
 
-std::string gen_code(std::string api_name, std::vector<std::unique_ptr<Param>>& params, bool is_module, size_t num_input_tensor) {
-  tensor_id = 0;
-  int_vector_id = 0;
-  float_vector_id = 0;
-  array_id = 0;
-  enum_id = 0;
+bool TorchVectorParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Vector;
+}
 
-  size_t enum_offset = 0;
-  size_t int_offset = 0;
+
+TorchSizedArrayParam::TorchSizedArrayParam(
+  TorchParamKind kind_,
+  std::string name_,
+  size_t size_,
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchParam(kind_, name_)
+{
+  assert(TPK_SizedArray_First <= get_kind() && get_kind() <= TPK_SizedArray_Last);
+  size = size_;
+  params = std::move(params_);
+  assert(params.size() == size);
+}
+void TorchSizedArrayParam::set_default(Expr* default_expr) {
   for (auto&& param: params)
-    std::tie(enum_offset, int_offset) = param->set_offset(enum_offset, int_offset);
-
-  std::string code;
-  code += gen_header();
-  code += gen_setup( params, is_module);
-  code += gen_api_call(api_name, params, is_module, num_input_tensor);
-  code += gen_footer();
-
-  return code;
-
+    param->set_default(default_expr);
 }
 
-std::string gen_torch_function_pathfinder(std::string api_name, std::vector<std::unique_ptr<Param>>& params) {
-  return gen_code(api_name, params, false, 0);
-}
-std::string gen_torch_module_pathfinder(std::string api_name, std::vector<std::unique_ptr<Param>>& params, size_t num_input_tensor) {
-  return gen_code(api_name, params, true, num_input_tensor);
+std::string TorchSizedArrayParam::var() const {
+  return name;
 }
 
-std::string str_mult(size_t n, std::string str) {
-  std::string s;
-  for (size_t i = 0; i < n; i++)
-    s += str;
-  return s;
+std::vector<std::string> TorchSizedArrayParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  for (auto& param: params)
+    concat(arg_setup, param->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TorchSizedArrayParam::gen_hard_constraint() const {
+  std::vector<std::string> hard_ctrs;
+  for (auto& param: params)
+    concat(hard_ctrs, param->gen_hard_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TorchSizedArrayParam::gen_soft_constraint() const {
+  std::vector<std::string> soft_ctrs;
+  for (auto& param: params)
+    concat(soft_ctrs, param->gen_soft_constraint());
+  return soft_ctrs;
+}
+std::vector<std::string> TorchSizedArrayParam::gen_arg_initialization() const {
+  return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+
+
+TorchExpandingArrayParam::TorchExpandingArrayParam(
+  std::string name_,
+  size_t size_,
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchSizedArrayParam(TPK_ExpandingArray, name_, size_, std::move(params_)) {}
+
+std::string TorchExpandingArrayParam::type() const {
+  return "torch::ExpandingArray<" + std::to_string(size) + comma + params[0]->type() + ">";
+}
+std::string TorchExpandingArrayParam::initializer() const {
+  return type() + bracket(to_string(params));
+}
+
+bool TorchExpandingArrayParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_ExpandingArray;
+}
+
+
+TorchExpandingArrayWithOptionalElemParam::TorchExpandingArrayWithOptionalElemParam(
+  std::string name_,
+  size_t size_,
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchSizedArrayParam(TPK_ExpandingArrayWithOptionalElem, name_, size_, params_)
+{
+  for (auto& param: params)
+    isa<TorchOptionalParam>(param.get());
+}
+
+std::string TorchExpandingArrayWithOptionalElemParam::type() const {
+  
+  return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(size) + comma + base_type() + ">";
+}
+std::string TorchExpandingArrayWithOptionalElemParam::initializer() const {
+  return
+    "expandingarray_with_optional_elem<" +
+      std::to_string(size) + comma + base_type() +
+    ">" + bracket(to_string(params));
+}
+
+bool TorchExpandingArrayWithOptionalElemParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_ExpandingArrayWithOptionalElem;
+}
+
+std::string TorchExpandingArrayWithOptionalElemParam::base_type() const {
+  TorchOptionalParam* param = dyn_cast<TorchOptionalParam>(params[0].get());
+  return param->base_type();
+}
+
+
+TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, name_) {
+  dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
+  rank = std::make_unique<TorchBoundedIntParam>(name + "_rank", MAX_RANK + 1);
+  for (size_t i = 0; i < MAX_RANK; i++)
+    dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i)));
+  for (auto&& dim: dims)
+    dim->set_default(1);
+}
+
+std::string TorchTensorParam::type() const { return "torch::Tensor "; }
+std::string TorchTensorParam::var() const { return name; }
+std::string TorchTensorParam::initializer() const {
+  return "torch_tensor" +  bracket(dtype->expr() + comma + rank->expr() + comma + to_string(dims));
+};
+
+std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, dtype->gen_arg_setup());
+  concat(arg_setup, rank->gen_arg_setup());
+  for (auto& dim: dims)
+    concat(arg_setup, dim->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TorchTensorParam::gen_hard_constraint() const {
+  std::vector<std::string> hard_ctrs;
+  for (auto& dim: dims)
+    concat(hard_ctrs, dim->gen_soft_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TorchTensorParam::gen_input_pass_condition() const {
+  return {"is_too_big" + bracket(rank->expr() + comma + to_string(dims))};
+}
+std::vector<std::string> TorchTensorParam::gen_arg_initialization() const {
+  return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+
+bool TorchTensorParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Tensor;
+}
+
+
+TorchOptionalParam::TorchOptionalParam(std::string name_, std::unique_ptr<TorchParam> param_)
+  : TorchParam(TPK_Optional, name_)
+{
+  has_value = std::make_unique<TorchBoolParam>(name + "_hasValue");
+  param = std::move(param_);
+}
+void TorchOptionalParam::set_default(Expr* default_expr) {
+  param->set_default(default_expr);
+}
+
+std::string TorchOptionalParam::type() const {
+  return "c10::optional<" + param->type() + ">";
+}
+std::string TorchOptionalParam::var() const {
+  return name;
+}
+std::string TorchOptionalParam::initializer() const {
+  return has_value->expr() + " ? " + param->expr() +  " : " + "c10::nullopt";
+}
+
+std::vector<std::string> TorchOptionalParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, has_value->gen_arg_setup());
+  concat(arg_setup, param->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TorchOptionalParam::gen_hard_constraint() const {
+  return param->gen_hard_constraint();
+}
+std::vector<std::string> TorchOptionalParam::gen_soft_constraint() const {
+  return param->gen_soft_constraint();
+}
+std::vector<std::string> TorchOptionalParam::gen_input_pass_condition() const {
+  return param->gen_input_pass_condition();
+}
+std::vector<std::string> TorchOptionalParam::gen_arg_initialization() const {
+  return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+
+std::string TorchOptionalParam::base_type() const {
+  return param->type();
+}
+
+bool TorchOptionalParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Optional;
+}
+
+
+TorchAPIOptionsParam::TorchAPIOptionsParam(
+  std::string name_,
+  std::string api_optons_class_name_,
+  std::vector<std::unique_ptr<TorchParam>> ctor_params_,
+  std::vector<std::unique_ptr<TorchParam>> member_params_)
+  : TorchParam(TPK_APIOptions, name_)
+{
+  api_optons_class_name = api_optons_class_name_;
+  ctor_params = std::move(ctor_params_);
+  member_params = std::move(member_params_);
+}
+
+std::string TorchAPIOptionsParam::type() const {
+  return api_optons_class_name;
+}
+std::string TorchAPIOptionsParam::var() const {
+  return name;
+}
+std::string TorchAPIOptionsParam::initializer() const {
+  assert(false);
+}
+
+std::vector<std::string> TorchAPIOptionsParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  for (auto& param: ctor_params)
+    concat(arg_setup, param->gen_arg_setup());
+  for (auto& param: member_params)
+    concat(arg_setup, param->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TorchAPIOptionsParam::gen_hard_constraint() const {
+  std::vector<std::string> hard_ctrs;
+  for (auto& param: ctor_params)
+    concat(hard_ctrs, param->gen_hard_constraint());
+  for (auto& param: member_params)
+    concat(hard_ctrs, param->gen_hard_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TorchAPIOptionsParam::gen_soft_constraint() const {
+  std::vector<std::string> soft_ctrs;
+  for (auto& param: ctor_params)
+    concat(soft_ctrs, param->gen_soft_constraint());
+  for (auto& param: member_params)
+    concat(soft_ctrs, param->gen_soft_constraint());
+  return soft_ctrs;
+}
+std::vector<std::string> TorchAPIOptionsParam::gen_input_pass_condition() const {
+  std::vector<std::string> ignore_conds;
+  for (auto& param: ctor_params)
+    concat(ignore_conds, param->gen_input_pass_condition());
+  for (auto& param: member_params)
+    concat(ignore_conds, param->gen_input_pass_condition());
+  return ignore_conds;
+}
+std::vector<std::string> TorchAPIOptionsParam::gen_arg_initialization() const {
+  std::vector<std::string> preparation_str;
+
+  for (auto& param: ctor_params)
+    concat(preparation_str, param->gen_arg_initialization());
+  for (auto& param: member_params)
+    concat(preparation_str, param->gen_arg_initialization());
+  concat(preparation_str, gen_api_options_init());
+  preparation_str.back() = preparation_str.back() + newline;
+  return preparation_str;
+}
+
+bool TorchAPIOptionsParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_APIOptions;
+}
+
+std::vector<std::string> TorchAPIOptionsParam::gen_member_param_set() const {
+  std::vector<std::string> member_param_set;
+  for (auto& param: member_params)
+    member_param_set.push_back("." + param->get_name() + bracket(param->expr()));
+  return member_param_set;
+}
+
+std::vector<std::string> TorchAPIOptionsParam::gen_api_options_init() const {
+  std::vector<std::string> api_options_init;
+
+  bool is_sole_variant_ctor =
+    ctor_params.size() == 1 && isa<TorchVariantParam>(ctor_params[0].get());
+
+  if (is_sole_variant_ctor) {
+    TorchVariantParam* sole_variant_ctor =
+      dyn_cast<TorchVariantParam>(ctor_params[0].get());
+    concat(
+      api_options_init,
+      sole_variant_ctor->gen_api_options_init(api_optons_class_name, name));
+    api_options_init.push_back(name);
+    for (auto& param_set: gen_member_param_set())
+      api_options_init.push_back("  " + param_set);
+  } else {
+    api_options_init.push_back("auto " + name + assign);
+    std::string initializer = "  " + api_optons_class_name + "(";
+    for (size_t i = 0; i < ctor_params.size(); i++) {
+      initializer += ctor_params[i]->expr();
+      if (i != ctor_params.size() - 1)
+        initializer += comma;
+    }
+    initializer += ")";
+    api_options_init.push_back(initializer);
+    for (auto& param_set: gen_member_param_set())
+      api_options_init.push_back("    " + param_set);
+  }
+  api_options_init.back() = api_options_init.back() + semicolon;
+  return api_options_init;
 }

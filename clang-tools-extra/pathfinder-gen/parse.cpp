@@ -1,5 +1,4 @@
 #include "parse.h"
-#include "param.h"
 #include "utils.h"
 #include <iostream>
 #include <fstream>
@@ -22,7 +21,8 @@ bool is_int_type(clang::QualType t, ASTContext &Ctx) {
 bool is_bool_type(clang::QualType t, ASTContext &Ctx) {
   if (const auto* builtin = t->getAs<BuiltinType>())
     if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
-      if (builtin->getNameAsCString(Ctx.getPrintingPolicy()) == "bool")
+      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
+      if (t == "bool")
         return true;
       else
         assert(false);
@@ -89,13 +89,14 @@ std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, AST
         if (rtype->getDecl()->getNameAsString() == "vector") {
           auto targs = tstype->template_arguments();
           if (targs.size() == 1) {
-            if (is_int_type(targs[0].getAsType(), Ctx)) {
-              torch_param = std::make_unique<TorchIntVectorParam>(name);
-            } else if (is_float_type(targs[0].getAsType(), Ctx)) {
-              torch_param = std::make_unique<TorchFloatVectorParam>(name);
-            } else {
-              assert(false);
+            std::vector<std::unique_ptr<TorchParam>> params;
+            for (size_t i = 0; i < MAX_VECTOR_SIZE; i++) {
+              std::string param_name = name + "_" + std::to_string(i);
+              params.push_back(parseTorchParam(targs[0].getAsType(), param_name, Ctx));
             }
+            torch_param = std::make_unique<TorchVectorParam>(name, std::move(params));
+          } else {
+            assert(false);
           }
         }
       }
@@ -122,7 +123,7 @@ std::unique_ptr<TorchParam> parseTensor(clang::QualType t, ASTContext &Ctx, std:
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseIntArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> parseArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
@@ -130,13 +131,13 @@ std::unique_ptr<TorchParam> parseIntArrayRef(clang::QualType t, std::string name
       if (ctsdecl->getNameAsString() == "ArrayRef") {
         const auto& targ = ctsdecl->getTemplateArgs();
         assert(targ.size() == 1);
-        assert(targ[0].getKind() == TemplateArgument::ArgKind::Type);
-        auto p = parseTorchParam(targ[0].getAsType(), "",  Ctx);
-        if (is_int_type(targ[0].getAsType(), Ctx)) {
-          torch_param = std::make_unique<TorchIntVectorParam>(name);
-        } else {
-          assert(false);
+        assert(targ[0].getKind() == TemplateArgument::ArgKind::Type); 
+        std::vector<std::unique_ptr<TorchParam>> params;
+        for (size_t i = 0; i < MAX_VECTOR_SIZE; i++) {
+          std::string param_name = name + "_" + std::to_string(i);
+          params.push_back(parseTorchParam(targ[0].getAsType(), param_name, Ctx));
         }
+        torch_param = std::make_unique<TorchVectorParam>(name, std::move(params));
       }
     }
   }
@@ -159,7 +160,14 @@ std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string n
         return nullptr;
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
-      torch_param = std::make_unique<TorchExpandingArrayParam>(name, expandingarray_size);
+      std::vector<std::unique_ptr<TorchParam>> params;
+      for (size_t i = 0; i < expandingarray_size; i++) {
+        std::string param_name = name + "_" + std::to_string(i);
+        std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+        params.push_back(std::move(param));
+      }
+      torch_param =
+        std::make_unique<TorchExpandingArrayParam>(name, expandingarray_size, std::move(params));
     }
   } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
     assert(sttptype->isSugared());
@@ -171,7 +179,13 @@ std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string n
           assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
           int64_t expandingarray_size =
             targ[0].getAsIntegral().getExtValue();
-          torch_param = std::make_unique<TorchExpandingArrayParam>(name, expandingarray_size);
+          std::vector<std::unique_ptr<TorchParam>> params;
+          for (size_t i = 0; i < expandingarray_size; i++) {
+            std::string param_name = name + "_" + std::to_string(i);
+            params.push_back(parseTorchParam(targ[1].getAsType(), param_name, Ctx));
+          }
+          torch_param =
+            std::make_unique<TorchExpandingArrayParam>(name, expandingarray_size, std::move(params));
         }
       }
     }
@@ -195,7 +209,17 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
         return nullptr;
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
-      torch_param = std::make_unique<TorchExpandingArrayWithOptionalElemParam>(name, expandingarray_size);
+      std::vector<std::unique_ptr<TorchParam>> params;
+      for (size_t i = 0; i < expandingarray_size; i++) {
+        std::string param_name = name + "_" + std::to_string(i);
+        std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+        std::unique_ptr<TorchParam> optional_param =
+          std::make_unique<TorchOptionalParam>(param_name, std::move(param));
+        params.push_back(std::move(optional_param));
+      }
+      torch_param =
+        std::make_unique<TorchExpandingArrayWithOptionalElemParam>(
+          name, expandingarray_size, std::move(params));
     }
   } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
     assert(sttptype->isSugared());
@@ -207,7 +231,17 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
           assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
           int64_t expandingarray_size =
             targ[0].getAsIntegral().getExtValue();
-          torch_param = std::make_unique<TorchExpandingArrayWithOptionalElemParam>(name, expandingarray_size);
+          std::vector<std::unique_ptr<TorchParam>> params;
+          for (size_t i = 0; i < expandingarray_size; i++) {
+            std::string param_name = name + "_" + std::to_string(i);
+            std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+            std::unique_ptr<TorchParam> optional_param =
+              std::make_unique<TorchOptionalParam>(param_name, std::move(param));
+            params.push_back(std::move(optional_param));
+          }
+          torch_param =
+            std::make_unique<TorchExpandingArrayWithOptionalElemParam>(
+              name, expandingarray_size, std::move(params));
         }
       }
     }
@@ -417,7 +451,7 @@ std::unique_ptr<TorchParam> parseTorchParam(clang::QualType t, std::string name,
     return vector_param;
   if (auto tensor_param = parseTensor(t, name, Ctx))
     return tensor_param;
-  if (auto intarrayref_param = parseIntArrayRef(t, name, Ctx))
+  if (auto intarrayref_param = parseArrayRef(t, name, Ctx))
     return intarrayref_param;
   if (auto expandingarray_param = parseExpandingArray(t, name, Ctx))
     return expandingarray_param;

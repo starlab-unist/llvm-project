@@ -7,7 +7,6 @@
 #include "llvm/Support/CommandLine.h"
 
 #include "parse.h"
-#include "param.h"
 #include "utils.h"
 #include <iostream>
 #include <fstream>
@@ -87,7 +86,7 @@ public:
 
     for (auto&& params: candidates)
       for (auto&& param: params)
-        if (dynamic_cast<TorchAPIOptionsParam*>(param.get()))
+        if (isa<TorchAPIOptionsParam>(param.get()))
           return std::move(params);
 
     size_t num_params_best = 0;
