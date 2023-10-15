@@ -107,8 +107,7 @@ class TorchBoundedParam: public TorchParam {
 
 class TorchBoundedIntParam: public TorchBoundedParam {
   public:
-    TorchBoundedIntParam(std::string name_, size_t size_)
-      : TorchBoundedParam(TPK_BoundedInt, name_, size_) {}
+    TorchBoundedIntParam(std::string name_, size_t size_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;

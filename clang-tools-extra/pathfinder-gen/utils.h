@@ -9,6 +9,7 @@
 #include <string>
 #include <dirent.h>
 #include <fstream>
+#include <memory>
 
 static const std::string space = " ";
 static const std::string gte = " >= ";

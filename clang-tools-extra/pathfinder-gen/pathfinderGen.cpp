@@ -7,6 +7,7 @@
 #include "llvm/Support/CommandLine.h"
 
 #include "parse.h"
+#include "api.h"
 #include "utils.h"
 #include <iostream>
 #include <fstream>

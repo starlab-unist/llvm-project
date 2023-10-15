@@ -1,6 +1,6 @@
 #include "param.h"
 
-const size_t MAX_VECTOR_SIZE = 6;
+const size_t MAX_RANK = 5;
 
 std::string setup_var(std::string param_name) {
   return symbolic_int_var + sq_quoted(param_name);
@@ -379,10 +379,10 @@ TorchExpandingArrayWithOptionalElemParam::TorchExpandingArrayWithOptionalElemPar
   std::string name_,
   size_t size_,
   std::vector<std::unique_ptr<TorchParam>> params_)
-  : TorchSizedArrayParam(TPK_ExpandingArrayWithOptionalElem, name_, size_, params_)
+  : TorchSizedArrayParam(TPK_ExpandingArrayWithOptionalElem, name_, size_, std::move(params_))
 {
   for (auto& param: params)
-    isa<TorchOptionalParam>(param.get());
+    assert(isa<TorchOptionalParam>(param.get()));
 }
 
 std::string TorchExpandingArrayWithOptionalElemParam::type() const {
