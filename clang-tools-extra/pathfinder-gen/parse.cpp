@@ -11,8 +11,6 @@ bool is_int_type(clang::QualType t, ASTContext &Ctx) {
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
       if (t == "int" || t == "long")
         return true;
-      else
-        assert(false);
     }
   }
   return false;
@@ -24,8 +22,6 @@ bool is_bool_type(clang::QualType t, ASTContext &Ctx) {
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
       if (t == "bool")
         return true;
-      else
-        assert(false);
     }
   return false;
 }
@@ -36,8 +32,6 @@ bool is_float_type(clang::QualType t, ASTContext &Ctx) {
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
       if (t == "float" || t == "double")
         return true;
-      else
-        assert(false);
     }
   }
   return false;
