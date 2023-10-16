@@ -138,12 +138,12 @@ TorchModule::TorchModule(
 {
   module_dtype = module_dtype_.get();
   params.push_back(std::move(module_dtype_));
-  for (auto& param: ctor_params_) {
-    ctor_params.push_back(param.get());
-    params.push_back(std::move(param));
-  }
   for (auto& param: forward_params_) {
     forward_params.push_back(param.get());
+    params.push_back(std::move(param));
+  }
+  for (auto& param: ctor_params_) {
+    ctor_params.push_back(param.get());
     params.push_back(std::move(param));
   }
 }
@@ -155,7 +155,7 @@ std::vector<std::string> TorchModule::api_call_code() const {
     "auto " + module_var + assign + api_name + "(";
   for (size_t i = 0; i < ctor_params.size(); i++) {
     module_init += ctor_params[i]->expr();
-    if (i != params.size() - 1)
+    if (i != ctor_params.size() - 1)
       module_init += comma;
   }
   module_init += ");\n";
@@ -164,7 +164,7 @@ std::vector<std::string> TorchModule::api_call_code() const {
     "auto result = " + module_var + "->forward(";
   for (size_t i = 0; i < forward_params.size(); i++) {
     forward_call += forward_params[i]->expr();
-    if (i != params.size() - 1)
+    if (i != forward_params.size() - 1)
       forward_call += comma;
   }
   forward_call += ")";

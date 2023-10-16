@@ -438,8 +438,7 @@ std::unique_ptr<TorchParam> parseAPIOptions(clang::QualType t, std::string name,
     if (param == nullptr) {
       std::cerr <<
         "WARNING: Parsing fail on param `" << param_name << "` in `" << api_options_class_name << "`.\n" <<
-        "         Unsupported type:\n" << 
-        "         " << method->parameters()[0]->getType().getAsString() << std::endl;
+        "         Type `" << method->parameters()[0]->getType().getAsString() << "` is not supported." << std::endl;
       continue;
     }
     param->set_default(get_default_expr(param_name, cdecl));

@@ -50,8 +50,7 @@ public:
       if (p == nullptr) {
         std::cerr <<
           "WARNING: Parsing fail on param `" << name << "`.\n" <<
-          "         Unsupported type:\n" <<
-          "         " << t.getAsString() << "\n" <<
+          "         Type `" << t.getAsString() << "` is not supported.\n" <<
           "FAILED: Generating fuzz target of API `" << function_name_qualified << "` failed." << std::endl;
         return true;
       }
@@ -80,8 +79,7 @@ public:
       if (p == nullptr) {
         std::cerr <<
           "WARNING: Parsing fail on param `" << name << "`.\n" <<
-          "         Unsupported type:\n" <<
-          "         " << t.getAsString() << std::endl;
+          "         Type `" << t.getAsString() << "` is not supported." << std::endl;
         return None;
       }
       params.push_back(std::move(p));
@@ -98,8 +96,7 @@ public:
       if (p == nullptr) {
         std::cerr <<
           "WARNING: Parsing fail on param `" << name << "`.\n" <<
-          "         Unsupported type:\n" <<
-          "         " << t.getAsString() << std::endl;
+          "         Type `" << t.getAsString() << "` is not supported." << std::endl;
         return None;
       }
       params.push_back(std::move(p));
