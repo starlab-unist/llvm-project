@@ -101,7 +101,7 @@ std::vector<std::string> TorchAPI::footer() const {
   return {
     "}  // extern \"C\"\n",
   };
-};
+}
 
 
 TorchFunction::TorchFunction(
@@ -132,14 +132,14 @@ std::vector<std::string> TorchFunction::api_call_code() const {
 TorchModule::TorchModule(
   std::string module_name,
   std::unique_ptr<TorchParam> module_dtype_,
-  std::vector<std::unique_ptr<TorchParam>> module_params_,
+  std::vector<std::unique_ptr<TorchParam>> ctor_params_,
   std::vector<std::unique_ptr<TorchParam>> forward_params_)
   : TorchAPI(module_name)
 {
   module_dtype = module_dtype_.get();
   params.push_back(std::move(module_dtype_));
-  for (auto& param: module_params_) {
-    module_params.push_back(param.get());
+  for (auto& param: ctor_params_) {
+    ctor_params.push_back(param.get());
     params.push_back(std::move(param));
   }
   for (auto& param: forward_params_) {
@@ -153,8 +153,8 @@ std::vector<std::string> TorchModule::api_call_code() const {
 
   std::string module_init =
     "auto " + module_var + assign + api_name + "(";
-  for (size_t i = 0; i < params.size(); i++) {
-    module_init += module_params[i]->expr();
+  for (size_t i = 0; i < ctor_params.size(); i++) {
+    module_init += ctor_params[i]->expr();
     if (i != params.size() - 1)
       module_init += comma;
   }
@@ -162,7 +162,7 @@ std::vector<std::string> TorchModule::api_call_code() const {
   
   std::string forward_call =
     "auto result = " + module_var + "->forward(";
-  for (size_t i = 0; i < params.size(); i++) {
+  for (size_t i = 0; i < forward_params.size(); i++) {
     forward_call += forward_params[i]->expr();
     if (i != params.size() - 1)
       forward_call += comma;

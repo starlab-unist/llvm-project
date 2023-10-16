@@ -11,6 +11,12 @@
 #include <fstream>
 #include <memory>
 
+#define PFGEN_CHECK(cond, msg)     \
+  if (!(cond)) {                   \
+    std::cerr << msg << std::endl; \
+    exit(0);                       \
+  }
+
 static const std::string space = " ";
 static const std::string gte = " >= ";
 static const std::string assign = " = ";

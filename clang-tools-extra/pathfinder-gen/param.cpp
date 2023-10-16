@@ -1,6 +1,10 @@
 #include "param.h"
 
+// Should be consistent with
+// <TORCH_HOME>/test/cpp/fuzzing/fuzzer_util.h
 const size_t MAX_RANK = 5;
+const size_t MAX_VECTOR_SIZE = 6;
+const size_t MAX_ARRAYREF_SIZE = 6;
 
 std::string setup_var(std::string param_name) {
   return symbolic_int_var + sq_quoted(param_name);
@@ -269,45 +273,54 @@ bool TorchEnumParam::classof(const TorchParam *param) {
 }
 
 
-TorchVectorParam::TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
-  : TorchParam(TPK_Vector, name_)
+TorchUnfixedArrayParam::TorchUnfixedArrayParam(
+  TorchParamKind kind_,
+  std::string name_,
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchParam(kind_, name_)
 {
-  vec_size = std::make_unique<TorchBoundedIntParam>(name + "_size", MAX_VECTOR_SIZE + 1);
+  assert(TPK_UnfixedArray_First <= get_kind() && get_kind() <= TPK_UnfixedArray_Last);
   params = std::move(params_);
-  assert(params.size() == MAX_VECTOR_SIZE);
+  size = std::make_unique<TorchBoundedIntParam>(name + "_size", params.size() + 1);
 }
 
-std::string TorchVectorParam::type() const {
-  return "std::vector<" + params[0]->type() + ">";
-}
-std::string TorchVectorParam::var() const {
+std::string TorchUnfixedArrayParam::var() const {
   return name;
 }
-std::string TorchVectorParam::initializer() const {
-  return "vector_init" + bracket(vec_size->expr() + comma + to_string(params));
-}
 
-std::vector<std::string> TorchVectorParam::gen_arg_setup() const {
+std::vector<std::string> TorchUnfixedArrayParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
-  concat(arg_setup, vec_size->gen_arg_setup());
+  concat(arg_setup, size->gen_arg_setup());
   for (auto& param: params)
     concat(arg_setup, param->gen_arg_setup());
   return arg_setup;
 }
-std::vector<std::string> TorchVectorParam::gen_hard_constraint() const {
+std::vector<std::string> TorchUnfixedArrayParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
   for (auto& param: params)
     concat(hard_ctrs, param->gen_hard_constraint());
   return hard_ctrs;
 }
-std::vector<std::string> TorchVectorParam::gen_soft_constraint() const {
+std::vector<std::string> TorchUnfixedArrayParam::gen_soft_constraint() const {
   std::vector<std::string> soft_ctrs;
   for (auto& param: params)
     concat(soft_ctrs, param->gen_soft_constraint());
   return soft_ctrs;
 }
-std::vector<std::string> TorchVectorParam::gen_arg_initialization() const {
+std::vector<std::string> TorchUnfixedArrayParam::gen_arg_initialization() const {
   return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+
+
+TorchVectorParam::TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchUnfixedArrayParam(TPK_Vector, name_, std::move(params_))
+{ assert(params.size() == MAX_VECTOR_SIZE); }
+
+std::string TorchVectorParam::type() const {
+  return "std::vector<" + params[0]->type() + ">";
+}
+std::string TorchVectorParam::initializer() const {
+  return "vector_init<" + params[0]->type() + ">" + bracket(size->expr() + comma + to_string(params));
 }
 
 bool TorchVectorParam::classof(const TorchParam *param) {
@@ -315,46 +328,58 @@ bool TorchVectorParam::classof(const TorchParam *param) {
 }
 
 
-TorchSizedArrayParam::TorchSizedArrayParam(
+TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchUnfixedArrayParam(TPK_ArrayRef, name_, std::move(params_))
+{ assert(params.size() == MAX_ARRAYREF_SIZE); }
+
+std::string TorchArrayRefParam::type() const {
+  return "c10::ArrayRef<" + params[0]->type() + ">";
+}
+std::string TorchArrayRefParam::initializer() const {
+  return "arrayref_init<" + params[0]->type() + ">" + bracket(size->expr() + comma + to_string(params));
+}
+
+bool TorchArrayRefParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_ArrayRef;
+}
+
+
+TorchFixedArrayParam::TorchFixedArrayParam(
   TorchParamKind kind_,
   std::string name_,
   size_t size_,
   std::vector<std::unique_ptr<TorchParam>> params_)
   : TorchParam(kind_, name_)
 {
-  assert(TPK_SizedArray_First <= get_kind() && get_kind() <= TPK_SizedArray_Last);
+  assert(TPK_FixedArray_First <= get_kind() && get_kind() <= TPK_FixedArray_Last);
   size = size_;
   params = std::move(params_);
   assert(params.size() == size);
 }
-void TorchSizedArrayParam::set_default(Expr* default_expr) {
-  for (auto&& param: params)
-    param->set_default(default_expr);
-}
 
-std::string TorchSizedArrayParam::var() const {
+std::string TorchFixedArrayParam::var() const {
   return name;
 }
 
-std::vector<std::string> TorchSizedArrayParam::gen_arg_setup() const {
+std::vector<std::string> TorchFixedArrayParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
   for (auto& param: params)
     concat(arg_setup, param->gen_arg_setup());
   return arg_setup;
 }
-std::vector<std::string> TorchSizedArrayParam::gen_hard_constraint() const {
+std::vector<std::string> TorchFixedArrayParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
   for (auto& param: params)
     concat(hard_ctrs, param->gen_hard_constraint());
   return hard_ctrs;
 }
-std::vector<std::string> TorchSizedArrayParam::gen_soft_constraint() const {
+std::vector<std::string> TorchFixedArrayParam::gen_soft_constraint() const {
   std::vector<std::string> soft_ctrs;
   for (auto& param: params)
     concat(soft_ctrs, param->gen_soft_constraint());
   return soft_ctrs;
 }
-std::vector<std::string> TorchSizedArrayParam::gen_arg_initialization() const {
+std::vector<std::string> TorchFixedArrayParam::gen_arg_initialization() const {
   return {type() + space + var() + assign + initializer() + semicolon + newline};
 }
 
@@ -363,7 +388,11 @@ TorchExpandingArrayParam::TorchExpandingArrayParam(
   std::string name_,
   size_t size_,
   std::vector<std::unique_ptr<TorchParam>> params_)
-  : TorchSizedArrayParam(TPK_ExpandingArray, name_, size_, std::move(params_)) {}
+  : TorchFixedArrayParam(TPK_ExpandingArray, name_, size_, std::move(params_)) {}
+void TorchExpandingArrayParam::set_default(Expr* default_expr) {
+  for (auto&& param: params)
+    param->set_default(default_expr);
+}
 
 std::string TorchExpandingArrayParam::type() const {
   return "torch::ExpandingArray<" + std::to_string(size) + comma + params[0]->type() + ">";
@@ -381,10 +410,14 @@ TorchExpandingArrayWithOptionalElemParam::TorchExpandingArrayWithOptionalElemPar
   std::string name_,
   size_t size_,
   std::vector<std::unique_ptr<TorchParam>> params_)
-  : TorchSizedArrayParam(TPK_ExpandingArrayWithOptionalElem, name_, size_, std::move(params_))
+  : TorchFixedArrayParam(TPK_ExpandingArrayWithOptionalElem, name_, size_, std::move(params_))
 {
   for (auto& param: params)
     assert(isa<TorchOptionalParam>(param.get()));
+}
+void TorchExpandingArrayWithOptionalElemParam::set_default(Expr* default_expr) {
+  for (auto&& param: params)
+    param->set_default(default_expr);
 }
 
 std::string TorchExpandingArrayWithOptionalElemParam::type() const {
@@ -421,7 +454,7 @@ std::string TorchTensorParam::type() const { return "torch::Tensor"; }
 std::string TorchTensorParam::var() const { return name; }
 std::string TorchTensorParam::initializer() const {
   return "torch_tensor" + bracket(dtype->expr() + comma + rank->expr() + comma + to_string(dims));
-};
+}
 
 std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;

@@ -13,7 +13,8 @@
 using namespace llvm;
 using namespace clang;
 
-const size_t MAX_VECTOR_SIZE = 6;
+extern const size_t MAX_VECTOR_SIZE;
+extern const size_t MAX_ARRAYREF_SIZE;
 
 const std::string symbolic_int_var = "sym_int_arg";
 const std::string pathfinder_input_var = "x";
@@ -28,24 +29,34 @@ bool is_module_mode();
 class TorchParam {
   public:
     enum TorchParamKind {
+      TPK_Enum,
+
       TPK_Int,
+      
+      // TorchBoundedParam
       TPK_BoundedInt,
       TPK_Bool,
       TPK_Float,
       TPK_Dtype,
       TPK_Variant,
-      TPK_Enum,
+      TPK_Bounded_First = TPK_BoundedInt,
+      TPK_Bounded_Last = TPK_Variant,
+
+      // TorchUnfixedArrayParam
       TPK_Vector,
+      TPK_ArrayRef,
+      TPK_UnfixedArray_First = TPK_Vector,
+      TPK_UnfixedArray_Last = TPK_ArrayRef,
+
+      // TorchfixedArrayParam
       TPK_ExpandingArray,
       TPK_ExpandingArrayWithOptionalElem,
+      TPK_FixedArray_First = TPK_ExpandingArray,
+      TPK_FixedArray_Last = TPK_ExpandingArrayWithOptionalElem,
+
       TPK_Tensor,
       TPK_Optional,
       TPK_APIOptions,
-
-      TPK_Bounded_First = TPK_BoundedInt,
-      TPK_Bounded_Last = TPK_Variant,
-      TPK_SizedArray_First = TPK_ExpandingArray,
-      TPK_SizedArray_Last = TPK_ExpandingArrayWithOptionalElem,
     };
 
     TorchParam(TorchParamKind kind_, std::string name_): kind(kind_), name(name_) {}
@@ -184,33 +195,53 @@ class TorchEnumParam: public TorchParam {
     std::string enum_name;
 };
 
-class TorchVectorParam: public TorchParam {
+class TorchUnfixedArrayParam: public TorchParam {
   public:
-    TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
+    TorchUnfixedArrayParam(
+      TorchParamKind kind_,
+      std::string name_,
+      std::vector<std::unique_ptr<TorchParam>> params_);
 
-    virtual std::string type() const override;
+    virtual std::string type() const override = 0;
     virtual std::string var() const override;
-    virtual std::string initializer() const override;
+    virtual std::string initializer() const override = 0;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
-
-    static bool classof(const TorchParam *param);
   protected:
-    std::unique_ptr<TorchBoundedIntParam> vec_size;
+    std::unique_ptr<TorchBoundedIntParam> size;
     std::vector<std::unique_ptr<TorchParam>> params;
 };
 
-class TorchSizedArrayParam: public TorchParam {
+class TorchVectorParam: public TorchUnfixedArrayParam {
   public:
-    TorchSizedArrayParam(
+    TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchArrayRefParam: public TorchUnfixedArrayParam {
+  public:
+    TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchFixedArrayParam: public TorchParam {
+  public:
+    TorchFixedArrayParam(
       TorchParamKind kind_,
       std::string name_,
       size_t size_,
       std::vector<std::unique_ptr<TorchParam>> params_);
-    virtual void set_default(Expr* default_expr) override;
 
     virtual std::string type() const override = 0;
     virtual std::string var() const override;
@@ -225,12 +256,13 @@ class TorchSizedArrayParam: public TorchParam {
     std::vector<std::unique_ptr<TorchParam>> params;
 };
 
-class TorchExpandingArrayParam: public TorchSizedArrayParam {
+class TorchExpandingArrayParam: public TorchFixedArrayParam {
   public:
     TorchExpandingArrayParam(
       std::string name_,
       size_t size_,
       std::vector<std::unique_ptr<TorchParam>> params_);
+    virtual void set_default(Expr* default_expr) override;
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -238,12 +270,13 @@ class TorchExpandingArrayParam: public TorchSizedArrayParam {
     static bool classof(const TorchParam *param);
 };
 
-class TorchExpandingArrayWithOptionalElemParam: public TorchSizedArrayParam {
+class TorchExpandingArrayWithOptionalElemParam: public TorchFixedArrayParam {
   public:
     TorchExpandingArrayWithOptionalElemParam(
       std::string name_,
       size_t size_,
       std::vector<std::unique_ptr<TorchParam>> params_);
+    virtual void set_default(Expr* default_expr) override;
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;

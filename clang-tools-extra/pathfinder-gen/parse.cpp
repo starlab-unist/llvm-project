@@ -89,7 +89,11 @@ std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, AST
             std::vector<std::unique_ptr<TorchParam>> params;
             for (size_t i = 0; i < MAX_VECTOR_SIZE; i++) {
               std::string param_name = name + "_" + std::to_string(i);
-              params.push_back(parseTorchParam(targs[0].getAsType(), param_name, Ctx));
+              std::unique_ptr<TorchParam> param =
+                parseTorchParam(targs[0].getAsType(), param_name, Ctx);
+              if (param == nullptr)
+                return nullptr;
+              params.push_back(std::move(param));
             }
             torch_param = std::make_unique<TorchVectorParam>(name, std::move(params));
           } else {
@@ -130,11 +134,15 @@ std::unique_ptr<TorchParam> parseArrayRef(clang::QualType t, std::string name, A
         assert(targ.size() == 1);
         assert(targ[0].getKind() == TemplateArgument::ArgKind::Type); 
         std::vector<std::unique_ptr<TorchParam>> params;
-        for (size_t i = 0; i < MAX_VECTOR_SIZE; i++) {
+        for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
           std::string param_name = name + "_" + std::to_string(i);
-          params.push_back(parseTorchParam(targ[0].getAsType(), param_name, Ctx));
+          std::unique_ptr<TorchParam> param =
+            parseTorchParam(targ[0].getAsType(), param_name, Ctx);
+          if (param == nullptr)
+            return nullptr;
+          params.push_back(std::move(param));
         }
-        torch_param = std::make_unique<TorchVectorParam>(name, std::move(params));
+        torch_param = std::make_unique<TorchArrayRefParam>(name, std::move(params));
       }
     }
   }
@@ -181,7 +189,11 @@ std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string n
           std::vector<std::unique_ptr<TorchParam>> params;
           for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
             std::string param_name = name + "_" + std::to_string(i);
-            params.push_back(parseTorchParam(targ[1].getAsType(), param_name, Ctx));
+            std::unique_ptr<TorchParam> param =
+              parseTorchParam(targ[1].getAsType(), param_name, Ctx);
+            if (param == nullptr)
+              return nullptr;
+            params.push_back(std::move(param));
           }
           torch_param =
             std::make_unique<TorchExpandingArrayParam>(name, expandingarray_size, std::move(params));
@@ -235,7 +247,10 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
           std::vector<std::unique_ptr<TorchParam>> params;
           for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
             std::string param_name = name + "_" + std::to_string(i);
-            std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+            std::unique_ptr<TorchParam> param =
+              parseTorchParam(targ[1].getAsType(), param_name + "_base", Ctx);
+            if (param == nullptr)
+              return nullptr;
             std::unique_ptr<TorchParam> optional_param =
               std::make_unique<TorchOptionalParam>(param_name, std::move(param));
             params.push_back(std::move(optional_param));
@@ -260,9 +275,11 @@ std::unique_ptr<TorchParam> parseOptional(clang::QualType t, std::string name, A
         if (rtype->getDecl()->getNameAsString() == "optional") {
           auto targ = tstype->template_arguments();
           assert(targ.size() == 1);
-          auto p = parseTorchParam(targ[0].getAsType(), name, Ctx);
-          if (p != nullptr)
-            torch_param = std::make_unique<TorchOptionalParam>(name, std::move(p));
+          std::unique_ptr<TorchParam> param =
+            parseTorchParam(targ[0].getAsType(), name + "_base", Ctx);
+          if (param == nullptr)
+            return nullptr;
+        torch_param = std::make_unique<TorchOptionalParam>(name, std::move(param));
         }
       }
     }
@@ -281,8 +298,11 @@ std::unique_ptr<TorchParam> parseVariant(clang::QualType t, std::string name, AS
           auto targs = tstype->template_arguments();
           std::vector<std::unique_ptr<TorchParam>> params;
           for (size_t i = 0; i < targs.size(); i++) {
-            auto p = parseTorchParam(targs[i].getAsType(), name + "_type" + std::to_string(i), Ctx);
-            params.push_back(std::move(p));
+            std::unique_ptr<TorchParam> param =
+              parseTorchParam(targs[i].getAsType(), name + "_" + std::to_string(i), Ctx);
+            if (param == nullptr)
+              return nullptr;
+            params.push_back(std::move(param));
           }
           assert(params.size() > 0);
           torch_param = std::make_unique<TorchVariantParam>(name, std::move(params));
@@ -415,19 +435,24 @@ std::unique_ptr<TorchParam> parseAPIOptions(clang::QualType t, std::string name,
       continue;
 
     std::unique_ptr<TorchParam> param = parseTorchParam(method->parameters()[0]->getType(), param_name, Ctx);
-    if (param != nullptr) {
-      param->set_default(get_default_expr(param_name, cdecl));
+    if (param == nullptr) {
+      std::cerr <<
+        "WARNING: Parsing fail on param `" << param_name << "` in `" << api_options_class_name << "`.\n" <<
+        "         Unsupported type:\n" << 
+        "         " << method->parameters()[0]->getType().getAsString() << std::endl;
+      continue;
+    }
+    param->set_default(get_default_expr(param_name, cdecl));
 
-      if (ctor_param_names.find(param_name) != ctor_param_names.end()) {
-        if (ctor_params_seen.find(param_name) == ctor_params_seen.end()) {
-          ctor_params.push_back(std::move(param));
-          ctor_params_seen.insert(param_name);
-        }
-      } else {
-        if (member_params_seen.find(param_name) == member_params_seen.end()) {
-          member_params.push_back(std::move(param));
-          member_params_seen.insert(param_name);
-        }
+    if (ctor_param_names.find(param_name) != ctor_param_names.end()) {
+      if (ctor_params_seen.find(param_name) == ctor_params_seen.end()) {
+        ctor_params.push_back(std::move(param));
+        ctor_params_seen.insert(param_name);
+      }
+    } else {
+      if (member_params_seen.find(param_name) == member_params_seen.end()) {
+        member_params.push_back(std::move(param));
+        member_params_seen.insert(param_name);
       }
     }
   }

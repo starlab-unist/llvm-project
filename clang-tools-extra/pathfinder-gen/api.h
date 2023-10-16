@@ -41,11 +41,11 @@ class TorchModule: public TorchAPI {
     TorchModule(
       std::string module_name,
       std::unique_ptr<TorchParam> module_dtype_,
-      std::vector<std::unique_ptr<TorchParam>> module_params_,
+      std::vector<std::unique_ptr<TorchParam>> ctor_params_,
       std::vector<std::unique_ptr<TorchParam>> forward_params_);
   private:
     TorchParam* module_dtype;
-    std::vector<TorchParam*> module_params;
+    std::vector<TorchParam*> ctor_params;
     std::vector<TorchParam*> forward_params;
 
     virtual std::vector<std::string> api_call_code() const override;
