@@ -65,7 +65,7 @@ class TorchParam {
     virtual std::string type() const = 0;
     virtual std::string var() const { return ""; }
     virtual std::string initializer() const = 0;
-    virtual std::string expr() const {
+    std::string expr() const {
       return var() != "" ? var() : initializer();
     };
 
