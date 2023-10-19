@@ -28,7 +28,7 @@ std::vector<std::string> TorchAPI::soft_constraint_code() const {
   std::vector<std::string> soft_constraint;
   soft_constraint.push_back("PathFinderAddSoftConstraint({");
   for (auto& param: params)
-    concat(soft_constraint, "  ", param->gen_hard_constraint(), comma);
+    concat(soft_constraint, "  ", param->gen_soft_constraint(), comma);
   soft_constraint.push_back("});");
   return soft_constraint;
 }

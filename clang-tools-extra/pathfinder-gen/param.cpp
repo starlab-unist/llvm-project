@@ -13,7 +13,7 @@ std::string callback_var(std::string param_name) {
   return pathfinder_input_var + sq_quoted(param_name);
 }
 std::string double_dict(std::string param_name) {
-  return double_value_dictionary + callback_var(param_name);
+  return double_value_dictionary + square(callback_var(param_name));
 }
 std::string get_dtype(std::string param_name) {
   return "get_dtype(" + callback_var(param_name) + ")";
@@ -207,13 +207,13 @@ std::vector<std::string> TorchVariantParam::gen_input_pass_condition() const {
   return ignore_conds;
 }
 std::vector<std::string> TorchVariantParam::gen_arg_initialization() const {
-  std::vector<std::string> preparation_str;
+  std::vector<std::string> arg_initialization;
   for (auto& param: params)
-    concat(preparation_str, param->gen_arg_initialization());
-  concat(preparation_str, gen_typedef());
-  concat(preparation_str, gen_vector());
-  preparation_str.back() = preparation_str.back() + newline;
-  return preparation_str;
+    concat(arg_initialization, param->gen_arg_initialization());
+  concat(arg_initialization, gen_typedef());
+  concat(arg_initialization, gen_vector());
+  arg_initialization.back() = arg_initialization.back() + newline;
+  return arg_initialization;
 }
 
 std::vector<std::string> TorchVariantParam::gen_api_options_init(
@@ -240,16 +240,24 @@ std::vector<std::string> TorchVariantParam::gen_typedef() const {
   std::vector<std::string> typedef_str;
   typedef_str.push_back("typedef");
   typedef_str.push_back("  c10::variant<");
-  for (auto& param: params)
-    typedef_str.push_back("    " + param->type() + comma);
-  typedef_str.push_back("  " + type() + semicolon);
+  for (size_t i = 0; i < params.size(); i++) {
+    std::string param_type = "    " + params[i]->type();
+    if (i != params.size() - 1)
+      param_type += comma;
+    typedef_str.push_back(param_type);
+  }
+  typedef_str.push_back("  > " + type() + semicolon);
   return typedef_str;
 }
 std::vector<std::string> TorchVariantParam::gen_vector() const {
   std::vector<std::string> vector_str;
   vector_str.push_back("std::vector<" + type() + "> " + name + " = {");
-  for (auto& param: params)
-    vector_str.push_back("  " + param->expr() + comma);
+  for (size_t i = 0; i < params.size(); i++) {
+    std::string param_expr = "  " + params[i]->expr();
+    if (i != params.size() - 1)
+      param_expr += comma;
+    vector_str.push_back(param_expr);
+  }
   vector_str.push_back("}" + semicolon);
   return vector_str;
 }
@@ -308,7 +316,11 @@ std::vector<std::string> TorchUnfixedArrayParam::gen_soft_constraint() const {
   return soft_ctrs;
 }
 std::vector<std::string> TorchUnfixedArrayParam::gen_arg_initialization() const {
-  return {type() + space + var() + assign + initializer() + semicolon + newline};
+  std::vector<std::string> arg_initialization;
+  for (auto& param: params)
+    concat(arg_initialization, param->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
+  return arg_initialization;
 }
 
 
@@ -380,7 +392,11 @@ std::vector<std::string> TorchFixedArrayParam::gen_soft_constraint() const {
   return soft_ctrs;
 }
 std::vector<std::string> TorchFixedArrayParam::gen_arg_initialization() const {
-  return {type() + space + var() + assign + initializer() + semicolon + newline};
+  std::vector<std::string> arg_initialization;
+  for (auto& param: params)
+    concat(arg_initialization, param->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
+  return arg_initialization;
 }
 
 
@@ -421,7 +437,6 @@ void TorchExpandingArrayWithOptionalElemParam::set_default(Expr* default_expr) {
 }
 
 std::string TorchExpandingArrayWithOptionalElemParam::type() const {
-  
   return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(size) + comma + base_type() + ">";
 }
 std::string TorchExpandingArrayWithOptionalElemParam::initializer() const {
@@ -499,7 +514,7 @@ std::string TorchOptionalParam::var() const {
   return name;
 }
 std::string TorchOptionalParam::initializer() const {
-  return has_value->expr() + " ? " + param->expr() +  " : " + "c10::nullopt";
+  return has_value->expr() + " ? " + type() + bracket(param->expr()) +  " : " + "c10::nullopt";
 }
 
 std::vector<std::string> TorchOptionalParam::gen_arg_setup() const {
@@ -518,7 +533,10 @@ std::vector<std::string> TorchOptionalParam::gen_input_pass_condition() const {
   return param->gen_input_pass_condition();
 }
 std::vector<std::string> TorchOptionalParam::gen_arg_initialization() const {
-  return {type() + space + var() + assign + initializer() + semicolon + newline};
+  std::vector<std::string> arg_initialization;
+  concat(arg_initialization, param->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
+  return arg_initialization;
 }
 
 std::string TorchOptionalParam::base_type() const {
@@ -585,15 +603,14 @@ std::vector<std::string> TorchAPIOptionsParam::gen_input_pass_condition() const 
   return ignore_conds;
 }
 std::vector<std::string> TorchAPIOptionsParam::gen_arg_initialization() const {
-  std::vector<std::string> preparation_str;
-
+  std::vector<std::string> arg_initialization;
   for (auto& param: ctor_params)
-    concat(preparation_str, param->gen_arg_initialization());
+    concat(arg_initialization, param->gen_arg_initialization());
   for (auto& param: member_params)
-    concat(preparation_str, param->gen_arg_initialization());
-  concat(preparation_str, gen_api_options_init());
-  preparation_str.back() = preparation_str.back() + newline;
-  return preparation_str;
+    concat(arg_initialization, param->gen_arg_initialization());
+  concat(arg_initialization, gen_api_options_init());
+  arg_initialization.back() = arg_initialization.back() + newline;
+  return arg_initialization;
 }
 
 bool TorchAPIOptionsParam::classof(const TorchParam *param) {
@@ -619,7 +636,9 @@ std::vector<std::string> TorchAPIOptionsParam::gen_api_options_init() const {
     concat(
       api_options_init,
       sole_variant_ctor->gen_api_options_init(api_optons_class_name, name));
-    api_options_init.push_back(name);
+    auto member_param_set = gen_member_param_set();
+    if (!member_param_set.empty())
+      api_options_init.push_back(name);
     for (auto& param_set: gen_member_param_set())
       api_options_init.push_back("  " + param_set);
   } else {

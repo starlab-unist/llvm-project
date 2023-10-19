@@ -194,16 +194,10 @@ void make_dir_and_write_files(std::string dir, const std::map<std::string, std::
     exit(0);
   }
 
-  //std::string cmake_contents = "include(../../pathfinder.cmake)\n\n";
   std::string cmake_contents;
   for (auto p: files) {
-    std::string target_name = p.first;
+    std::string filename = p.first + ".cpp";
     std::string code = p.second;
-
-    size_t id = 0;
-    std::string filename = target_name + "_" + std::to_string(id) + ".cpp";
-    while (file_exist(filename))
-      filename = target_name + "_" + std::to_string(++id) + ".cpp";
 
     std::ofstream writeFile(dir + "/" + filename);
     if(writeFile.is_open()){

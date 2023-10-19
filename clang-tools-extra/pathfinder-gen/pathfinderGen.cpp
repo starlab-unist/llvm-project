@@ -150,15 +150,11 @@ public:
     for (auto ctor: class_decl->ctors())
       if (auto parsed = parseModuleCtor(ctor))
         ctor_params_candidates.push_back(std::move(parsed.getValue()));
-
     for (auto method: class_decl->methods()) {
       if (method->getNameAsString() == "forward") {
         if (auto parsed = parseForward(method)) {
           forward_params = std::move(parsed.getValue());
           break;
-        } else {
-          std::cerr << "FAILED: Generating fuzz target of API `" << module_name_qualified << "` failed." << std::endl;
-          return true;
         }
       }
     }
@@ -187,11 +183,21 @@ public:
               if (auto parsed = parseModuleCtor(ctor))
                 ctor_params_candidates.push_back(std::move(parsed.getValue()));
           }
+          if (forward_params.empty()) {
+            for (auto method: ctsdecl->methods()) {
+              if (method->getNameAsString() == "forward") {
+                if (auto parsed = parseForward(method)) {
+                  forward_params = std::move(parsed.getValue());
+                  break;
+                }
+              }
+            }
+          }
         }
       }
     }
 
-    if (ctor_params_candidates.empty()) {
+    if (ctor_params_candidates.empty() || forward_params.empty()) {
       std::cerr << "FAILED: Generating fuzz target of API `" << module_name_qualified << "` failed." << std::endl;
       return true;
     }

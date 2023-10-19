@@ -19,7 +19,7 @@ extern const size_t MAX_ARRAYREF_SIZE;
 const std::string symbolic_int_var = "sym_int_arg";
 const std::string pathfinder_input_var = "x";
 const std::string double_value_dictionary = "double_dict";
-const std::string double_dict_list = "double_dict_list";
+const std::string double_dict_list = "double_list";
 const std::string dtype_list = "dtype_list";
 
 void set_function_mode();
