@@ -9,11 +9,12 @@ using namespace clang;
 class TorchAPI {
   public:
     TorchAPI(std::string api_name_);
-    std::string gen_fuzz_target() const;
+    std::string gen_fuzz_target();
   protected:
     std::string api_name;
     std::vector<std::unique_ptr<TorchParam>> params;
   private:
+    void resolve_name_conflict();
     std::vector<std::string> arg_setup_code() const;
     std::vector<std::string> hard_constraint_code() const;
     std::vector<std::string> soft_constraint_code() const;

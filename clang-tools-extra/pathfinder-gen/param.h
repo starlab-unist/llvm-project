@@ -74,6 +74,9 @@ class TorchParam {
     virtual std::vector<std::string> gen_soft_constraint() const { return {}; }
     virtual std::vector<std::string> gen_input_pass_condition() const { return {}; }
     virtual std::vector<std::string> gen_arg_initialization() const { return {}; }
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) {
+      name = unique_name(name, names_seen);
+    }
     
     std::string get_name() const { return name; }
     TorchParamKind get_kind() const { return kind; }
@@ -171,6 +174,7 @@ class TorchVariantParam: public TorchBoundedParam {
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     std::vector<std::string> gen_api_options_init(
       std::string api_optons_class_name, std::string api_optons_var_name) const;
@@ -210,6 +214,7 @@ class TorchUnfixedArrayParam: public TorchParam {
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
   protected:
     std::unique_ptr<TorchBoundedIntParam> size;
     std::vector<std::unique_ptr<TorchParam>> params;
@@ -251,6 +256,7 @@ class TorchFixedArrayParam: public TorchParam {
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
   protected:
     size_t size;
     std::vector<std::unique_ptr<TorchParam>> params;
@@ -298,6 +304,7 @@ class TorchTensorParam: public TorchParam {
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     static bool classof(const TorchParam *param);
   private:
@@ -320,6 +327,7 @@ class TorchOptionalParam: public TorchParam {
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     std::string base_type() const;
 
@@ -348,6 +356,7 @@ class TorchAPIOptionsParam: public TorchParam {
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     static bool classof(const TorchParam *param);
   private:

@@ -215,6 +215,11 @@ std::vector<std::string> TorchVariantParam::gen_arg_initialization() const {
   arg_initialization.back() = arg_initialization.back() + newline;
   return arg_initialization;
 }
+void TorchVariantParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  for (auto& param: params)
+    param->resolve_name_conflict(names_seen);
+}
 
 std::vector<std::string> TorchVariantParam::gen_api_options_init(
   std::string api_optons_class_name, std::string api_optons_var_name) const
@@ -322,6 +327,12 @@ std::vector<std::string> TorchUnfixedArrayParam::gen_arg_initialization() const 
   arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
   return arg_initialization;
 }
+void TorchUnfixedArrayParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  size->resolve_name_conflict(names_seen);
+  for (auto& param: params)
+    param->resolve_name_conflict(names_seen);
+}
 
 
 TorchVectorParam::TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
@@ -397,6 +408,11 @@ std::vector<std::string> TorchFixedArrayParam::gen_arg_initialization() const {
     concat(arg_initialization, param->gen_arg_initialization());
   arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
   return arg_initialization;
+}
+void TorchFixedArrayParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  for (auto& param: params)
+    param->resolve_name_conflict(names_seen);
 }
 
 
@@ -491,6 +507,13 @@ std::vector<std::string> TorchTensorParam::gen_input_pass_condition() const {
 std::vector<std::string> TorchTensorParam::gen_arg_initialization() const {
   return {type() + space + var() + assign + initializer() + semicolon + newline};
 }
+void TorchTensorParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  dtype->resolve_name_conflict(names_seen);
+  rank->resolve_name_conflict(names_seen);
+  for (auto& dim: dims)
+    dim->resolve_name_conflict(names_seen);
+}
 
 bool TorchTensorParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Tensor;
@@ -537,6 +560,11 @@ std::vector<std::string> TorchOptionalParam::gen_arg_initialization() const {
   concat(arg_initialization, param->gen_arg_initialization());
   arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
   return arg_initialization;
+}
+void TorchOptionalParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  has_value->resolve_name_conflict(names_seen);
+  param->resolve_name_conflict(names_seen);
 }
 
 std::string TorchOptionalParam::base_type() const {
@@ -611,6 +639,13 @@ std::vector<std::string> TorchAPIOptionsParam::gen_arg_initialization() const {
   concat(arg_initialization, gen_api_options_init());
   arg_initialization.back() = arg_initialization.back() + newline;
   return arg_initialization;
+}
+void TorchAPIOptionsParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  for (auto& param: ctor_params)
+    param->resolve_name_conflict(names_seen);
+  for (auto& param: member_params)
+    param->resolve_name_conflict(names_seen);
 }
 
 bool TorchAPIOptionsParam::classof(const TorchParam *param) {

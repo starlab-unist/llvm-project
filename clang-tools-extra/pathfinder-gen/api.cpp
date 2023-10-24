@@ -1,7 +1,8 @@
 #include "api.h"
 
 TorchAPI::TorchAPI(std::string api_name_): api_name(api_name_) {}
-std::string TorchAPI::gen_fuzz_target() const {
+std::string TorchAPI::gen_fuzz_target() {
+  resolve_name_conflict();
   std::vector<std::string> lines;
   concat(lines, header());
   concat(lines, setup());
@@ -9,7 +10,11 @@ std::string TorchAPI::gen_fuzz_target() const {
   concat(lines, footer());
   return join_strs(lines, newline);
 }
-
+void TorchAPI::resolve_name_conflict() {
+  std::set<std::string> names_seen;
+  for (auto& param: params)
+    param->resolve_name_conflict(names_seen);
+}
 std::vector<std::string> TorchAPI::arg_setup_code() const {
   std::vector<std::string> arg_setup;
   for (auto& param: params)
