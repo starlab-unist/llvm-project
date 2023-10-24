@@ -363,6 +363,7 @@ class TorchAPIOptionsParam: public TorchParam {
     std::string api_optons_class_name;
     std::vector<std::unique_ptr<TorchParam>> ctor_params;
     std::vector<std::unique_ptr<TorchParam>> member_params;
+    std::vector<std::string> member_param_setters;
 
     std::vector<std::string> gen_member_param_set() const;
 

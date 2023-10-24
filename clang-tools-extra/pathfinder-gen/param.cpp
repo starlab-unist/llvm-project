@@ -586,6 +586,8 @@ TorchAPIOptionsParam::TorchAPIOptionsParam(
   api_optons_class_name = api_optons_class_name_;
   ctor_params = std::move(ctor_params_);
   member_params = std::move(member_params_);
+  for (auto& member_param: member_params)
+    member_param_setters.push_back(member_param->get_name());
 }
 
 std::string TorchAPIOptionsParam::type() const {
@@ -654,8 +656,9 @@ bool TorchAPIOptionsParam::classof(const TorchParam *param) {
 
 std::vector<std::string> TorchAPIOptionsParam::gen_member_param_set() const {
   std::vector<std::string> member_param_set;
-  for (auto& param: member_params)
-    member_param_set.push_back("." + param->get_name() + bracket(param->expr()));
+  assert(member_params.size() == member_param_setters.size());
+  for (size_t i = 0; i < member_params.size(); i++)
+    member_param_set.push_back("." + member_param_setters[i] + bracket(member_params[i]->expr()));
   return member_param_set;
 }
 
