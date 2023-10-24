@@ -1,4 +1,4 @@
-#include "parse.h"
+#include "extract.h"
 #include "utils.h"
 #include <iostream>
 #include <fstream>
@@ -37,7 +37,7 @@ bool is_float_type(clang::QualType t, ASTContext &Ctx) {
   return false;
 }
 
-std::unique_ptr<TorchParam> parseBuiltin(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchBuiltin(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (is_int_type(t, Ctx)) {
@@ -51,7 +51,7 @@ std::unique_ptr<TorchParam> parseBuiltin(clang::QualType t, std::string name, AS
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseDtype(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchDtype(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* etype = t->getAs<EnumType>())
@@ -61,7 +61,7 @@ std::unique_ptr<TorchParam> parseDtype(clang::QualType t, std::string name, ASTC
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseEnum(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchEnum(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
   static const std::string enum_prefix = "torch::enumtype::";
 
@@ -77,7 +77,7 @@ std::unique_ptr<TorchParam> parseEnum(clang::QualType t, std::string name, ASTCo
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchVector(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
@@ -90,7 +90,7 @@ std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, AST
             for (size_t i = 0; i < MAX_VECTOR_SIZE; i++) {
               std::string param_name = name + "_" + std::to_string(i);
               std::unique_ptr<TorchParam> param =
-                parseTorchParam(targs[0].getAsType(), param_name, Ctx);
+                extractTorchParam(targs[0].getAsType(), param_name, Ctx);
               if (param == nullptr)
                 return nullptr;
               params.push_back(std::move(param));
@@ -107,7 +107,7 @@ std::unique_ptr<TorchParam> parseVector(clang::QualType t, std::string name, AST
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseTensor(clang::QualType t, std::string name,  ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchTensor(clang::QualType t, std::string name,  ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* elaborated = t->getAs<ElaboratedType>()) {
@@ -124,7 +124,7 @@ std::unique_ptr<TorchParam> parseTensor(clang::QualType t, std::string name,  AS
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
@@ -137,7 +137,7 @@ std::unique_ptr<TorchParam> parseArrayRef(clang::QualType t, std::string name, A
         for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
           std::string param_name = name + "_" + std::to_string(i);
           std::unique_ptr<TorchParam> param =
-            parseTorchParam(targ[0].getAsType(), param_name, Ctx);
+            extractTorchParam(targ[0].getAsType(), param_name, Ctx);
           if (param == nullptr)
             return nullptr;
           params.push_back(std::move(param));
@@ -150,7 +150,7 @@ std::unique_ptr<TorchParam> parseArrayRef(clang::QualType t, std::string name, A
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   const RecordType* rtype;
@@ -190,7 +190,7 @@ std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string n
           for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
             std::string param_name = name + "_" + std::to_string(i);
             std::unique_ptr<TorchParam> param =
-              parseTorchParam(targ[1].getAsType(), param_name, Ctx);
+              extractTorchParam(targ[1].getAsType(), param_name, Ctx);
             if (param == nullptr)
               return nullptr;
             params.push_back(std::move(param));
@@ -205,7 +205,7 @@ std::unique_ptr<TorchParam> parseExpandingArray(clang::QualType t, std::string n
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   const RecordType* rtype;
@@ -248,7 +248,7 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
           for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
             std::string param_name = name + "_" + std::to_string(i);
             std::unique_ptr<TorchParam> param =
-              parseTorchParam(targ[1].getAsType(), param_name + "_base", Ctx);
+              extractTorchParam(targ[1].getAsType(), param_name + "_base", Ctx);
             if (param == nullptr)
               return nullptr;
             std::unique_ptr<TorchParam> optional_param =
@@ -266,7 +266,7 @@ std::unique_ptr<TorchParam> parseExpandingArrayWithOptionalElem(clang::QualType 
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
@@ -276,7 +276,7 @@ std::unique_ptr<TorchParam> parseOptional(clang::QualType t, std::string name, A
           auto targ = tstype->template_arguments();
           assert(targ.size() == 1);
           std::unique_ptr<TorchParam> param =
-            parseTorchParam(targ[0].getAsType(), name + "_base", Ctx);
+            extractTorchParam(targ[0].getAsType(), name + "_base", Ctx);
           if (param == nullptr)
             return nullptr;
         torch_param = std::make_unique<TorchOptionalParam>(name, std::move(param));
@@ -288,7 +288,7 @@ std::unique_ptr<TorchParam> parseOptional(clang::QualType t, std::string name, A
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseVariant(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchVariant(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
@@ -299,7 +299,7 @@ std::unique_ptr<TorchParam> parseVariant(clang::QualType t, std::string name, AS
           std::vector<std::unique_ptr<TorchParam>> params;
           for (size_t i = 0; i < targs.size(); i++) {
             std::unique_ptr<TorchParam> param =
-              parseTorchParam(targs[i].getAsType(), name + "_" + std::to_string(i), Ctx);
+              extractTorchParam(targs[i].getAsType(), name + "_" + std::to_string(i), Ctx);
             if (param == nullptr)
               return nullptr;
             params.push_back(std::move(param));
@@ -354,7 +354,7 @@ Expr* get_default_expr(std::string param_name, const CXXRecordDecl* cdecl) {
   return nullptr;
 }
 
-std::unique_ptr<TorchParam> parseAPIOptions(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (option_class_done) return nullptr;
 
   static std::string option_suffix = "Options";
@@ -434,7 +434,7 @@ std::unique_ptr<TorchParam> parseAPIOptions(clang::QualType t, std::string name,
     if (duplicate)
       continue;
 
-    std::unique_ptr<TorchParam> param = parseTorchParam(method->parameters()[0]->getType(), param_name, Ctx);
+    std::unique_ptr<TorchParam> param = extractTorchParam(method->parameters()[0]->getType(), param_name, Ctx);
     if (param == nullptr) {
       std::cerr <<
         "WARNING: Parsing fail on param `" << param_name << "` in `" << api_options_class_name << "`.\n" <<
@@ -464,47 +464,47 @@ std::unique_ptr<TorchParam> parseAPIOptions(clang::QualType t, std::string name,
   return torch_param;
 }
 
-std::unique_ptr<TorchParam> parseTorchParam(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string name, ASTContext &Ctx) {
   // Base case
-  if (auto builtin_param = parseBuiltin(t, name, Ctx))
+  if (auto builtin_param = extractTorchBuiltin(t, name, Ctx))
     return builtin_param;
-  if (auto dtype_param = parseDtype(t, name, Ctx))
+  if (auto dtype_param = extractTorchDtype(t, name, Ctx))
     return dtype_param;
-  if (auto enum_param = parseEnum(t, name, Ctx))
+  if (auto enum_param = extractTorchEnum(t, name, Ctx))
     return enum_param;
-  if (auto vector_param = parseVector(t, name, Ctx))
+  if (auto vector_param = extractTorchVector(t, name, Ctx))
     return vector_param;
-  if (auto tensor_param = parseTensor(t, name, Ctx))
+  if (auto tensor_param = extractTorchTensor(t, name, Ctx))
     return tensor_param;
-  if (auto intarrayref_param = parseArrayRef(t, name, Ctx))
+  if (auto intarrayref_param = extractTorchArrayRef(t, name, Ctx))
     return intarrayref_param;
-  if (auto expandingarray_param = parseExpandingArray(t, name, Ctx))
+  if (auto expandingarray_param = extractTorchExpandingArray(t, name, Ctx))
     return expandingarray_param;
-  if (auto expandingarraywithoptionalelem_param = parseExpandingArrayWithOptionalElem(t, name, Ctx))
+  if (auto expandingarraywithoptionalelem_param = extractTorchExpandingArrayWithOptionalElem(t, name, Ctx))
     return expandingarraywithoptionalelem_param;
 
   // Recursive case
-  if (auto optional_param = parseOptional(t, name, Ctx))
+  if (auto optional_param = extractTorchOptional(t, name, Ctx))
     return optional_param;
-  if (auto variant_param = parseVariant(t, name, Ctx))
+  if (auto variant_param = extractTorchVariant(t, name, Ctx))
     return variant_param;
-  if (auto api_options_param = parseAPIOptions(t, name, Ctx))
+  if (auto api_options_param = extractTorchAPIOptions(t, name, Ctx))
     return api_options_param;
 
   // Simplifying sugars
   if (t->isLValueReferenceType()) {
-    return parseTorchParam(t->getAs<LValueReferenceType>()->getPointeeType(), name, Ctx);
+    return extractTorchParam(t->getAs<LValueReferenceType>()->getPointeeType(), name, Ctx);
   } else if (t->isRValueReferenceType()) {
-    return parseTorchParam(t->getAs<RValueReferenceType>()->getPointeeType(), name, Ctx);
+    return extractTorchParam(t->getAs<RValueReferenceType>()->getPointeeType(), name, Ctx);
   } else if (const auto* elaborated = t->getAs<ElaboratedType>()) {
     if (elaborated->isSugared())
-      return parseTorchParam(elaborated->desugar(), name, Ctx);
+      return extractTorchParam(elaborated->desugar(), name, Ctx);
   } else if (const auto* tdtype = t->getAs<TypedefType>()) {
     if (tdtype->isSugared())
-      return parseTorchParam(tdtype->desugar(), name, Ctx);
+      return extractTorchParam(tdtype->desugar(), name, Ctx);
   } else if (const auto* tstype = t->getAs<TemplateSpecializationType>()) {
     if (tstype->isSugared())
-      return parseTorchParam(tstype->desugar(), name, Ctx);
+      return extractTorchParam(tstype->desugar(), name, Ctx);
   }
 
   return nullptr;

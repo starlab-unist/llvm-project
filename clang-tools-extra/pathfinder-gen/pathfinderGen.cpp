@@ -6,7 +6,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
 
-#include "parse.h"
+#include "extract.h"
 #include "api.h"
 #include "utils.h"
 #include <iostream>
@@ -46,7 +46,7 @@ public:
     for (auto param_decl: param_decls) {
       clang::QualType t = param_decl->getType();
       std::string name = param_decl->getNameAsString();
-      std::unique_ptr<TorchParam> p = parseTorchParam(t, name, *Context);
+      std::unique_ptr<TorchParam> p = extractTorchParam(t, name, *Context);
       if (p == nullptr) {
         std::cerr <<
           "WARNING: Parsing fail on param `" << name << "`.\n" <<
@@ -75,7 +75,7 @@ public:
     for (const auto* param: ctor->parameters()) {
       clang::QualType t = param->getType();
       std::string name = param->getNameAsString();
-      std::unique_ptr<TorchParam> p = parseTorchParam(t, name, *Context);
+      std::unique_ptr<TorchParam> p = extractTorchParam(t, name, *Context);
       if (p == nullptr) {
         std::cerr <<
           "WARNING: Parsing fail on param `" << name << "`.\n" <<
@@ -92,7 +92,7 @@ public:
     for (const auto* param: forward->parameters()) {
       clang::QualType t = param->getType();
       std::string name = param->getNameAsString();
-      std::unique_ptr<TorchParam> p = parseTorchParam(t, name, *Context);
+      std::unique_ptr<TorchParam> p = extractTorchParam(t, name, *Context);
       if (p == nullptr) {
         std::cerr <<
           "WARNING: Parsing fail on param `" << name << "`.\n" <<
@@ -175,7 +175,7 @@ public:
             assert(targs.size() == 3 && targs[2].getKind() == TemplateArgument::ArgKind::Type);
             option_class_done = false;
             std::vector<std::unique_ptr<TorchParam>> params;
-            if (auto p = parseTorchParam(targs[2].getAsType(), "options", *Context))
+            if (auto p = extractTorchParam(targs[2].getAsType(), "options", *Context))
               params.push_back(std::move(p));
             ctor_params_candidates.push_back(std::move(params));
           } else {

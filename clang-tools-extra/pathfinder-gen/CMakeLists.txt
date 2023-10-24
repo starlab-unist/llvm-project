@@ -2,7 +2,7 @@ set(LLVM_LINK_COMPONENTS support)
 
 add_clang_executable(pathfinder-gen
   pathfinderGen.cpp
-  parse.cpp
+  extract.cpp
   api.cpp
   param.cpp
   utils.cpp
