@@ -33,6 +33,7 @@ void init_torch_api_list();
 const std::map<std::string, std::set<std::string>>& get_torch_function_list();
 const std::set<std::string>& get_torch_module_list();
 void write_recursive(const std::map<std::string, std::map<std::string, std::string>>& contents);
+std::string unique_name(std::string name, std::set<std::string>& names_seen);
 
 std::string quoted(std::string param_name);
 std::string sq_quoted(std::string param_name);

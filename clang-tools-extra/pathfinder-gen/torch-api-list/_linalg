@@ -3,12 +3,12 @@ torch::linalg::cholesky_out
 torch::linalg::det
 torch::linalg::eig
 torch::linalg::eig_out
-#torch::linalg::eigh
-#torch::linalg::eigh_out
+torch::linalg::eigh
+torch::linalg::eigh_out
 torch::linalg::eigvals
 torch::linalg::eigvals_out
-#torch::linalg::eigvalsh
-#torch::linalg::eigvalsh_out
+torch::linalg::eigvalsh
+torch::linalg::eigvalsh_out
 torch::linalg::householder_product
 torch::linalg::householder_product_out
 torch::linalg::inv

@@ -241,6 +241,15 @@ void write_recursive(const std::map<std::string, std::map<std::string, std::stri
   }
 }
 
+std::string unique_name(std::string name, std::set<std::string>& names_seen) {
+  std::string unique_name = name;
+  size_t id = 0;
+  while (names_seen.find(unique_name) != names_seen.end())
+    unique_name = name + "_" + std::to_string(id++);
+  names_seen.insert(unique_name);
+  return unique_name;
+}
+
 std::string quoted(std::string param_name) {
   return "\"" + param_name + "\"";
 }
