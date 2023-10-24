@@ -188,24 +188,31 @@ bool file_exist(std::string filename) {
   }
 }
 
-void make_dir_and_write_files(std::string dir, const std::map<std::string, std::string>& files) {
+void make_group_dir_and_write_fuzz_targets(
+  std::string dir,
+  const std::map<std::string, std::set<std::string>>& group_contents)
+{
   if (mkdir(dir.c_str(), 0775) != 0) {
     std::cout << "Failed to create directory " << dir << std::endl;
     exit(0);
   }
 
   std::string cmake_contents;
-  for (auto p: files) {
-    std::string filename = p.first + ".cpp";
-    std::string code = p.second;
+  for (auto p: group_contents) {
+    std::string api_name = p.first;
+    std::set<std::string> fuzz_targets = p.second;
 
-    std::ofstream writeFile(dir + "/" + filename);
-    if(writeFile.is_open()){
-      writeFile << code;
-      writeFile.close();
-      cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
-    } else {
-      assert(false);
+    std::set<std::string> names_seen;
+    for (auto& fuzz_target: fuzz_targets) {
+      std::string filename = unique_name(api_name, names_seen) + ".cpp";
+      std::ofstream writeFile(dir + "/" + filename);
+      if(writeFile.is_open()){
+        writeFile << fuzz_target;
+        writeFile.close();
+        cmake_contents += "add_pathfinder_fuzz_target(" + strip_ext(filename) + ")\n";
+      } else {
+        assert(false);
+      }
     }
   }
 
@@ -218,16 +225,27 @@ void make_dir_and_write_files(std::string dir, const std::map<std::string, std::
   }
 }
 
-void write_recursive(const std::map<std::string, std::map<std::string, std::string>>& contents) {
+std::map<std::string, std::map<std::string, std::set<std::string>>> api_groups;
+
+void save_fuzz_target(std::string api_group_name, std::string api_name, std::string fuzz_target) {
+  if (api_groups.find(api_group_name) == api_groups.end())
+    api_groups[api_group_name] = {};
+  if (api_groups[api_group_name].find(api_name) == api_groups[api_group_name].end())
+    api_groups[api_group_name][api_name] = {};
+
+  api_groups[api_group_name][api_name].insert(fuzz_target);
+}
+
+void write_fuzz_target() {
   make_dir("pathfinder");
   make_dir("pathfinder/generated");
 
   std::string cmake_pathfinder_contents;
-  for (auto& group_entry: contents) {
-    std::string group_name = group_entry.first;
-    const std::map<std::string, std::string>& group_contents = group_entry.second;
+  for (auto& api_group: api_groups) {
+    std::string group_name = api_group.first;
+    const  std::map<std::string, std::set<std::string>>& group_contents = api_group.second;
     std::string subdir = DirPlusFile("pathfinder/generated", group_name);
-    make_dir_and_write_files(subdir, group_contents);
+    make_group_dir_and_write_fuzz_targets(subdir, group_contents);
 
     cmake_pathfinder_contents += "add_subdirectory(" + group_name + ")\n";
   }

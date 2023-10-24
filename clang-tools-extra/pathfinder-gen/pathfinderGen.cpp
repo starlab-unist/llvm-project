@@ -16,8 +16,6 @@ using namespace clang::tooling;
 using namespace llvm;
 using namespace clang;
 
-std::map<std::string, std::map<std::string, std::string>> generated_code;
-
 class FindNamedClassVisitor
   : public RecursiveASTVisitor<FindNamedClassVisitor> {
 public:
@@ -58,8 +56,7 @@ public:
     }
 
     TorchFunction torch_function(function_name_qualified, std::move(params));
-
-    generated_code[function_group][function_name] = torch_function.gen_fuzz_target();
+    save_fuzz_target(function_group, function_name, torch_function.gen_fuzz_target());
 
     return true;
   }
@@ -209,7 +206,7 @@ public:
       std::move(ctor_params),
       std::move(forward_params));
 
-    generated_code[torch_module_list_file_name()][module_name] = torch_module.gen_fuzz_target();
+    save_fuzz_target(torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target());
 
     return true;
   }
@@ -249,7 +246,7 @@ int main(int argc, const char **argv) {
 
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  write_recursive(generated_code);
+  write_fuzz_target();
 
   return 0;
 }
