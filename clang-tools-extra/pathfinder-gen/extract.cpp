@@ -161,16 +161,28 @@ std::unique_ptr<TorchParam> extractTorchExpandingArray(clang::QualType t, std::s
     rtype = dyn_cast<RecordType>(tstype->desugar());
     if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
       auto targ = tstype->template_arguments();
-      if (targ.size() != 1)
+      if (targ.size() != 1 && targ.size() != 2)
         return nullptr;
       int64_t expandingarray_size =
         targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).getValue().getExtValue();
       assert(expandingarray_size > 0);
       std::vector<std::unique_ptr<TorchParam>> params;
-      for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
-        std::string param_name = name + "_" + std::to_string(i);
-        std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
-        params.push_back(std::move(param));
+      if (targ.size() == 1){
+        for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
+          std::string param_name = name + "_" + std::to_string(i);
+          std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+          params.push_back(std::move(param));
+        }
+      }
+      else if (targ.size() == 2){
+        for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
+          std::string param_name = name + "_" + std::to_string(i);
+          std::unique_ptr<TorchParam> param =
+            extractTorchParam(targ[1].getAsType(), param_name, Ctx);
+          if (param == nullptr)
+            return nullptr;
+          params.push_back(std::move(param));
+        }
       }
       torch_param =
         std::make_unique<TorchExpandingArrayParam>(name, expandingarray_size, std::move(params));
