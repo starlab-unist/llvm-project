@@ -366,6 +366,20 @@ bool TorchArrayRefParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_ArrayRef;
 }
 
+TorchOptionalArrayRefParam::TorchOptionalArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchUnfixedArrayParam(TPK_OptionalArrayRef, name_, std::move(params_))
+{ assert(params.size() == MAX_ARRAYREF_SIZE); }
+
+std::string TorchOptionalArrayRefParam::type() const {
+  return "c10::OptionalArrayRef<" + params[0]->type() + ">";
+}
+std::string TorchOptionalArrayRefParam::initializer() const {
+  return type() + bracket(size->expr() + comma + to_string(params)); // tuple처럼 type() 활용했는데 괜찮은지 걱정
+}
+
+bool TorchOptionalArrayRefParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_OptionalArrayRef;
+}
 
 TorchFixedArrayParam::TorchFixedArrayParam(
   TorchParamKind kind_,
@@ -471,6 +485,45 @@ std::string TorchExpandingArrayWithOptionalElemParam::base_type() const {
   return param->base_type();
 }
 
+
+TorchTupleParam::TorchTupleParam(
+  std::string name_,
+  size_t size_,
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchFixedArrayParam(TPK_Tuple, name_, size_, std::move(params_)) {}
+void TorchTupleParam::set_default(Expr* default_expr) { // tuple은 element마다 type 다름, map 자료형으로 전달? 일단 pass, 나중에 충돌?
+  return;
+}
+
+std::string TorchTupleParam::type() const {
+  return "std::tuple<" + params[0]->type() + comma + params[1]->type() + ">"; // size == 2로 가정하고 생성, 추후 다른 size 나오면 수정해야 함
+}
+std::string TorchTupleParam::initializer() const {
+  return type() + bracket(to_string(params));
+}
+
+bool TorchTupleParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Tuple;
+}
+
+TorchPairParam::TorchPairParam(
+  std::string name_,
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchFixedArrayParam(TPK_Pair, name_, 2, std::move(params_)) {}
+void TorchPairParam::set_default(Expr* default_expr) {
+  return;
+}
+
+std::string TorchPairParam::type() const {
+  return "std::pair<" + params[0]->type() + comma + params[1]->type() + ">";
+}
+std::string TorchPairParam::initializer() const {
+  return type() + bracket(to_string(params));
+}
+
+bool TorchPairParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Pair;
+}
 
 TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, name_) {
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");

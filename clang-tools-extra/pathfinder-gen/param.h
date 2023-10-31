@@ -45,14 +45,17 @@ class TorchParam {
       // TorchUnfixedArrayParam
       TPK_Vector,
       TPK_ArrayRef,
+      TPK_OptionalArrayRef,
       TPK_UnfixedArray_First = TPK_Vector,
-      TPK_UnfixedArray_Last = TPK_ArrayRef,
+      TPK_UnfixedArray_Last = TPK_OptionalArrayRef,
 
       // TorchfixedArrayParam
       TPK_ExpandingArray,
       TPK_ExpandingArrayWithOptionalElem,
+      TPK_Tuple,
+      TPK_Pair,
       TPK_FixedArray_First = TPK_ExpandingArray,
-      TPK_FixedArray_Last = TPK_ExpandingArrayWithOptionalElem,
+      TPK_FixedArray_Last = TPK_Pair,
 
       TPK_Tensor,
       TPK_Optional,
@@ -240,6 +243,16 @@ class TorchArrayRefParam: public TorchUnfixedArrayParam {
     static bool classof(const TorchParam *param);
 };
 
+class TorchOptionalArrayRefParam: public TorchUnfixedArrayParam {
+  public:
+    TorchOptionalArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
 class TorchFixedArrayParam: public TorchParam {
   public:
     TorchFixedArrayParam(
@@ -290,6 +303,33 @@ class TorchExpandingArrayWithOptionalElemParam: public TorchFixedArrayParam {
     static bool classof(const TorchParam *param);
   private:
     std::string base_type() const;
+};
+
+class TorchTupleParam: public TorchFixedArrayParam {
+  public:
+    TorchTupleParam(
+      std::string name_,
+      size_t size_,
+      std::vector<std::unique_ptr<TorchParam>> params_);
+    virtual void set_default(Expr* default_expr) override;
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchPairParam: public TorchFixedArrayParam {
+  public:
+    TorchPairParam(
+      std::string name_,
+      std::vector<std::unique_ptr<TorchParam>> params_);
+    virtual void set_default(Expr* default_expr) override;
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
 };
 
 class TorchTensorParam: public TorchParam {
