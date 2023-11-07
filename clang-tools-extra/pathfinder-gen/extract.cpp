@@ -124,6 +124,17 @@ std::unique_ptr<TorchParam> extractTorchTensor(clang::QualType t, std::string na
   return torch_param;
 }
 
+std::unique_ptr<TorchParam> extractTorchScalar(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  const RecordType* rtype;
+    if ((rtype = dyn_cast<RecordType>(t)) && rtype->getDecl()->getNameAsString() == "Scalar") {
+      torch_param = std::make_unique<TorchScalarParam>(name);
+    }
+
+  return torch_param;
+}
+
 std::unique_ptr<TorchParam> extractTorchArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
@@ -147,6 +158,34 @@ std::unique_ptr<TorchParam> extractTorchArrayRef(clang::QualType t, std::string 
     }
   }
   
+  return torch_param;
+}
+
+std::unique_ptr<TorchParam> extractTorchOptionalArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  const RecordType* rtype;
+  const TemplateSpecializationType* tstype;
+  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
+    assert(tstype->isSugared());
+    rtype = dyn_cast<RecordType>(tstype->desugar());
+    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "OptionalArrayRef") {
+      auto targ = tstype->template_arguments();
+      assert(targ.size() == 1);
+      std::vector<std::unique_ptr<TorchParam>> params;
+      for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
+        std::unique_ptr<TorchParam> param =
+          extractTorchParam(targ[0].getAsType(), name + "_" + std::to_string(i), Ctx);
+        if (param == nullptr)
+          return nullptr;
+        params.push_back(std::move(param));
+      }
+      assert(params.size() > 0);
+      torch_param =
+        std::make_unique<TorchOptionalArrayRefParam>(name, std::move(params));
+    }
+  }
+
   return torch_param;
 }
 
@@ -272,6 +311,67 @@ std::unique_ptr<TorchParam> extractTorchExpandingArrayWithOptionalElem(clang::Qu
               name, expandingarray_size, std::move(params));
         }
       }
+    }
+  }
+
+  return torch_param;
+}
+
+std::unique_ptr<TorchParam> extractTorchTuple(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  const RecordType* rtype;
+  const TemplateSpecializationType* tstype;
+  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
+    assert(tstype->isSugared());
+    rtype = dyn_cast<RecordType>(tstype->desugar());
+    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "tuple") {
+      auto targs = tstype->template_arguments();
+      if (targs.size() != 2){
+        std::cerr << "WARNING: tuple_size != 2" << std::endl;
+        return nullptr;
+      }
+      int64_t tuple_size = targs.size();
+      assert(tuple_size > 0);
+      std::vector<std::unique_ptr<TorchParam>> params;
+      for (size_t i = 0; i < targs.size(); i++) {
+        std::unique_ptr<TorchParam> param =
+          extractTorchParam(targs[i].getAsType(), name + "_" + std::to_string(i), Ctx);
+        if (param == nullptr)
+          return nullptr;
+        params.push_back(std::move(param));
+      }
+      assert(params.size() > 0);
+      torch_param =
+        std::make_unique<TorchTupleParam>(name, tuple_size, std::move(params));
+    }
+  }
+
+  return torch_param;
+}
+
+std::unique_ptr<TorchParam> extractTorchPair(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  const RecordType* rtype;
+  const TemplateSpecializationType* tstype;
+  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
+    assert(tstype->isSugared());
+    rtype = dyn_cast<RecordType>(tstype->desugar());
+    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "pair") {
+      auto targs = tstype->template_arguments();
+      assert(targs.size() == 2);
+      std::vector<std::unique_ptr<TorchParam>> params;
+      for (size_t i = 0; i < targs.size(); i++) {
+        std::unique_ptr<TorchParam> param =
+          extractTorchParam(targs[i].getAsType(), name + "_" + std::to_string(i), Ctx);
+        if (param == nullptr)
+          return nullptr;
+        params.push_back(std::move(param));
+      }
+      assert(params.size() > 0);
+      torch_param =
+        std::make_unique<TorchPairParam>(name, std::move(params));
     }
   }
 
@@ -488,12 +588,20 @@ std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string nam
     return vector_param;
   if (auto tensor_param = extractTorchTensor(t, name, Ctx))
     return tensor_param;
+  if (auto scalar_param = extractTorchScalar(t, name, Ctx))
+    return scalar_param;
   if (auto intarrayref_param = extractTorchArrayRef(t, name, Ctx))
     return intarrayref_param;
   if (auto expandingarray_param = extractTorchExpandingArray(t, name, Ctx))
     return expandingarray_param;
   if (auto expandingarraywithoptionalelem_param = extractTorchExpandingArrayWithOptionalElem(t, name, Ctx))
     return expandingarraywithoptionalelem_param;
+  if (auto tuple_param = extractTorchTuple(t, name, Ctx))
+    return tuple_param;
+  if (auto pair_param = extractTorchPair(t, name, Ctx))
+    return pair_param;
+  if (auto optional_array_param = extractTorchOptionalArrayRef(t, name, Ctx))
+    return optional_array_param;
 
   // Recursive case
   if (auto optional_param = extractTorchOptional(t, name, Ctx))
