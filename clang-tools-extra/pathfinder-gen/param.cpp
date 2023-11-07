@@ -12,6 +12,15 @@ std::string setup_var(std::string param_name) {
 std::string callback_var(std::string param_name) {
   return pathfinder_input_var + sq_quoted(param_name);
 }
+std::string bfloat_dict(std::string param_name) {
+  return bfloat_value_dictionary + square(callback_var(param_name));
+}
+std::string half_dict(std::string param_name) {
+  return half_value_dictionary + square(callback_var(param_name));
+}
+std::string float_dict(std::string param_name) {
+  return float_value_dictionary + square(callback_var(param_name));
+}
 std::string double_dict(std::string param_name) {
   return double_value_dictionary + square(callback_var(param_name));
 }
@@ -69,7 +78,42 @@ bool TorchIntParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Int;
 }
 
+TorchUnsignedIntParam::TorchUnsignedIntParam(std::string name_): TorchParam(TPK_UnsignedInt, name_) {}
+void TorchUnsignedIntParam::set_default(Expr* default_expr) {
+  if (default_expr == nullptr)
+    return;
 
+  if (const auto* il = dyn_cast<IntegerLiteral>(default_expr)) {
+    assert(il != nullptr);
+    unsigned long val = il->getValue().getZExtValue();
+    default_value = val;
+  }
+}
+void TorchUnsignedIntParam::set_default(int value) {
+  default_value = value;
+}
+
+std::string TorchUnsignedIntParam::type() const {
+  return "unsigned long";
+}
+std::string TorchUnsignedIntParam::initializer() const {
+  return callback_var(name);
+}
+
+std::vector<std::string> TorchUnsignedIntParam::gen_arg_setup() const {
+  return { "PathFinderUnsignedIntArg" + bracket(quoted(name)) + semicolon  };
+}
+std::vector<std::string> TorchUnsignedIntParam::gen_soft_constraint() const {
+  int min =
+    default_value.hasValue() ?
+    default_value.getValue() :
+    (is_module_mode() ? 1 : 0);
+  return { setup_var(name) + gte + std::to_string(min) };
+}
+
+bool TorchUnsignedIntParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_UnsignedInt;
+}
 
 TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, const std::vector<std::string>& value_names_)
   : TorchParam(kind_, name_)
@@ -133,20 +177,57 @@ bool TorchBoolParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Bool;
 }
 
+TorchBFloatParam::TorchBFloatParam(std::string name_): TorchBoundedParam(TPK_Float, name_, double_dict_list) {}
+
+std::string TorchBFloatParam::type() const {
+  return "__bf16";
+}
+std::string TorchBFloatParam::initializer() const {
+  return bfloat_dict(name);
+}
+
+bool TorchBFloatParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_BFloat;
+}
+
+TorchHalfParam::TorchHalfParam(std::string name_): TorchBoundedParam(TPK_Float, name_, double_dict_list) {}
+
+std::string TorchHalfParam::type() const {
+  return "__fp16";
+}
+std::string TorchHalfParam::initializer() const {
+  return half_dict(name);
+}
+
+bool TorchHalfParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Half;
+}
 
 TorchFloatParam::TorchFloatParam(std::string name_): TorchBoundedParam(TPK_Float, name_, double_dict_list) {}
 
 std::string TorchFloatParam::type() const {
-  return "double";
+  return "float";
 }
 std::string TorchFloatParam::initializer() const {
-  return double_dict(name);
+  return float_dict(name);
 }
 
 bool TorchFloatParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Float;
 }
 
+TorchDoubleParam::TorchDoubleParam(std::string name_): TorchBoundedParam(TPK_Float, name_, double_dict_list) {}
+
+std::string TorchDoubleParam::type() const {
+  return "double";
+}
+std::string TorchDoubleParam::initializer() const {
+  return double_dict(name);
+}
+
+bool TorchDoubleParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Double;
+}
 
 TorchDtypeParam::TorchDtypeParam(std::string name_): TorchBoundedParam(TPK_Dtype, name_, dtype_list) {}
 
@@ -572,6 +653,49 @@ bool TorchTensorParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Tensor;
 }
 
+TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, name_) {
+  dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
+  intValue = std::make_unique<TorchIntParam>(name + "_int");
+  uintValue = std::make_unique<TorchUnsignedIntParam>(name + "_uint");
+  bfloatValue = std::make_unique<TorchBFloatParam>(name + "_bfloat");
+  halfValue = std::make_unique<TorchHalfParam>(name + "_half");
+  floatValue = std::make_unique<TorchFloatParam>(name + "_float");
+  doubleValue = std::make_unique<TorchDoubleParam>(name + "_double");
+  realValue64 = std::make_unique<TorchFloatParam>(name + "_real64");
+  imaginaryValue64 = std::make_unique<TorchFloatParam>(name + "_imag64");
+  realValue128 = std::make_unique<TorchDoubleParam>(name + "_real128");
+  imaginaryValue128 = std::make_unique<TorchDoubleParam>(name + "_imag128");
+  boolValue = std::make_unique<TorchBoolParam>(name + "_bool");
+}
+
+std::string TorchScalarParam::type() const {return "c10::Scalar";}
+std::string TorchScalarParam::initializer() const {
+  return "torch_scalar" + bracket(dtype->expr() + comma + intValue->expr() + comma + uintValue->expr() + comma + 
+                                    bfloatValue->expr() +  comma + halfValue->expr() + comma + floatValue->expr() + comma +
+                                    doubleValue->expr() + comma + realValue64->expr() + comma + imaginaryValue64->expr() + comma +
+                                    realValue128->expr() + comma + imaginaryValue128->expr() + comma + boolValue->expr());
+}
+
+std::vector<std::string> TorchScalarParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, dtype->gen_arg_setup());
+  concat(arg_setup, intValue->gen_arg_setup());
+  concat(arg_setup, uintValue->gen_arg_setup());
+  concat(arg_setup, bfloatValue->gen_arg_setup());
+  concat(arg_setup, halfValue->gen_arg_setup());
+  concat(arg_setup, floatValue->gen_arg_setup());
+  concat(arg_setup, doubleValue->gen_arg_setup());
+  concat(arg_setup, realValue64->gen_arg_setup());
+  concat(arg_setup, imaginaryValue64->gen_arg_setup());
+  concat(arg_setup, realValue128->gen_arg_setup());
+  concat(arg_setup, imaginaryValue128->gen_arg_setup());
+  concat(arg_setup, boolValue->gen_arg_setup());
+  return arg_setup;
+}
+
+bool TorchScalarParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Scalar;
+}
 
 TorchOptionalParam::TorchOptionalParam(std::string name_, std::unique_ptr<TorchParam> param_)
   : TorchParam(TPK_Optional, name_)

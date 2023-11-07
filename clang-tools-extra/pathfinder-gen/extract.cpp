@@ -124,6 +124,17 @@ std::unique_ptr<TorchParam> extractTorchTensor(clang::QualType t, std::string na
   return torch_param;
 }
 
+std::unique_ptr<TorchParam> extractTorchScalar(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  const RecordType* rtype;
+    if ((rtype = dyn_cast<RecordType>(t)) && rtype->getDecl()->getNameAsString() == "Scalar") {
+      torch_param = std::make_unique<TorchScalarParam>(name);
+    }
+
+  return torch_param;
+}
+
 std::unique_ptr<TorchParam> extractTorchArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
@@ -577,6 +588,8 @@ std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string nam
     return vector_param;
   if (auto tensor_param = extractTorchTensor(t, name, Ctx))
     return tensor_param;
+  if (auto scalar_param = extractTorchScalar(t, name, Ctx))
+    return scalar_param;
   if (auto intarrayref_param = extractTorchArrayRef(t, name, Ctx))
     return intarrayref_param;
   if (auto expandingarray_param = extractTorchExpandingArray(t, name, Ctx))
