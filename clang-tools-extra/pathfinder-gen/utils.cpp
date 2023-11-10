@@ -190,7 +190,8 @@ bool file_exist(std::string filename) {
 
 void make_group_dir_and_write_fuzz_targets(
   std::string dir,
-  const std::map<std::string, std::set<std::string>>& group_contents)
+  const std::map<std::string, std::set<std::string>>& group_contents,
+  std::set<std::string>& names_seen)
 {
   if (mkdir(dir.c_str(), 0775) != 0) {
     std::cout << "Failed to create directory " << dir << std::endl;
@@ -202,7 +203,6 @@ void make_group_dir_and_write_fuzz_targets(
     std::string api_name = p.first;
     std::set<std::string> fuzz_targets = p.second;
 
-    std::set<std::string> names_seen;
     for (auto& fuzz_target: fuzz_targets) {
       std::string filename = unique_name(api_name, names_seen) + ".cpp";
       std::ofstream writeFile(dir + "/" + filename);
@@ -240,12 +240,13 @@ void write_fuzz_target() {
   make_dir("pathfinder");
   make_dir("pathfinder/generated");
 
+  std::set<std::string> names_seen;
   std::string cmake_pathfinder_contents;
   for (auto& api_group: api_groups) {
     std::string group_name = api_group.first;
     const  std::map<std::string, std::set<std::string>>& group_contents = api_group.second;
     std::string subdir = DirPlusFile("pathfinder/generated", group_name);
-    make_group_dir_and_write_fuzz_targets(subdir, group_contents);
+    make_group_dir_and_write_fuzz_targets(subdir, group_contents, names_seen);
 
     cmake_pathfinder_contents += "add_subdirectory(" + group_name + ")\n";
   }

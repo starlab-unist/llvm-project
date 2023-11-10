@@ -17,13 +17,11 @@ extern const size_t MAX_VECTOR_SIZE;
 extern const size_t MAX_ARRAYREF_SIZE;
 
 const std::string symbolic_int_var = "sym_int_arg";
-const std::string pathfinder_input_var = "x";
+const std::string callback_input_var = "x";
 const std::string bfloat_value_dictionary = "bfloat_dict";
 const std::string half_value_dictionary = "half_dict";
 const std::string float_value_dictionary = "float_dict";
 const std::string double_value_dictionary = "double_dict";
-const std::string double_dict_list = "double_list";
-const std::string dtype_list = "dtype_list";
 
 void set_function_mode();
 void set_module_mode();
@@ -118,12 +116,13 @@ class TorchUnsignedIntParam: public TorchParam {
   public:
     TorchUnsignedIntParam(std::string name_);
     virtual void set_default(Expr* default_expr) override;
-    void set_default(int value);
+    void set_default(unsigned int value);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
 
     static bool classof(const TorchParam *param);
@@ -298,16 +297,6 @@ class TorchArrayRefParam: public TorchUnfixedArrayParam {
     static bool classof(const TorchParam *param);
 };
 
-class TorchOptionalArrayRefParam: public TorchUnfixedArrayParam {
-  public:
-    TorchOptionalArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
-
-    virtual std::string type() const override;
-    virtual std::string initializer() const override;
-
-    static bool classof(const TorchParam *param);
-};
-
 class TorchFixedArrayParam: public TorchParam {
   public:
     TorchFixedArrayParam(
@@ -366,7 +355,6 @@ class TorchTupleParam: public TorchFixedArrayParam {
       std::string name_,
       size_t size_,
       std::vector<std::unique_ptr<TorchParam>> params_);
-    virtual void set_default(Expr* default_expr) override;
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -379,7 +367,6 @@ class TorchPairParam: public TorchFixedArrayParam {
     TorchPairParam(
       std::string name_,
       std::vector<std::unique_ptr<TorchParam>> params_);
-    virtual void set_default(Expr* default_expr) override;
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -413,12 +400,16 @@ class TorchScalarParam: public TorchParam {
     TorchScalarParam(std::string name_);
 
     virtual std::string type() const override;
+    virtual std::string var() const override;
     virtual std::string initializer() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_soft_constraint() const override;
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     static bool classof(const TorchParam *param);
-    
   private:
     std::unique_ptr<TorchDtypeParam> dtype;
     std::unique_ptr<TorchIntParam> intValue;
@@ -432,6 +423,7 @@ class TorchScalarParam: public TorchParam {
     std::unique_ptr<TorchDoubleParam> realValue128;
     std::unique_ptr<TorchDoubleParam> imaginaryValue128;
     std::unique_ptr<TorchBoolParam> boolValue;
+    std::vector<TorchParam*> params;
 };
 
 class TorchOptionalParam: public TorchParam {

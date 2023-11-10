@@ -5,47 +5,27 @@
 
 bool option_class_done;
 
-bool is_int_type(clang::QualType t, ASTContext &Ctx) {
-  if (const auto* builtin = t->getAs<BuiltinType>()) {
-    if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
-      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
-      if (t == "int" || t == "long")
-        return true;
-    }
-  }
-  return false;
-}
-
-bool is_bool_type(clang::QualType t, ASTContext &Ctx) {
-  if (const auto* builtin = t->getAs<BuiltinType>())
-    if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
-      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
-      if (t == "bool")
-        return true;
-    }
-  return false;
-}
-
-bool is_float_type(clang::QualType t, ASTContext &Ctx) {
-  if (const auto* builtin = t->getAs<BuiltinType>()) {
-    if (builtin->isFloatingPoint()) {
-      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
-      if (t == "float" || t == "double")
-        return true;
-    }
-  }
-  return false;
-}
-
 std::unique_ptr<TorchParam> extractTorchBuiltin(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
-  if (is_int_type(t, Ctx)) {
-    torch_param = std::make_unique<TorchIntParam>(name);
-  } else if (is_bool_type(t, Ctx)) {
-    torch_param = std::make_unique<TorchBoolParam>(name);
-  } else if (is_float_type(t, Ctx)) {
-    torch_param = std::make_unique<TorchFloatParam>(name);
+  if (const auto* builtin = t->getAs<BuiltinType>()) {
+    if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
+      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
+      if (t == "char" || t == "short" || t == "int" || t == "long") {
+        torch_param = std::make_unique<TorchIntParam>(name);
+      } else if (startswith(t, "unsigned")) {
+        torch_param = std::make_unique<TorchUnsignedIntParam>(name);
+      } else if (t == "bool") {
+        torch_param = std::make_unique<TorchBoolParam>(name);
+      }
+    } else if (builtin->isFloatingPoint()) {
+      std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
+      if (t == "float") {
+        torch_param = std::make_unique<TorchFloatParam>(name);
+      } else if (t == "double") {
+        torch_param = std::make_unique<TorchDoubleParam>(name);
+      }
+    }
   }
 
   return torch_param;
@@ -180,9 +160,9 @@ std::unique_ptr<TorchParam> extractTorchOptionalArrayRef(clang::QualType t, std:
           return nullptr;
         params.push_back(std::move(param));
       }
-      assert(params.size() > 0);
-      torch_param =
-        std::make_unique<TorchOptionalArrayRefParam>(name, std::move(params));
+      std::unique_ptr<TorchParam> arrayref =
+        std::make_unique<TorchArrayRefParam>(name + "_arrayref", std::move(params));
+      torch_param = std::make_unique<TorchOptionalParam>(name, std::move(arrayref));
     }
   }
 
@@ -327,12 +307,7 @@ std::unique_ptr<TorchParam> extractTorchTuple(clang::QualType t, std::string nam
     rtype = dyn_cast<RecordType>(tstype->desugar());
     if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "tuple") {
       auto targs = tstype->template_arguments();
-      if (targs.size() != 2){
-        std::cerr << "WARNING: tuple_size != 2" << std::endl;
-        return nullptr;
-      }
       int64_t tuple_size = targs.size();
-      assert(tuple_size > 0);
       std::vector<std::unique_ptr<TorchParam>> params;
       for (size_t i = 0; i < targs.size(); i++) {
         std::unique_ptr<TorchParam> param =
@@ -590,8 +565,10 @@ std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string nam
     return tensor_param;
   if (auto scalar_param = extractTorchScalar(t, name, Ctx))
     return scalar_param;
-  if (auto intarrayref_param = extractTorchArrayRef(t, name, Ctx))
-    return intarrayref_param;
+  if (auto arrayref_param = extractTorchArrayRef(t, name, Ctx))
+    return arrayref_param;
+  if (auto optional_array_param = extractTorchOptionalArrayRef(t, name, Ctx))
+    return optional_array_param;
   if (auto expandingarray_param = extractTorchExpandingArray(t, name, Ctx))
     return expandingarray_param;
   if (auto expandingarraywithoptionalelem_param = extractTorchExpandingArrayWithOptionalElem(t, name, Ctx))
@@ -600,8 +577,6 @@ std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string nam
     return tuple_param;
   if (auto pair_param = extractTorchPair(t, name, Ctx))
     return pair_param;
-  if (auto optional_array_param = extractTorchOptionalArrayRef(t, name, Ctx))
-    return optional_array_param;
 
   // Recursive case
   if (auto optional_param = extractTorchOptional(t, name, Ctx))

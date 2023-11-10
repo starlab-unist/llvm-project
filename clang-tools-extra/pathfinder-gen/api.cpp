@@ -1,5 +1,7 @@
 #include "api.h"
 
+const std::string callback_result_var = "result";
+
 TorchAPI::TorchAPI(std::string api_name_): api_name(api_name_) {}
 std::string TorchAPI::gen_fuzz_target() {
   resolve_name_conflict();
@@ -11,7 +13,7 @@ std::string TorchAPI::gen_fuzz_target() {
   return join_strs(lines, newline);
 }
 void TorchAPI::resolve_name_conflict() {
-  std::set<std::string> names_seen;
+  std::set<std::string> names_seen = {callback_input_var, callback_result_var};
   for (auto& param: params)
     param->resolve_name_conflict(names_seen);
 }
@@ -85,7 +87,7 @@ std::vector<std::string> TorchAPI::callback() const {
   std::vector<std::string> callback_code;
 
   callback_code.push_back(
-    "int PathFinderTestOneInput(const pathfinder::Input& " + pathfinder_input_var + ") {");
+    "int PathFinderTestOneInput(const pathfinder::Input& " + callback_input_var + ") {");
   callback_code.push_back(
     "  torch::set_num_threads(1);\n");
 
@@ -119,7 +121,7 @@ TorchFunction::TorchFunction(
 
 std::vector<std::string> TorchFunction::api_call_code() const {
   std::string api_call =
-    "auto result = " + api_name + "(";
+    "auto " + callback_result_var + " = " + api_name + "(";
   for (size_t i = 0; i < params.size(); i++) {
     api_call += params[i]->expr();
     if (i != params.size() - 1)
@@ -166,7 +168,7 @@ std::vector<std::string> TorchModule::api_call_code() const {
   module_init += ");\n";
   
   std::string forward_call =
-    "auto result = " + module_var + "->forward(";
+    "auto " + callback_result_var + " = " + module_var + "->forward(";
   for (size_t i = 0; i < forward_params.size(); i++) {
     forward_call += forward_params[i]->expr();
     if (i != forward_params.size() - 1)
