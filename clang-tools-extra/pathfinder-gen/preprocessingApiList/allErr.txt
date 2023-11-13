@@ -1,0 +1,26 @@
+Type `const std::string &` is not supported.
+Type `torch::nn::UnflattenOptions::namedshape_t &&` is not supported.
+Type `c10::optional<at::MemoryFormat>` is not supported.
+Type `const struct torch::nn::detail::RNNOptionsBase &` is not supported.
+Type `c10::optional<c10::string_view>` is not supported.
+Type `const at::ITensorListRef &` is not supported.
+Type `const torch::nn::UnflattenOptions::namedshape_t &` is not supported.
+Type `c10::optional<distance_function_t> &&` is not supported.
+Type `c10::optional<at::Generator>` is not supported.
+Type `at::DimnameList` is not supported.
+Type `c10::optional<MemoryFormat>` is not supported.
+Type `struct c10::TensorOptions` is not supported.
+Type `const c10::optional<distance_function_t> &` is not supported.
+Type `c10::optional<Layout>` is not supported.
+Type `c10::optional<caffe2::TypeMeta>` is not supported.
+Type `const c10::List<c10::optional<at::Tensor> > &` is not supported.
+Type `c10::optional<Device>` is not supported.
+Type `c10::DeviceIndex` is not supported.
+Type `c10::optional<at::DimnameList>` is not supported.
+Type `const struct torch::nn::detail::RNNCellOptionsBase &` is not supported.
+Type `std::string` is not supported.
+Type `at::Dimname` is not supported.
+Type `c10::string_view` is not supported.
+Type `std::string &&` is not supported.
+Type `c10::optional<at::Layout>` is not supported.
+Type `const struct c10::TensorOptions &` is not supported.

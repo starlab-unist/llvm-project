@@ -1,0 +1,1320 @@
+torch.are_deterministic_algorithms_enabled.json
+torch._assert.json
+torch.as_tensor.json
+torch.BFloat16Storage.json
+torch.BoolStorage.json
+torch.broadcast_shapes.json
+torch.ByteStorage.json
+torch.CharStorage.json
+torch.compiled_with_cxx11_abi.json
+torch.ComplexDoubleStorage.json
+torch.ComplexFloatStorage.json
+----------------------------------------------------------------------
+Path: torch, Count: 11
+----------------------------------------------------------------------
+
+torch.distributed.algorithms.Joinable.json
+torch.distributed.algorithms.JoinHook.json
+torch.distributed.algorithms.Join.json
+----------------------------------------------------------------------
+Path: torch.distributed.algorithms, Count: 3
+----------------------------------------------------------------------
+
+torch.distributed.all_gather.json
+torch.distributed.all_gather_multigpu.json
+torch.distributed.all_gather_object.json
+torch.distributed.all_reduce.json
+torch.distributed.all_reduce_multigpu.json
+torch.distributed.all_to_all.json
+torch.distributed.Backend.json
+torch.distributed.barrier.json
+torch.distributed.broadcast.json
+torch.distributed.broadcast_multigpu.json
+torch.distributed.broadcast_object_list.json
+----------------------------------------------------------------------
+Path: torch.distributed, Count: 11
+----------------------------------------------------------------------
+
+torch.distributed.elastic.agent.server.api.RunResult.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.agent.server.api, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.agent.server.ElasticAgent.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.agent.server, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.agent.server.local_elastic_agent.LocalElasticAgent.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.agent.server.local_elastic_agent, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.agent.server.SimpleElasticAgent.json
+torch.distributed.elastic.agent.server.WorkerGroup.json
+torch.distributed.elastic.agent.server.Worker.json
+torch.distributed.elastic.agent.server.WorkerSpec.json
+torch.distributed.elastic.agent.server.WorkerState.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.agent.server, Count: 5
+----------------------------------------------------------------------
+
+torch.distributed.elastic.events.api.Event.json
+torch.distributed.elastic.events.api.EventSource.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.events.api, Count: 2
+----------------------------------------------------------------------
+
+torch.distributed.elastic.events.get_logging_handler.json
+torch.distributed.elastic.events.record.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.events, Count: 2
+----------------------------------------------------------------------
+
+torch.distributed.elastic.metrics.api.ConsoleMetricHandler.json
+torch.distributed.elastic.metrics.api.MetricHandler.json
+torch.distributed.elastic.metrics.api.NullMetricHandler.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.metrics.api, Count: 3
+----------------------------------------------------------------------
+
+torch.distributed.elastic.metrics.configure.json
+torch.distributed.elastic.metrics.prof.json
+torch.distributed.elastic.metrics.put_metric.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.metrics, Count: 3
+----------------------------------------------------------------------
+
+torch.distributed.elastic.multiprocessing.api.MultiprocessContext.json
+torch.distributed.elastic.multiprocessing.api.PContext.json
+torch.distributed.elastic.multiprocessing.api.RunProcsResult.json
+torch.distributed.elastic.multiprocessing.api.SubprocessContext.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.multiprocessing.api, Count: 4
+----------------------------------------------------------------------
+
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError.json
+torch.distributed.elastic.multiprocessing.errors.ErrorHandler.json
+torch.distributed.elastic.multiprocessing.errors.ProcessFailure.json
+torch.distributed.elastic.multiprocessing.errors.record.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.multiprocessing.errors, Count: 4
+----------------------------------------------------------------------
+
+torch.distributed.elastic.multiprocessing.start_processes.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.multiprocessing, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.c10d_rendezvous_backend.C10dRendezvousBackend.json
+torch.distributed.elastic.rendezvous.c10d_rendezvous_backend.create_backend.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous.c10d_rendezvous_backend, Count: 2
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.dynamic_rendezvous.create_handler.json
+torch.distributed.elastic.rendezvous.dynamic_rendezvous.DynamicRendezvousHandler.json
+torch.distributed.elastic.rendezvous.dynamic_rendezvous.RendezvousBackend.json
+torch.distributed.elastic.rendezvous.dynamic_rendezvous.RendezvousTimeout.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous.dynamic_rendezvous, Count: 4
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.etcd_rendezvous_backend.create_backend.json
+torch.distributed.elastic.rendezvous.etcd_rendezvous_backend.EtcdRendezvousBackend.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous.etcd_rendezvous_backend, Count: 2
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.etcd_rendezvous.EtcdRendezvousHandler.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous.etcd_rendezvous, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.etcd_server.EtcdServer.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous.etcd_server, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.etcd_store.EtcdStore.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous.etcd_store, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.elastic.rendezvous.RendezvousClosedError.json
+torch.distributed.elastic.rendezvous.RendezvousConnectionError.json
+torch.distributed.elastic.rendezvous.RendezvousError.json
+torch.distributed.elastic.rendezvous.RendezvousHandler.json
+torch.distributed.elastic.rendezvous.RendezvousHandlerRegistry.json
+torch.distributed.elastic.rendezvous.RendezvousParameters.json
+torch.distributed.elastic.rendezvous.RendezvousStateError.json
+torch.distributed.elastic.rendezvous.RendezvousTimeoutError.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.rendezvous, Count: 8
+----------------------------------------------------------------------
+
+torch.distributed.elastic.timer.configure.json
+torch.distributed.elastic.timer.expires.json
+torch.distributed.elastic.timer.LocalTimerClient.json
+torch.distributed.elastic.timer.LocalTimerServer.json
+torch.distributed.elastic.timer.TimerClient.json
+torch.distributed.elastic.timer.TimerRequest.json
+torch.distributed.elastic.timer.TimerServer.json
+----------------------------------------------------------------------
+Path: torch.distributed.elastic.timer, Count: 7
+----------------------------------------------------------------------
+
+torch.distributed.FileStore.json
+torch.distributed.gather_object.json
+torch.distributed.get_backend.json
+torch.distributed.get_rank.json
+torch.distributed.get_world_size.json
+torch.distributed.HashStore.json
+torch.distributed.init_process_group.json
+torch.distributed.irecv.json
+torch.distributed.is_available.json
+torch.distributed.isend.json
+torch.distributed.is_initialized.json
+torch.distributed.is_mpi_available.json
+torch.distributed.is_nccl_available.json
+torch.distributed.is_torchelastic_launched.json
+torch.distributed.monitored_barrier.json
+torch.distributed.new_group.json
+----------------------------------------------------------------------
+Path: torch.distributed, Count: 16
+----------------------------------------------------------------------
+
+torch.distributed.optim.ZeroRedundancyOptimizer.json
+----------------------------------------------------------------------
+Path: torch.distributed.optim, Count: 1
+----------------------------------------------------------------------
+
+torch.distributed.PrefixStore.json
+torch.distributed.recv.json
+torch.distributed.reduce.json
+torch.distributed.reduce_multigpu.json
+torch.distributed.reduce_op.json
+torch.distributed.ReduceOp.json
+torch.distributed.reduce_scatter.json
+torch.distributed.reduce_scatter_multigpu.json
+torch.distributed.scatter_object_list.json
+torch.distributed.send.json
+torch.distributed.Store.json
+torch.distributed.TCPStore.json
+----------------------------------------------------------------------
+Path: torch.distributed, Count: 12
+----------------------------------------------------------------------
+
+torch.distributions.bernoulli.Bernoulli.json
+----------------------------------------------------------------------
+Path: torch.distributions.bernoulli, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.beta.Beta.json
+----------------------------------------------------------------------
+Path: torch.distributions.beta, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.binomial.Binomial.json
+----------------------------------------------------------------------
+Path: torch.distributions.binomial, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.categorical.Categorical.json
+----------------------------------------------------------------------
+Path: torch.distributions.categorical, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.cauchy.Cauchy.json
+----------------------------------------------------------------------
+Path: torch.distributions.cauchy, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.chi2.Chi2.json
+----------------------------------------------------------------------
+Path: torch.distributions.chi2, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.constraint_registry.ConstraintRegistry.json
+----------------------------------------------------------------------
+Path: torch.distributions.constraint_registry, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.constraints.Constraint.json
+----------------------------------------------------------------------
+Path: torch.distributions.constraints, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.continuous_bernoulli.ContinuousBernoulli.json
+----------------------------------------------------------------------
+Path: torch.distributions.continuous_bernoulli, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.dirichlet.Dirichlet.json
+----------------------------------------------------------------------
+Path: torch.distributions.dirichlet, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.distribution.Distribution.json
+----------------------------------------------------------------------
+Path: torch.distributions.distribution, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.exp_family.ExponentialFamily.json
+----------------------------------------------------------------------
+Path: torch.distributions.exp_family, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.exponential.Exponential.json
+----------------------------------------------------------------------
+Path: torch.distributions.exponential, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.fishersnedecor.FisherSnedecor.json
+----------------------------------------------------------------------
+Path: torch.distributions.fishersnedecor, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.gamma.Gamma.json
+----------------------------------------------------------------------
+Path: torch.distributions.gamma, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.geometric.Geometric.json
+----------------------------------------------------------------------
+Path: torch.distributions.geometric, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.gumbel.Gumbel.json
+----------------------------------------------------------------------
+Path: torch.distributions.gumbel, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.half_cauchy.HalfCauchy.json
+----------------------------------------------------------------------
+Path: torch.distributions.half_cauchy, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.half_normal.HalfNormal.json
+----------------------------------------------------------------------
+Path: torch.distributions.half_normal, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.independent.Independent.json
+----------------------------------------------------------------------
+Path: torch.distributions.independent, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.kl.kl_divergence.json
+torch.distributions.kl.register_kl.json
+----------------------------------------------------------------------
+Path: torch.distributions.kl, Count: 2
+----------------------------------------------------------------------
+
+torch.distributions.kumaraswamy.Kumaraswamy.json
+----------------------------------------------------------------------
+Path: torch.distributions.kumaraswamy, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.laplace.Laplace.json
+----------------------------------------------------------------------
+Path: torch.distributions.laplace, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.lkj_cholesky.LKJCholesky.json
+----------------------------------------------------------------------
+Path: torch.distributions.lkj_cholesky, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.log_normal.LogNormal.json
+----------------------------------------------------------------------
+Path: torch.distributions.log_normal, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.lowrank_multivariate_normal.LowRankMultivariateNormal.json
+----------------------------------------------------------------------
+Path: torch.distributions.lowrank_multivariate_normal, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.mixture_same_family.MixtureSameFamily.json
+----------------------------------------------------------------------
+Path: torch.distributions.mixture_same_family, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.multinomial.Multinomial.json
+----------------------------------------------------------------------
+Path: torch.distributions.multinomial, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.multivariate_normal.MultivariateNormal.json
+----------------------------------------------------------------------
+Path: torch.distributions.multivariate_normal, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.negative_binomial.NegativeBinomial.json
+----------------------------------------------------------------------
+Path: torch.distributions.negative_binomial, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.normal.Normal.json
+----------------------------------------------------------------------
+Path: torch.distributions.normal, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.one_hot_categorical.OneHotCategorical.json
+----------------------------------------------------------------------
+Path: torch.distributions.one_hot_categorical, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.pareto.Pareto.json
+----------------------------------------------------------------------
+Path: torch.distributions.pareto, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.poisson.Poisson.json
+----------------------------------------------------------------------
+Path: torch.distributions.poisson, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli.json
+torch.distributions.relaxed_bernoulli.RelaxedBernoulli.json
+----------------------------------------------------------------------
+Path: torch.distributions.relaxed_bernoulli, Count: 2
+----------------------------------------------------------------------
+
+torch.distributions.relaxed_categorical.RelaxedOneHotCategorical.json
+----------------------------------------------------------------------
+Path: torch.distributions.relaxed_categorical, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.studentT.StudentT.json
+----------------------------------------------------------------------
+Path: torch.distributions.studentT, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.transformed_distribution.TransformedDistribution.json
+----------------------------------------------------------------------
+Path: torch.distributions.transformed_distribution, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.transforms.AbsTransform.json
+torch.distributions.transforms.AffineTransform.json
+torch.distributions.transforms.ComposeTransform.json
+torch.distributions.transforms.CorrCholeskyTransform.json
+torch.distributions.transforms.ExpTransform.json
+torch.distributions.transforms.IndependentTransform.json
+torch.distributions.transforms.LowerCholeskyTransform.json
+torch.distributions.transforms.PowerTransform.json
+torch.distributions.transforms.ReshapeTransform.json
+torch.distributions.transforms.SigmoidTransform.json
+torch.distributions.transforms.SoftmaxTransform.json
+torch.distributions.transforms.StackTransform.json
+torch.distributions.transforms.StickBreakingTransform.json
+torch.distributions.transforms.TanhTransform.json
+torch.distributions.transforms.Transform.json
+----------------------------------------------------------------------
+Path: torch.distributions.transforms, Count: 15
+----------------------------------------------------------------------
+
+torch.distributions.uniform.Uniform.json
+----------------------------------------------------------------------
+Path: torch.distributions.uniform, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.von_mises.VonMises.json
+----------------------------------------------------------------------
+Path: torch.distributions.von_mises, Count: 1
+----------------------------------------------------------------------
+
+torch.distributions.weibull.Weibull.json
+----------------------------------------------------------------------
+Path: torch.distributions.weibull, Count: 1
+----------------------------------------------------------------------
+
+torch.DoubleStorage.json
+torch.eig.json
+torch.enable_grad.json
+----------------------------------------------------------------------
+Path: torch, Count: 3
+----------------------------------------------------------------------
+
+torch.fft.fft2.json
+torch.fft.fftfreq.json
+torch.fft.fft.json
+torch.fft.fftn.json
+torch.fft.fftshift.json
+torch.fft.hfft.json
+torch.fft.ifft2.json
+torch.fft.ifft.json
+torch.fft.ifftn.json
+torch.fft.ifftshift.json
+torch.fft.ihfft.json
+torch.fft.irfft2.json
+torch.fft.irfft.json
+torch.fft.irfftn.json
+torch.fft.rfft2.json
+torch.fft.rfftfreq.json
+torch.fft.rfft.json
+torch.fft.rfftn.json
+----------------------------------------------------------------------
+Path: torch.fft, Count: 18
+----------------------------------------------------------------------
+
+torch.FloatStorage.json
+torch.frombuffer.json
+torch.from_numpy.json
+----------------------------------------------------------------------
+Path: torch, Count: 3
+----------------------------------------------------------------------
+
+torch.futures.collect_all.json
+torch.futures.Future.json
+torch.futures.wait_all.json
+----------------------------------------------------------------------
+Path: torch.futures, Count: 3
+----------------------------------------------------------------------
+
+torch.fx.Graph.json
+torch.fx.GraphModule.json
+torch.fx.Interpreter.json
+torch.fx.Node.json
+torch.fx.Proxy.json
+torch.fx.replace_pattern.json
+torch.fx.symbolic_trace.json
+torch.fx.Tracer.json
+torch.fx.Transformer.json
+torch.fx.wrap.json
+----------------------------------------------------------------------
+Path: torch.fx, Count: 10
+----------------------------------------------------------------------
+
+torch.Generator.json
+torch.get_default_dtype.json
+torch.get_num_interop_threads.json
+torch.get_num_threads.json
+torch.get_rng_state.json
+torch.HalfStorage.json
+----------------------------------------------------------------------
+Path: torch, Count: 6
+----------------------------------------------------------------------
+
+torch.hub.download_url_to_file.json
+torch.hub.get_dir.json
+torch.hub.help.json
+torch.hub.list.json
+torch.hub.load.json
+torch.hub.load_state_dict_from_url.json
+torch.hub.set_dir.json
+----------------------------------------------------------------------
+Path: torch.hub, Count: 7
+----------------------------------------------------------------------
+
+torch.inference_mode.json
+torch.initial_seed.json
+torch.IntStorage.json
+torch.is_grad_enabled.json
+torch.is_inference_mode_enabled.json
+torch.is_storage.json
+torch.is_tensor.json
+torch.is_warn_always_enabled.json
+----------------------------------------------------------------------
+Path: torch, Count: 8
+----------------------------------------------------------------------
+
+torch.jit.annotate.json
+torch.jit.fork.json
+torch.jit.freeze.json
+torch.jit.ignore.json
+torch.jit.isinstance.json
+torch.jit.load.json
+torch.jit.optimize_for_inference.json
+torch.jit.save.json
+torch.jit.ScriptFunction.json
+torch.jit.script_if_tracing.json
+torch.jit.script.json
+torch.jit.ScriptModule.json
+torch.jit.trace_module.json
+torch.jit.unused.json
+torch.jit.wait.json
+----------------------------------------------------------------------
+Path: torch.jit, Count: 15
+----------------------------------------------------------------------
+
+torch.linalg.cholesky_ex.json
+torch.linalg.cond.json
+torch.linalg.eigh.json
+torch.linalg.eig.json
+torch.linalg.eigvalsh.json
+torch.linalg.eigvals.json
+torch.linalg.householder_product.json
+torch.linalg.inv_ex.json
+torch.linalg.inv.json
+torch.linalg.lstsq.json
+torch.linalg.matrix_norm.json
+torch.linalg.matrix_rank.json
+torch.linalg.multi_dot.json
+torch.linalg.pinv.json
+torch.linalg.solve.json
+torch.linalg.svdvals.json
+torch.linalg.tensorinv.json
+torch.linalg.tensorsolve.json
+torch.linalg.vector_norm.json
+----------------------------------------------------------------------
+Path: torch.linalg, Count: 19
+----------------------------------------------------------------------
+
+torch.load.json
+torch.lobpcg.json
+torch.LongStorage.json
+torch.lstsq.json
+torch.lu.json
+torch.manual_seed.json
+torch.matrix_rank.json
+----------------------------------------------------------------------
+Path: torch, Count: 7
+----------------------------------------------------------------------
+
+torch.nn.AdaptiveAvgPool1d.json
+torch.nn.AdaptiveAvgPool2d.json
+torch.nn.AdaptiveAvgPool3d.json
+torch.nn.AdaptiveLogSoftmaxWithLoss.json
+torch.nn.AdaptiveMaxPool1d.json
+torch.nn.AdaptiveMaxPool2d.json
+torch.nn.AdaptiveMaxPool3d.json
+torch.nn.AlphaDropout.json
+torch.nn.AvgPool1d.json
+torch.nn.AvgPool2d.json
+torch.nn.AvgPool3d.json
+torch.nn.BatchNorm1d.json
+torch.nn.BatchNorm2d.json
+torch.nn.BatchNorm3d.json
+torch.nn.BCELoss.json
+torch.nn.BCEWithLogitsLoss.json
+torch.nn.Bilinear.json
+torch.nn.CELU.json
+torch.nn.ChannelShuffle.json
+torch.nn.ConstantPad1d.json
+torch.nn.ConstantPad2d.json
+torch.nn.ConstantPad3d.json
+torch.nn.Conv1d.json
+torch.nn.Conv2d.json
+torch.nn.Conv3d.json
+torch.nn.ConvTranspose1d.json
+torch.nn.ConvTranspose2d.json
+torch.nn.ConvTranspose3d.json
+torch.nn.CosineEmbeddingLoss.json
+torch.nn.CosineSimilarity.json
+torch.nn.CrossEntropyLoss.json
+torch.nn.CTCLoss.json
+torch.nn.DataParallel.json
+torch.nn.Dropout2d.json
+torch.nn.Dropout3d.json
+torch.nn.Dropout.json
+torch.nn.ELU.json
+torch.nn.EmbeddingBag.json
+torch.nn.Embedding.json
+torch.nn.FeatureAlphaDropout.json
+torch.nn.Flatten.json
+torch.nn.Fold.json
+torch.nn.FractionalMaxPool2d.json
+torch.nn.FractionalMaxPool3d.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 44
+----------------------------------------------------------------------
+
+torch.nn.functional.affine_grid.json
+torch.nn.functional.cross_entropy.json
+torch.nn.functional.dropout2d.json
+torch.nn.functional.dropout3d.json
+torch.nn.functional.fold.json
+torch.nn.functional.gaussian_nll_loss.json
+torch.nn.functional.grid_sample.json
+torch.nn.functional.gumbel_softmax.json
+torch.nn.functional.interpolate.json
+torch.nn.functional.local_response_norm.json
+torch.nn.functional.logsigmoid.json
+torch.nn.functional.lp_pool1d.json
+torch.nn.functional.lp_pool2d.json
+torch.nn.functional.max_unpool1d.json
+torch.nn.functional.multilabel_soft_margin_loss.json
+torch.nn.functional.normalize.json
+torch.nn.functional.softmin.json
+torch.nn.functional.softsign.json
+torch.nn.functional.tanhshrink.json
+torch.nn.functional.triplet_margin_with_distance_loss.json
+torch.nn.functional.unfold.json
+torch.nn.functional.upsample_bilinear.json
+torch.nn.functional.upsample.json
+torch.nn.functional.upsample_nearest.json
+----------------------------------------------------------------------
+Path: torch.nn.functional, Count: 24
+----------------------------------------------------------------------
+
+torch.nn.GaussianNLLLoss.json
+torch.nn.GELU.json
+torch.nn.GLU.json
+torch.nn.GroupNorm.json
+torch.nn.GRUCell.json
+torch.nn.GRU.json
+torch.nn.Hardshrink.json
+torch.nn.Hardsigmoid.json
+torch.nn.Hardswish.json
+torch.nn.Hardtanh.json
+torch.nn.HingeEmbeddingLoss.json
+torch.nn.HuberLoss.json
+torch.nn.Identity.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 13
+----------------------------------------------------------------------
+
+torch.nn.init.calculate_gain.json
+torch.nn.init.constant_.json
+torch.nn.init.dirac_.json
+torch.nn.init.eye_.json
+torch.nn.init.kaiming_normal_.json
+torch.nn.init.kaiming_uniform_.json
+torch.nn.init.normal_.json
+torch.nn.init.ones_.json
+torch.nn.init.orthogonal_.json
+torch.nn.init.sparse_.json
+torch.nn.init.uniform_.json
+torch.nn.init.xavier_normal_.json
+torch.nn.init.xavier_uniform_.json
+torch.nn.init.zeros_.json
+----------------------------------------------------------------------
+Path: torch.nn.init, Count: 14
+----------------------------------------------------------------------
+
+torch.nn.InstanceNorm1d.json
+torch.nn.InstanceNorm2d.json
+torch.nn.InstanceNorm3d.json
+torch.nn.KLDivLoss.json
+torch.nn.L1Loss.json
+torch.nn.LayerNorm.json
+torch.nn.LazyBatchNorm1d.json
+torch.nn.LazyBatchNorm2d.json
+torch.nn.LazyBatchNorm3d.json
+torch.nn.LazyConv1d.json
+torch.nn.LazyConv2d.json
+torch.nn.LazyConv3d.json
+torch.nn.LazyConvTranspose1d.json
+torch.nn.LazyConvTranspose2d.json
+torch.nn.LazyConvTranspose3d.json
+torch.nn.LazyInstanceNorm1d.json
+torch.nn.LazyInstanceNorm2d.json
+torch.nn.LazyInstanceNorm3d.json
+torch.nn.LazyLinear.json
+torch.nn.LeakyReLU.json
+torch.nn.Linear.json
+torch.nn.LocalResponseNorm.json
+torch.nn.LogSigmoid.json
+torch.nn.LogSoftmax.json
+torch.nn.LPPool1d.json
+torch.nn.LPPool2d.json
+torch.nn.LSTMCell.json
+torch.nn.LSTM.json
+torch.nn.MarginRankingLoss.json
+torch.nn.MaxPool1d.json
+torch.nn.MaxPool2d.json
+torch.nn.MaxPool3d.json
+torch.nn.MaxUnpool1d.json
+torch.nn.MaxUnpool2d.json
+torch.nn.MaxUnpool3d.json
+torch.nn.Mish.json
+torch.nn.ModuleDict.json
+torch.nn.Module.json
+torch.nn.ModuleList.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 39
+----------------------------------------------------------------------
+
+torch.nn.modules.lazy.LazyModuleMixin.json
+----------------------------------------------------------------------
+Path: torch.nn.modules.lazy, Count: 1
+----------------------------------------------------------------------
+
+torch.nn.modules.module.register_module_backward_hook.json
+torch.nn.modules.module.register_module_forward_hook.json
+torch.nn.modules.module.register_module_forward_pre_hook.json
+torch.nn.modules.module.register_module_full_backward_hook.json
+----------------------------------------------------------------------
+Path: torch.nn.modules.module, Count: 4
+----------------------------------------------------------------------
+
+torch.nn.MSELoss.json
+torch.nn.MultiheadAttention.json
+torch.nn.MultiLabelMarginLoss.json
+torch.nn.MultiLabelSoftMarginLoss.json
+torch.nn.MultiMarginLoss.json
+torch.nn.NLLLoss.json
+torch.nn.PairwiseDistance.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 7
+----------------------------------------------------------------------
+
+torch.nn.parallel.DistributedDataParallel.json
+----------------------------------------------------------------------
+Path: torch.nn.parallel, Count: 1
+----------------------------------------------------------------------
+
+torch.nn.ParameterDict.json
+torch.nn.ParameterList.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 2
+----------------------------------------------------------------------
+
+torch.nn.parameter.Parameter.json
+torch.nn.parameter.UninitializedBuffer.json
+torch.nn.parameter.UninitializedParameter.json
+----------------------------------------------------------------------
+Path: torch.nn.parameter, Count: 3
+----------------------------------------------------------------------
+
+torch.nn.PixelShuffle.json
+torch.nn.PixelUnshuffle.json
+torch.nn.PoissonNLLLoss.json
+torch.nn.PReLU.json
+torch.nn.ReflectionPad1d.json
+torch.nn.ReflectionPad2d.json
+torch.nn.ReflectionPad3d.json
+torch.nn.ReLU6.json
+torch.nn.ReLU.json
+torch.nn.ReplicationPad1d.json
+torch.nn.ReplicationPad2d.json
+torch.nn.ReplicationPad3d.json
+torch.nn.RNNBase.json
+torch.nn.RNNCell.json
+torch.nn.RNN.json
+torch.nn.RReLU.json
+torch.nn.SELU.json
+torch.nn.Sequential.json
+torch.nn.Sigmoid.json
+torch.nn.SiLU.json
+torch.nn.SmoothL1Loss.json
+torch.nn.SoftMarginLoss.json
+torch.nn.Softmax2d.json
+torch.nn.Softmax.json
+torch.nn.Softmin.json
+torch.nn.Softplus.json
+torch.nn.Softshrink.json
+torch.nn.Softsign.json
+torch.nn.SyncBatchNorm.json
+torch.nn.Tanh.json
+torch.nn.Tanhshrink.json
+torch.nn.Threshold.json
+torch.nn.TransformerDecoder.json
+torch.nn.TransformerDecoderLayer.json
+torch.nn.TransformerEncoder.json
+torch.nn.TransformerEncoderLayer.json
+torch.nn.Transformer.json
+torch.nn.TripletMarginLoss.json
+torch.nn.TripletMarginWithDistanceLoss.json
+torch.nn.Unflatten.json
+torch.nn.Unfold.json
+torch.nn.Upsample.json
+torch.nn.UpsamplingBilinear2d.json
+torch.nn.UpsamplingNearest2d.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 44
+----------------------------------------------------------------------
+
+torch.nn.utils.clip_grad_norm_.json
+torch.nn.utils.clip_grad_value_.json
+torch.nn.utils.parameters_to_vector.json
+----------------------------------------------------------------------
+Path: torch.nn.utils, Count: 3
+----------------------------------------------------------------------
+
+torch.nn.utils.parametrizations.orthogonal.json
+torch.nn.utils.parametrizations.spectral_norm.json
+----------------------------------------------------------------------
+Path: torch.nn.utils.parametrizations, Count: 2
+----------------------------------------------------------------------
+
+torch.nn.utils.parametrize.cached.json
+torch.nn.utils.parametrize.is_parametrized.json
+torch.nn.utils.parametrize.ParametrizationList.json
+torch.nn.utils.parametrize.register_parametrization.json
+torch.nn.utils.parametrize.remove_parametrizations.json
+----------------------------------------------------------------------
+Path: torch.nn.utils.parametrize, Count: 5
+----------------------------------------------------------------------
+
+torch.nn.utils.prune.BasePruningMethod.json
+torch.nn.utils.prune.custom_from_mask.json
+torch.nn.utils.prune.CustomFromMask.json
+torch.nn.utils.prune.global_unstructured.json
+torch.nn.utils.prune.Identity.json
+torch.nn.utils.prune.is_pruned.json
+torch.nn.utils.prune.l1_unstructured.json
+torch.nn.utils.prune.L1Unstructured.json
+torch.nn.utils.prune.ln_structured.json
+torch.nn.utils.prune.LnStructured.json
+torch.nn.utils.prune.PruningContainer.json
+torch.nn.utils.prune.random_structured.json
+torch.nn.utils.prune.RandomStructured.json
+torch.nn.utils.prune.random_unstructured.json
+torch.nn.utils.prune.RandomUnstructured.json
+torch.nn.utils.prune.remove.json
+----------------------------------------------------------------------
+Path: torch.nn.utils.prune, Count: 16
+----------------------------------------------------------------------
+
+torch.nn.utils.remove_spectral_norm.json
+torch.nn.utils.remove_weight_norm.json
+----------------------------------------------------------------------
+Path: torch.nn.utils, Count: 2
+----------------------------------------------------------------------
+
+torch.nn.utils.rnn.PackedSequence.json
+torch.nn.utils.rnn.pack_padded_sequence.json
+torch.nn.utils.rnn.pack_sequence.json
+torch.nn.utils.rnn.pad_packed_sequence.json
+----------------------------------------------------------------------
+Path: torch.nn.utils.rnn, Count: 4
+----------------------------------------------------------------------
+
+torch.nn.utils.skip_init.json
+torch.nn.utils.spectral_norm.json
+torch.nn.utils.vector_to_parameters.json
+torch.nn.utils.weight_norm.json
+----------------------------------------------------------------------
+Path: torch.nn.utils, Count: 4
+----------------------------------------------------------------------
+
+torch.nn.ZeroPad2d.json
+----------------------------------------------------------------------
+Path: torch.nn, Count: 1
+----------------------------------------------------------------------
+
+torch.no_grad.json
+----------------------------------------------------------------------
+Path: torch, Count: 1
+----------------------------------------------------------------------
+
+torch.onnx.export.json
+torch.onnx.export_to_pretty_string.json
+torch.onnx.is_in_onnx_export.json
+torch.onnx.register_custom_op_symbolic.json
+torch.onnx.select_model_mode_for_export.json
+----------------------------------------------------------------------
+Path: torch.onnx, Count: 5
+----------------------------------------------------------------------
+
+torch.optim.Adadelta.json
+torch.optim.Adagrad.json
+torch.optim.Adamax.json
+torch.optim.Adam.json
+torch.optim.AdamW.json
+torch.optim.ASGD.json
+torch.optim.LBFGS.json
+----------------------------------------------------------------------
+Path: torch.optim, Count: 7
+----------------------------------------------------------------------
+
+torch.optim.lr_scheduler.ChainedScheduler.json
+torch.optim.lr_scheduler.ConstantLR.json
+torch.optim.lr_scheduler.CosineAnnealingLR.json
+torch.optim.lr_scheduler.CosineAnnealingWarmRestarts.json
+torch.optim.lr_scheduler.CyclicLR.json
+torch.optim.lr_scheduler.ExponentialLR.json
+torch.optim.lr_scheduler.LambdaLR.json
+torch.optim.lr_scheduler.LinearLR.json
+torch.optim.lr_scheduler.MultiplicativeLR.json
+torch.optim.lr_scheduler.MultiStepLR.json
+torch.optim.lr_scheduler.OneCycleLR.json
+torch.optim.lr_scheduler.ReduceLROnPlateau.json
+torch.optim.lr_scheduler.SequentialLR.json
+torch.optim.lr_scheduler.StepLR.json
+----------------------------------------------------------------------
+Path: torch.optim.lr_scheduler, Count: 14
+----------------------------------------------------------------------
+
+torch.optim.NAdam.json
+torch.optim.Optimizer.json
+torch.optim.RAdam.json
+torch.optim.RMSprop.json
+torch.optim.Rprop.json
+torch.optim.SGD.json
+torch.optim.SparseAdam.json
+----------------------------------------------------------------------
+Path: torch.optim, Count: 7
+----------------------------------------------------------------------
+
+torch.overrides.get_ignored_functions.json
+torch.overrides.get_overridable_functions.json
+torch.overrides.get_testing_overrides.json
+torch.overrides.handle_torch_function.json
+torch.overrides.has_torch_function.json
+torch.overrides.is_tensor_like.json
+torch.overrides.is_tensor_method_or_property.json
+torch.overrides.wrap_torch_function.json
+----------------------------------------------------------------------
+Path: torch.overrides, Count: 8
+----------------------------------------------------------------------
+
+torch.package.Directory.json
+torch.package.EmptyMatchError.json
+torch.package.PackageExporter.json
+torch.package.PackageImporter.json
+torch.package.PackagingError.json
+----------------------------------------------------------------------
+Path: torch.package, Count: 5
+----------------------------------------------------------------------
+
+torch.pca_lowrank.json
+----------------------------------------------------------------------
+Path: torch, Count: 1
+----------------------------------------------------------------------
+
+torch.profiler.profile.json
+torch.profiler.ProfilerAction.json
+torch.profiler.ProfilerActivity.json
+torch.profiler.schedule.json
+torch.profiler.tensorboard_trace_handler.json
+----------------------------------------------------------------------
+Path: torch.profiler, Count: 5
+----------------------------------------------------------------------
+
+torch.QInt32Storage.json
+torch.QInt8Storage.json
+----------------------------------------------------------------------
+Path: torch, Count: 2
+----------------------------------------------------------------------
+
+torch.quasirandom.SobolEngine.json
+----------------------------------------------------------------------
+Path: torch.quasirandom, Count: 1
+----------------------------------------------------------------------
+
+torch.QUInt4x2Storage.json
+torch.QUInt8Storage.json
+----------------------------------------------------------------------
+Path: torch, Count: 2
+----------------------------------------------------------------------
+
+torch.random.fork_rng.json
+torch.random.get_rng_state.json
+torch.random.initial_seed.json
+torch.random.manual_seed.json
+torch.random.seed.json
+torch.random.set_rng_state.json
+----------------------------------------------------------------------
+Path: torch.random, Count: 6
+----------------------------------------------------------------------
+
+torch.save.json
+torch.seed.json
+torch.set_default_dtype.json
+torch.set_default_tensor_type.json
+torch.set_flush_denormal.json
+torch.set_grad_enabled.json
+torch.set_num_interop_threads.json
+torch.set_num_threads.json
+torch.set_printoptions.json
+torch.set_rng_state.json
+torch.set_warn_always.json
+torch.ShortStorage.json
+torch.solve.json
+----------------------------------------------------------------------
+Path: torch, Count: 13
+----------------------------------------------------------------------
+
+torch.special.entr.json
+torch.special.erfcx.json
+torch.special.expit.json
+torch.special.gammaincc.json
+torch.special.gammainc.json
+torch.special.gammaln.json
+torch.special.i0e.json
+torch.special.i1e.json
+torch.special.i1.json
+torch.special.multigammaln.json
+torch.special.ndtri.json
+torch.special.ndtr.json
+torch.special.psi.json
+torch.special.xlog1py.json
+torch.special.zeta.json
+----------------------------------------------------------------------
+Path: torch.special, Count: 15
+----------------------------------------------------------------------
+
+torch.svd_lowrank.json
+torch.symeig.json
+----------------------------------------------------------------------
+Path: torch, Count: 2
+----------------------------------------------------------------------
+
+torch.Tensor.absolute_.json
+torch.Tensor.addbmm_.json
+torch.Tensor.addcdiv_.json
+torch.Tensor.addcmul_.json
+torch.Tensor.add_.json
+torch.Tensor.addmm_.json
+torch.Tensor.addr_.json
+----------------------------------------------------------------------
+Path: torch.Tensor, Count: 7
+----------------------------------------------------------------------
+
+torch.Tensor.Alias for :meth:`~Tensor.dim.json
+----------------------------------------------------------------------
+Path: torch.Tensor.Alias for :meth:`~Tensor, Count: 1
+----------------------------------------------------------------------
+
+torch.Tensor.apply_.json
+torch.Tensor.as_subclass.json
+torch.Tensor.atan2_.json
+torch.Tensor.backward.json
+torch.Tensor.baddbmm_.json
+torch.Tensor.bernoulli_.json
+torch.Tensor.bfloat16.json
+torch.Tensor.bitwise_and_.json
+torch.Tensor.bitwise_left_shift_.json
+torch.Tensor.bitwise_not_.json
+torch.Tensor.bitwise_or_.json
+torch.Tensor.bitwise_right_shift_.json
+torch.Tensor.bitwise_xor_.json
+torch.Tensor.bool.json
+torch.Tensor.byte.json
+torch.Tensor.cauchy_.json
+torch.Tensor.char.json
+torch.Tensor.contiguous.json
+torch.Tensor.copy_.json
+torch.Tensor.copysign_.json
+torch.Tensor.cpu.json
+torch.Tensor.cuda.json
+torch.Tensor.cumprod_.json
+torch.Tensor.cumsum_.json
+torch.Tensor.data_ptr.json
+torch.Tensor.dense_dim.json
+torch.Tensor.device.json
+torch.Tensor.digamma_.json
+torch.Tensor.dim.json
+torch.Tensor.divide_.json
+torch.Tensor.div_.json
+torch.Tensor.double.json
+torch.Tensor.eig.json
+torch.Tensor.element_size.json
+torch.Tensor.eq_.json
+torch.Tensor.erfinv_.json
+torch.Tensor.expand_as.json
+torch.Tensor.expand.json
+torch.Tensor.exponential_.json
+torch.Tensor.fill_diagonal_.json
+torch.Tensor.float.json
+torch.Tensor.float_power_.json
+torch.Tensor.floor_divide_.json
+torch.Tensor.fmod_.json
+torch.Tensor.ge_.json
+torch.Tensor.geometric_.json
+torch.Tensor.get_device.json
+torch.Tensor.grad.json
+torch.Tensor.greater_equal_.json
+torch.Tensor.greater_.json
+torch.Tensor.gt_.json
+torch.Tensor.half.json
+torch.Tensor.hypot_.json
+torch.Tensor.igammac_.json
+torch.Tensor.igamma_.json
+torch.Tensor.index_add_.json
+torch.Tensor.index_copy_.json
+torch.Tensor.index_fill_.json
+torch.Tensor.indices.json
+torch.Tensor.int.json
+torch.Tensor.is_contiguous.json
+torch.Tensor.is_cuda.json
+torch.Tensor.is_leaf.json
+torch.Tensor.is_meta.json
+torch.Tensor.is_pinned.json
+torch.Tensor.is_quantized.json
+torch.Tensor.is_set_to.json
+torch.Tensor.is_shared.json
+torch.Tensor.is_sparse.json
+torch.Tensor.item.json
+----------------------------------------------------------------------
+Path: torch.Tensor, Count: 70
+----------------------------------------------------------------------
+
+torch.tensor.json
+----------------------------------------------------------------------
+Path: torch, Count: 1
+----------------------------------------------------------------------
+
+torch.Tensor.le_.json
+torch.Tensor.lerp_.json
+torch.Tensor.less_equal_.json
+torch.Tensor.less_.json
+torch.Tensor.lgamma_.json
+torch.Tensor.logical_and_.json
+torch.Tensor.logical_not_.json
+torch.Tensor.logical_or_.json
+torch.Tensor.logical_xor_.json
+torch.Tensor.log_normal_.json
+torch.Tensor.long.json
+torch.Tensor.lstsq.json
+torch.Tensor.lt_.json
+torch.Tensor.lu.json
+torch.Tensor.map_.json
+torch.Tensor.masked_fill_.json
+torch.Tensor.masked_scatter_.json
+torch.Tensor.mul_.json
+torch.Tensor.multiply_.json
+torch.Tensor.mvlgamma_.json
+torch.Tensor.ndimension.json
+torch.Tensor.ndim.json
+torch.Tensor.ne_.json
+torch.Tensor.nelement.json
+torch.Tensor.new_empty.json
+torch.Tensor.new_full.json
+torch.Tensor.new_ones.json
+torch.Tensor.new_tensor.json
+torch.Tensor.new_zeros.json
+torch.Tensor.nextafter_.json
+torch.Tensor.normal_.json
+torch.Tensor.not_equal_.json
+torch.Tensor.numpy.json
+torch.Tensor.pin_memory.json
+torch.Tensor.polygamma_.json
+torch.Tensor.pow_.json
+torch.Tensor.put_.json
+torch.Tensor.qscheme.json
+torch.Tensor.random_.json
+torch.Tensor.record_stream.json
+torch.Tensor.register_hook.json
+torch.Tensor.remainder_.json
+torch.Tensor.renorm_.json
+torch.Tensor.repeat.json
+torch.Tensor.requires_grad.json
+torch.Tensor.requires_grad_.json
+torch.Tensor.reshape_as.json
+torch.Tensor.resize_.json
+torch.Tensor.retain_grad.json
+torch.Tensor.retains_grad.json
+torch.Tensor.scatter_add_.json
+torch.Tensor.scatter_.json
+torch.Tensor.set_.json
+torch.Tensor.sgn_.json
+torch.Tensor.share_memory_.json
+torch.Tensor.short.json
+torch.Tensor.sign_.json
+torch.Tensor.solve.json
+torch.Tensor.sparse_dim.json
+torch.Tensor.sparse_mask.json
+torch.Tensor.squeeze_.json
+torch.Tensor.storage.json
+torch.Tensor.storage_offset.json
+torch.Tensor.storage_type.json
+torch.Tensor.sub_.json
+torch.Tensor.subtract_.json
+torch.Tensor.sum_to_size.json
+torch.Tensor.symeig.json
+torch.Tensor.t_.json
+torch.Tensor.to.json
+torch.Tensor.tolist.json
+torch.Tensor.to_mkldnn.json
+torch.Tensor.to_sparse.json
+torch.Tensor.transpose_.json
+torch.Tensor.tril_.json
+torch.Tensor.triu_.json
+torch.Tensor.true_divide_.json
+torch.Tensor.type_as.json
+torch.Tensor.type.json
+torch.Tensor.unfold.json
+torch.Tensor.uniform_.json
+torch.Tensor.unique.json
+torch.Tensor.unsqueeze_.json
+torch.Tensor.values.json
+torch.Tensor.view_as.json
+torch.Tensor.view.json
+----------------------------------------------------------------------
+Path: torch.Tensor, Count: 86
+----------------------------------------------------------------------
+
+torch.testing.assert_close.json
+torch.testing.make_tensor.json
+----------------------------------------------------------------------
+Path: torch.testing, Count: 2
+----------------------------------------------------------------------
+
+torch.unique.json
+torch.use_deterministic_algorithms.json
+----------------------------------------------------------------------
+Path: torch, Count: 2
+----------------------------------------------------------------------
+
+torch.utils.benchmark.CallgrindStats.json
+torch.utils.benchmark.FunctionCounts.json
+torch.utils.benchmark.Measurement.json
+torch.utils.benchmark.Timer.json
+----------------------------------------------------------------------
+Path: torch.utils.benchmark, Count: 4
+----------------------------------------------------------------------
+
+torch.utils.checkpoint.checkpoint.json
+torch.utils.checkpoint.checkpoint_sequential.json
+----------------------------------------------------------------------
+Path: torch.utils.checkpoint, Count: 2
+----------------------------------------------------------------------
+
+torch.utils.cpp_extension.BuildExtension.json
+torch.utils.cpp_extension.check_compiler_abi_compatibility.json
+torch.utils.cpp_extension.CppExtension.json
+torch.utils.cpp_extension.CUDAExtension.json
+torch.utils.cpp_extension.include_paths.json
+torch.utils.cpp_extension.is_ninja_available.json
+torch.utils.cpp_extension.load_inline.json
+torch.utils.cpp_extension.load.json
+torch.utils.cpp_extension.verify_ninja_availability.json
+----------------------------------------------------------------------
+Path: torch.utils.cpp_extension, Count: 9
+----------------------------------------------------------------------
+
+torch.utils.data.BatchSampler.json
+torch.utils.data.ChainDataset.json
+torch.utils.data.ConcatDataset.json
+torch.utils.data.DataLoader.json
+torch.utils.data.Dataset.json
+----------------------------------------------------------------------
+Path: torch.utils.data, Count: 5
+----------------------------------------------------------------------
+
+torch.utils.data.distributed.DistributedSampler.json
+----------------------------------------------------------------------
+Path: torch.utils.data.distributed, Count: 1
+----------------------------------------------------------------------
+
+torch.utils.data.get_worker_info.json
+torch.utils.data.IterableDataset.json
+torch.utils.data.RandomSampler.json
+torch.utils.data.random_split.json
+torch.utils.data.Sampler.json
+torch.utils.data.SequentialSampler.json
+torch.utils.data.Subset.json
+torch.utils.data.SubsetRandomSampler.json
+torch.utils.data.TensorDataset.json
+torch.utils.data.WeightedRandomSampler.json
+----------------------------------------------------------------------
+Path: torch.utils.data, Count: 10
+----------------------------------------------------------------------
+
+torch.utils.dlpack.from_dlpack.json
+torch.utils.dlpack.to_dlpack.json
+----------------------------------------------------------------------
+Path: torch.utils.dlpack, Count: 2
+----------------------------------------------------------------------
+
+torch.utils.mobile_optimizer.optimize_for_mobile.json
+----------------------------------------------------------------------
+Path: torch.utils.mobile_optimizer, Count: 1
+----------------------------------------------------------------------
+
+torch.utils.model_zoo.load_url.json
+----------------------------------------------------------------------
+Path: torch.utils.model_zoo, Count: 1
+----------------------------------------------------------------------
+
+torch.utils.tensorboard.writer.SummaryWriter.json
+----------------------------------------------------------------------
+Path: torch.utils.tensorboard.writer, Count: 1
+----------------------------------------------------------------------
+
