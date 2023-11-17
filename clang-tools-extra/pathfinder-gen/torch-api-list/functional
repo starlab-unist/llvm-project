@@ -24,6 +24,14 @@ torch::nn::functional::adaptive_max_pool3d
 torch::nn::functional::adaptive_avg_pool1d
 torch::nn::functional::adaptive_avg_pool2d
 torch::nn::functional::adaptive_avg_pool3d
+torch::nn::functional::fractional_max_pool2d
+torch::nn::functional::fractional_max_pool3d
+torch::nn::functional::max_pool1d_with_indices
+torch::nn::functional::max_pool2d_with_indices
+torch::nn::functional::max_pool3d_with_indices
+torch::nn::functional::adaptive_max_pool2d_with_indices
+torch::nn::functional::fractional_max_pool2d_with_indices
+torch::nn::functional::fractional_max_pool3d_with_indices
 
 torch::nn::functional::threshold
 torch::nn::functional::threshold_
@@ -58,11 +66,14 @@ torch::nn::functional::tanh
 torch::nn::functional::sigmoid
 torch::nn::functional::hardsigmoid
 torch::nn::functional::silu
+torch::nn::functional::mish
 torch::nn::functional::batch_norm
+torch::nn::functional::group_norm
 torch::nn::functional::instance_norm
 torch::nn::functional::layer_norm
 torch::nn::functional::local_response_norm
 torch::nn::functional::normalize
+torch::nn::functional::multi_head_attention_forward
 
 torch::nn::functional::linear
 torch::nn::functional::bilinear
@@ -80,6 +91,7 @@ torch::nn::functional::one_hot
 torch::nn::functional::pairwise_distance
 torch::nn::functional::cosine_similarity
 torch::nn::functional::pdist
+
 torch::nn::functional::binary_cross_entropy
 torch::nn::functional::binary_cross_entropy_with_logits
 torch::nn::functional::poisson_nll_loss
@@ -95,10 +107,12 @@ torch::nn::functional::multilabel_margin_loss
 torch::nn::functional::multilabel_soft_margin_loss
 torch::nn::functional::multi_margin_loss
 torch::nn::functional::nll_loss
+torch::nn::functional::huber_loss
 torch::nn::functional::smooth_l1_loss
 torch::nn::functional::soft_margin_loss
 torch::nn::functional::triplet_margin_loss
 torch::nn::functional::triplet_margin_with_distance_loss
+
 torch::nn::functional::pixel_shuffle
 torch::nn::functional::pixel_unshuffle
 torch::nn::functional::pad
