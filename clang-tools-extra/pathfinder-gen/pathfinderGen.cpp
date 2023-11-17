@@ -136,7 +136,8 @@ public:
     assert(elaborated->isSugared());
     const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar());
     assert(tstype->isSugared());
-    assert(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder");
+    if(!(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder"))
+      return true;
     auto targs = tstype->template_arguments();
     assert(targs.size() == 1);
     auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
