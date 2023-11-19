@@ -365,8 +365,8 @@ std::unique_ptr<TorchParam> extractTorchOptional(clang::QualType t, std::string 
           std::unique_ptr<TorchParam> param =
             extractTorchParam(targ[0].getAsType(), name + "_base", Ctx);
           if (param == nullptr)
-            return nullptr;
-        torch_param = std::make_unique<TorchOptionalParam>(name, std::move(param));
+            return std::make_unique<TorchOptionalParam>(name, std::move(std::make_unique<TorchNullParam>(name + "_null")));
+          torch_param = std::make_unique<TorchOptionalParam>(name, std::move(param));
         }
       }
     }

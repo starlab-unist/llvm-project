@@ -36,6 +36,7 @@ class TorchParam {
       TPK_UnsignedInt,
       
       // TorchBoundedParam
+      TPK_Null,
       TPK_BoundedInt,
       TPK_Bool,
       TPK_BFloat,
@@ -44,7 +45,7 @@ class TorchParam {
       TPK_Double,
       TPK_Dtype,
       TPK_Variant,
-      TPK_Bounded_First = TPK_BoundedInt,
+      TPK_Bounded_First = TPK_Null,
       TPK_Bounded_Last = TPK_Variant,
 
       // TorchUnfixedArrayParam
@@ -144,6 +145,16 @@ class TorchBoundedParam: public TorchParam {
     std::vector<std::string> value_names;
     Optional<size_t> size;
     std::string value_list_var;
+};
+
+class TorchNullParam: public TorchBoundedParam {
+  public:
+    TorchNullParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
 };
 
 class TorchBoundedIntParam: public TorchBoundedParam {

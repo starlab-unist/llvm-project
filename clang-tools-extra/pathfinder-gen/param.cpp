@@ -137,6 +137,18 @@ std::vector<std::string> TorchBoundedParam::gen_arg_setup() const {
   return {"PathFinderEnumArg" + bracket(setup_args) + semicolon};
 }
 
+// constexpr nullopt_t nullopt{0};
+TorchNullParam::TorchNullParam(std::string name_)
+  : TorchBoundedParam(TPK_Null, name_, std::vector<std::string>({"c10::nullopt"})) {}
+std::string TorchNullParam::type() const {
+  return "nullopt_t";
+}
+std::string TorchNullParam::initializer() const {
+  return bracket(type()) + bracket(callback_var(name));
+}
+bool TorchNullParam::classof(const TorchParam *param){
+  return param->get_kind() == TPK_Null;
+}
 
 TorchBoundedIntParam::TorchBoundedIntParam(std::string name_, size_t size_)
   : TorchBoundedParam(TPK_BoundedInt, name_, size_) {}
@@ -160,7 +172,7 @@ std::string TorchBoolParam::type() const {
   return "bool";
 }
 std::string TorchBoolParam::initializer() const {
-  return  bracket(type()) + bracket(callback_var(name));
+  return bracket(type()) + bracket(callback_var(name));
 }
 
 bool TorchBoolParam::classof(const TorchParam *param) {
