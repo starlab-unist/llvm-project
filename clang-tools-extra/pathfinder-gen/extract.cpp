@@ -353,6 +353,19 @@ std::unique_ptr<TorchParam> extractTorchPair(clang::QualType t, std::string name
   return torch_param;
 }
 
+std::unique_ptr<TorchParam> extractTorchSymint(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  if (const auto* rtype = dyn_cast<RecordType>(t)) {
+    if (rtype->getDecl()->getNameAsString() == "SymInt") {
+      std::cerr << "Enter SymInt extract" << std::endl;
+      torch_param = std::make_unique<TorchIntParam>(name);
+    }
+  }
+  
+  return torch_param;
+}
+
 std::unique_ptr<TorchParam> extractTorchOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
@@ -553,6 +566,8 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
 
 std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string name, ASTContext &Ctx) {
   // Base case
+  //if (auto tensorOptions_param = extractTorchTensorOptions(t, name, Ctx))
+  //  return tensorOptions_param;
   if (auto builtin_param = extractTorchBuiltin(t, name, Ctx))
     return builtin_param;
   if (auto dtype_param = extractTorchDtype(t, name, Ctx))
@@ -577,6 +592,8 @@ std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string nam
     return tuple_param;
   if (auto pair_param = extractTorchPair(t, name, Ctx))
     return pair_param;
+  if (auto symint_param = extractTorchSymint(t, name, Ctx))
+    return symint_param;
 
   // Recursive case
   if (auto optional_param = extractTorchOptional(t, name, Ctx))
