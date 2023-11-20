@@ -428,7 +428,7 @@ bool TorchVectorParam::classof(const TorchParam *param) {
 }
 
 
-TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+/* TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
   : TorchUnfixedArrayParam(TPK_ArrayRef, name_, std::move(params_))
 { assert(params.size() == MAX_ARRAYREF_SIZE); }
 
@@ -441,6 +441,44 @@ std::string TorchArrayRefParam::initializer() const {
 
 bool TorchArrayRefParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_ArrayRef;
+} */
+
+TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchParam(TPK_ArrayRef, name_)
+{
+  assert(!params_.empty());
+  base_type = params_[0]->type();
+  vec = std::make_unique<TorchVectorParam>(name + "_vec", std::move(params_));
+}
+
+std::string TorchArrayRefParam::type() const {
+  return "c10::ArrayRef<" + base_type + ">";
+}
+std::string TorchArrayRefParam::var() const {
+  return name;
+}
+std::string TorchArrayRefParam::initializer() const {
+  return type() + bracket(vec->expr());
+}
+
+std::vector<std::string> TorchArrayRefParam::gen_arg_setup() const {
+  return vec->gen_arg_setup();
+}
+std::vector<std::string> TorchArrayRefParam::gen_hard_constraint() const {
+  return vec->gen_hard_constraint();
+}
+std::vector<std::string> TorchArrayRefParam::gen_soft_constraint() const {
+  return vec->gen_soft_constraint();
+}
+std::vector<std::string> TorchArrayRefParam::gen_arg_initialization() const {
+  std::vector<std::string> arg_initialization;
+  concat(arg_initialization, vec->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
+  return arg_initialization;
+}
+void TorchArrayRefParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  vec->resolve_name_conflict(names_seen);
 }
 
 
