@@ -74,9 +74,9 @@ torch::nn::MaxUnpool1d
 torch::nn::MaxUnpool2d
 torch::nn::MaxUnpool3d
 torch::nn::Mish
-torch::nn::Module
-torch::nn::ModuleDict
-torch::nn::ModuleList
+#torch::nn::Module
+#torch::nn::ModuleDict
+#torch::nn::ModuleList
 torch::nn::MultiLabelMarginLoss
 torch::nn::MultiLabelSoftMarginLoss
 torch::nn::MultiMarginLoss
@@ -84,8 +84,8 @@ torch::nn::MultiheadAttention
 torch::nn::NLLLoss
 torch::nn::PReLU
 torch::nn::PairwiseDistance
-torch::nn::ParameterDict
-torch::nn::ParameterList
+#torch::nn::ParameterDict
+#torch::nn::ParameterList
 torch::nn::PixelShuffle
 torch::nn::PixelUnshuffle
 torch::nn::PoissonNLLLoss
@@ -101,7 +101,7 @@ torch::nn::ReplicationPad1d
 torch::nn::ReplicationPad2d
 torch::nn::ReplicationPad3d
 torch::nn::SELU
-torch::nn::Sequential
+#torch::nn::Sequential
 torch::nn::SiLU
 torch::nn::Sigmoid
 torch::nn::SmoothL1Loss
@@ -116,9 +116,9 @@ torch::nn::Tanh
 torch::nn::Tanhshrink
 torch::nn::Threshold
 torch::nn::Transformer
-torch::nn::TransformerDecoder
+#torch::nn::TransformerDecoder
 torch::nn::TransformerDecoderLayer
-torch::nn::TransformerEncoder
+#torch::nn::TransformerEncoder
 torch::nn::TransformerEncoderLayer
 torch::nn::TripletMarginLoss
 torch::nn::TripletMarginWithDistanceLoss

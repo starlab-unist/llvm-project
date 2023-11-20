@@ -29,7 +29,8 @@ void set_module_mode() { module_mode = true; }
 bool is_module_mode() { return module_mode; }
 
 
-TorchIntParam::TorchIntParam(std::string name_): TorchParam(TPK_Int, name_) {}
+TorchIntParam::TorchIntParam(std::string name_, std::string range_)
+  : TorchParam(TPK_Int, name_), range(range_) {}
 void TorchIntParam::set_default(Expr* default_expr) {
   if (default_expr == nullptr)
     return;
@@ -45,10 +46,10 @@ void TorchIntParam::set_default(int value) {
 }
 
 std::string TorchIntParam::type() const {
-  return "long";
+  return range;
 }
 std::string TorchIntParam::initializer() const {
-  return callback_var(name);
+  return  bracket(type()) + bracket(callback_var(name));
 }
 
 std::vector<std::string> TorchIntParam::gen_arg_setup() const {
@@ -226,7 +227,8 @@ bool TorchDoubleParam::classof(const TorchParam *param) {
 TorchDtypeParam::TorchDtypeParam(std::string name_): TorchBoundedParam(TPK_Dtype, name_, "dtype_list") {}
 
 std::string TorchDtypeParam::type() const {
-  return "torch::Dtype";
+  //return "torch::Dtype";
+  return "c10::ScalarType";
 }
 std::string TorchDtypeParam::initializer() const {
   return get_dtype(name);
@@ -319,7 +321,7 @@ bool TorchVariantParam::classof(const TorchParam *param) {
 std::vector<std::string> TorchVariantParam::gen_typedef() const {
   std::vector<std::string> typedef_str;
   typedef_str.push_back("typedef");
-  typedef_str.push_back("  c10::variant<");
+  typedef_str.push_back("  std::variant<");
   for (size_t i = 0; i < params.size(); i++) {
     std::string param_type = "    " + params[i]->type();
     if (i != params.size() - 1)
@@ -592,7 +594,7 @@ TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, na
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
   rank = std::make_unique<TorchBoundedIntParam>(name + "_rank", MAX_RANK + 1);
   for (size_t i = 0; i < MAX_RANK; i++)
-    dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i)));
+    dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i), "long"));
   for (auto&& dim: dims)
     dim->set_default(1);
 }
@@ -637,7 +639,7 @@ bool TorchTensorParam::classof(const TorchParam *param) {
 
 TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, name_) {
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
-  intValue = std::make_unique<TorchIntParam>(name + "_int");
+  intValue = std::make_unique<TorchIntParam>(name + "_int", "int");
   uintValue = std::make_unique<TorchUnsignedIntParam>(name + "_uint");
   bfloatValue = std::make_unique<TorchBFloatParam>(name + "_bfloat");
   halfValue = std::make_unique<TorchHalfParam>(name + "_half");

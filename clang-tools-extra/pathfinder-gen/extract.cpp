@@ -12,7 +12,7 @@ std::unique_ptr<TorchParam> extractTorchBuiltin(clang::QualType t, std::string n
     if (builtin->isInteger() || builtin->isSignedInteger() || builtin->isUnsignedInteger()) {
       std::string t = builtin->getNameAsCString(Ctx.getPrintingPolicy());
       if (t == "char" || t == "short" || t == "int" || t == "long") {
-        torch_param = std::make_unique<TorchIntParam>(name);
+        torch_param = std::make_unique<TorchIntParam>(name, t);
       } else if (startswith(t, "unsigned")) {
         torch_param = std::make_unique<TorchUnsignedIntParam>(name);
       } else if (t == "bool") {
@@ -189,7 +189,7 @@ std::unique_ptr<TorchParam> extractTorchExpandingArray(clang::QualType t, std::s
       if (targ.size() == 1){
         for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
           std::string param_name = name + "_" + std::to_string(i);
-          std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+          std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name, "long");
           params.push_back(std::move(param));
         }
       }
@@ -255,7 +255,7 @@ std::unique_ptr<TorchParam> extractTorchExpandingArrayWithOptionalElem(clang::Qu
       std::vector<std::unique_ptr<TorchParam>> params;
       for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
         std::string param_name = name + "_" + std::to_string(i);
-        std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name);
+        std::unique_ptr<TorchParam> param = std::make_unique<TorchIntParam>(param_name, "long");
         std::unique_ptr<TorchParam> optional_param =
           std::make_unique<TorchOptionalParam>(param_name, std::move(param));
         params.push_back(std::move(optional_param));
@@ -441,6 +441,24 @@ Expr* get_default_expr(std::string param_name, const CXXRecordDecl* cdecl) {
   return nullptr;
 }
 
+clang::QualType get_base(clang::QualType t, ASTContext &Ctx) {
+  clang::QualType before = t;
+  clang::QualType after;
+
+  while (true) {
+    after =
+      before
+        .getUnqualifiedType()
+        .getDesugaredType(Ctx)
+        .getNonReferenceType();
+    if (before == after)
+      break;
+    before = after;
+  }
+
+  return after;
+}
+
 std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (option_class_done) return nullptr;
 
@@ -494,19 +512,54 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
   std::set<std::string> ctor_params_seen;
   std::set<std::string> member_params_seen;
 
-  for (auto method: cdecl->methods()) {
-    if (const auto* cxxconstructordecl = dyn_cast<CXXConstructorDecl>(method)) {
+  bool default_ctor_available = false;
+  for (auto ctordecl: cdecl->ctors())
+    if (ctordecl->isDefaultConstructor())
+      default_ctor_available = true;
+
+  if (!default_ctor_available) {
+    for (auto ctordecl: cdecl->ctors()) {
       bool is_special_ctor =
-        cxxconstructordecl->isDefaultConstructor() ||
-        cxxconstructordecl->isCopyOrMoveConstructor() ||
-        cxxconstructordecl->isSpecializationCopyingObject() ||
-        cxxconstructordecl->isInheritingConstructor();
-      if (!is_special_ctor)
-        for (const auto* param: cxxconstructordecl->parameters())
-          ctor_param_names.insert(param->getNameAsString());
-      continue;
+        ctordecl->isDefaultConstructor() ||
+        ctordecl->isCopyOrMoveConstructor() ||
+        ctordecl->isSpecializationCopyingObject() ||
+        ctordecl->isInheritingConstructor();
+      if (!is_special_ctor) {
+        std::vector<std::unique_ptr<TorchParam>> ctor_params_;
+        std::set<std::string> ctor_param_names_;
+        bool extract_succeed = true;
+        for (const auto* param: ctordecl->parameters()) {
+          std::string param_name = param->getNameAsString();
+          std::unique_ptr<TorchParam> torch_param = extractTorchParam(param->getType(), param_name, Ctx);
+          if (torch_param == nullptr) {
+            std::cerr <<
+              "WARNING: Parsing fail on param `" << param_name << "` in `" << api_options_class_name << "`.\n" <<
+              "         Type `" << param->getType().getAsString() << "` is not supported." << std::endl;
+            extract_succeed = false;
+            break;
+          }
+          torch_param->set_default(get_default_expr(param_name, cdecl));
+          ctor_params_.push_back(std::move(torch_param));
+          ctor_param_names_.insert(param_name);
+        }
+        if (extract_succeed) {
+          ctor_params = std::move(ctor_params_);
+          ctor_param_names = ctor_param_names_;
+          break;
+        }
+      }
     }
+    if (ctor_params.empty())
+      return nullptr;
+  }
+
+  for (auto method: cdecl->methods()) {
+    if (dyn_cast<CXXConstructorDecl>(method) != nullptr)
+      continue;
+
     std::string param_name = method->getNameAsString();
+    if (ctor_param_names.find(param_name) != ctor_param_names.end())
+      continue;
     if (method->isCopyAssignmentOperator() || method->isMoveAssignmentOperator())
       continue;
     if (method->parameters().size() != 1)
@@ -520,6 +573,8 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
     }
     if (duplicate)
       continue;
+    if (get_base(method->getReturnType(), Ctx) != get_base(t, Ctx))
+      continue;
 
     std::unique_ptr<TorchParam> param = extractTorchParam(method->parameters()[0]->getType(), param_name, Ctx);
     if (param == nullptr) {
@@ -530,16 +585,9 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
     }
     param->set_default(get_default_expr(param_name, cdecl));
 
-    if (ctor_param_names.find(param_name) != ctor_param_names.end()) {
-      if (ctor_params_seen.find(param_name) == ctor_params_seen.end()) {
-        ctor_params.push_back(std::move(param));
-        ctor_params_seen.insert(param_name);
-      }
-    } else {
-      if (member_params_seen.find(param_name) == member_params_seen.end()) {
-        member_params.push_back(std::move(param));
-        member_params_seen.insert(param_name);
-      }
+    if (member_params_seen.find(param_name) == member_params_seen.end()) {
+      member_params.push_back(std::move(param));
+      member_params_seen.insert(param_name);
     }
   }
   std::unique_ptr<TorchParam> torch_param =

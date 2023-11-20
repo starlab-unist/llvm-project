@@ -97,7 +97,7 @@ class TorchParam {
 
 class TorchIntParam: public TorchParam {
   public:
-    TorchIntParam(std::string name_);
+    TorchIntParam(std::string name_, std::string range_);
     virtual void set_default(Expr* default_expr) override;
     void set_default(int value);
 
@@ -109,6 +109,7 @@ class TorchIntParam: public TorchParam {
 
     static bool classof(const TorchParam *param);
   private:
+    std::string range;
     Optional<int> default_value = None;
 };
 
