@@ -298,22 +298,6 @@ void TorchVariantParam::resolve_name_conflict(std::set<std::string>& names_seen)
     param->resolve_name_conflict(names_seen);
 }
 
-std::vector<std::string> TorchVariantParam::gen_api_options_init(
-  std::string api_optons_class_name, std::string api_optons_var_name) const
-{
-  std::vector<std::string> api_options_init;
-  api_options_init.push_back(api_optons_class_name + space + api_optons_var_name + semicolon);
-  for (size_t i = 0; i < params.size(); i++) {
-    std::string if_cond = i == 0 ? "" : "} else ";
-    api_options_init.push_back(if_cond + "if " + bracket(callback_var(name) + " == " + std::to_string(i)) + " {");
-    api_options_init.push_back(
-      "  " + api_optons_var_name + assign +
-      api_optons_class_name + bracket(params[i]->expr()) + semicolon);
-  }
-  api_options_init.push_back("}");
-  return api_options_init;
-}
-
 bool TorchVariantParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Variant;
 }
@@ -890,33 +874,17 @@ std::vector<std::string> TorchAPIOptionsParam::gen_member_param_set() const {
 std::vector<std::string> TorchAPIOptionsParam::gen_api_options_init() const {
   std::vector<std::string> api_options_init;
 
-  bool is_sole_variant_ctor =
-    ctor_params.size() == 1 && isa<TorchVariantParam>(ctor_params[0].get());
-
-  if (is_sole_variant_ctor) {
-    TorchVariantParam* sole_variant_ctor =
-      dyn_cast<TorchVariantParam>(ctor_params[0].get());
-    concat(
-      api_options_init,
-      sole_variant_ctor->gen_api_options_init(api_optons_class_name, name));
-    auto member_param_set = gen_member_param_set();
-    if (!member_param_set.empty())
-      api_options_init.push_back(name);
-    for (auto& param_set: gen_member_param_set())
-      api_options_init.push_back("  " + param_set);
-  } else {
-    api_options_init.push_back("auto " + name + assign);
-    std::string initializer = "  " + api_optons_class_name + "(";
-    for (size_t i = 0; i < ctor_params.size(); i++) {
-      initializer += ctor_params[i]->expr();
-      if (i != ctor_params.size() - 1)
-        initializer += comma;
-    }
-    initializer += ")";
-    api_options_init.push_back(initializer);
-    for (auto& param_set: gen_member_param_set())
-      api_options_init.push_back("    " + param_set);
+  api_options_init.push_back("auto " + name + assign);
+  std::string initializer = "  " + api_optons_class_name + "(";
+  for (size_t i = 0; i < ctor_params.size(); i++) {
+    initializer += ctor_params[i]->expr();
+    if (i != ctor_params.size() - 1)
+      initializer += comma;
   }
+  initializer += ")";
+  api_options_init.push_back(initializer);
+  for (auto& param_set: gen_member_param_set())
+    api_options_init.push_back("    " + param_set);
   api_options_init.back() = api_options_init.back() + semicolon;
   return api_options_init;
 }

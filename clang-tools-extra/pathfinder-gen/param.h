@@ -234,9 +234,6 @@ class TorchVariantParam: public TorchBoundedParam {
     virtual std::vector<std::string> gen_arg_initialization() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
-    std::vector<std::string> gen_api_options_init(
-      std::string api_optons_class_name, std::string api_optons_var_name) const;
-
     static bool classof(const TorchParam *param);
   private:
     std::vector<std::unique_ptr<TorchParam>> params;
