@@ -249,6 +249,48 @@ bool TorchDoubleParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Double;
 }
 
+TorchMemoryFormatParam::TorchMemoryFormatParam(std::string name_)
+  : TorchBoundedParam(TPK_MemoryFormat, name_, memory_format_dictionary + ".size()") {}
+
+std::string TorchMemoryFormatParam::type() const {
+  return "c10::MemoryFormat";
+}
+std::string TorchMemoryFormatParam::initializer() const {
+  return memory_format_dictionary + square(callback_var(name));
+}
+
+bool TorchMemoryFormatParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_MemoryFormat;
+}
+
+TorchLayoutParam::TorchLayoutParam(std::string name_)
+  : TorchBoundedParam(TPK_Layout, name_, layout_dictionary + ".size()") {}
+
+std::string TorchLayoutParam::type() const {
+  return "c10::Layout";
+}
+std::string TorchLayoutParam::initializer() const {
+  return layout_dictionary + square(callback_var(name));
+}
+
+bool TorchLayoutParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Layout;
+}
+
+TorchDeviceParam::TorchDeviceParam(std::string name_)
+  : TorchBoundedParam(TPK_Device, name_, device_dictionary + ".size()") {}
+
+std::string TorchDeviceParam::type() const {
+  return "c10::Device";
+}
+std::string TorchDeviceParam::initializer() const {
+  return device_dictionary + square(callback_var(name));
+}
+
+bool TorchDeviceParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Device;
+}
+
 TorchDtypeParam::TorchDtypeParam(std::string name_): TorchBoundedParam(TPK_Dtype, name_, "dtype_list") {}
 
 std::string TorchDtypeParam::type() const {

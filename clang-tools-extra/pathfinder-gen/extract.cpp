@@ -46,6 +46,36 @@ std::unique_ptr<TorchParam> extractTorchString(clang::QualType t, std::string na
   return torch_param;
 }
 
+std::unique_ptr<TorchParam> extractTorchMemoryFormat(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  if (const auto* etype = t->getAs<EnumType>())
+    if (etype->getDecl()->getNameAsString() == "MemoryFormat")
+      torch_param = std::make_unique<TorchMemoryFormatParam>(name);
+
+  return torch_param;
+}
+
+std::unique_ptr<TorchParam> extractTorchLayout(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  if (const auto* etype = t->getAs<EnumType>())
+    if (etype->getDecl()->getNameAsString() == "Layout")
+      torch_param = std::make_unique<TorchLayoutParam>(name);
+
+  return torch_param;
+}
+
+std::unique_ptr<TorchParam> extractTorchDevice(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  if (const auto* rtype = t->getAs<RecordType>())
+    if (rtype->getDecl()->getQualifiedNameAsString() == "c10::Device")
+      torch_param = std::make_unique<TorchDeviceParam>(name);
+
+  return torch_param;
+}
+
 std::unique_ptr<TorchParam> extractTorchDtype(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
@@ -583,6 +613,12 @@ std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string nam
     return builtin_param;
   if (auto string_param = extractTorchString(t, name, Ctx))
     return string_param;
+  if (auto memory_format_param = extractTorchMemoryFormat(t, name, Ctx))
+    return memory_format_param;
+  if (auto layout_param = extractTorchLayout(t, name, Ctx))
+    return layout_param;
+  if (auto device_param = extractTorchDevice(t, name, Ctx))
+    return device_param;
   if (auto dtype_param = extractTorchDtype(t, name, Ctx))
     return dtype_param;
   if (auto enum_param = extractTorchEnum(t, name, Ctx))

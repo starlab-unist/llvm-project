@@ -23,6 +23,10 @@ const std::string bfloat_value_dictionary = "bfloat_dict";
 const std::string half_value_dictionary = "half_dict";
 const std::string float_value_dictionary = "float_dict";
 const std::string double_value_dictionary = "double_dict";
+const std::string memory_format_dictionary = "memory_format_dict";
+const std::string layout_dictionary = "layout_dict";
+const std::string device_dictionary = "device_dict";
+
 
 void set_function_mode();
 void set_module_mode();
@@ -45,6 +49,9 @@ class TorchParam {
       TPK_Half,
       TPK_Float,
       TPK_Double,
+      TPK_MemoryFormat,
+      TPK_Layout,
+      TPK_Device,
       TPK_Dtype,
       TPK_Variant,
       TPK_Bounded_First = TPK_Null,
@@ -222,6 +229,36 @@ class TorchFloatParam: public TorchBoundedParam {
 class TorchDoubleParam: public TorchBoundedParam {
   public:
     TorchDoubleParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchMemoryFormatParam: public TorchBoundedParam {
+  public:
+    TorchMemoryFormatParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchLayoutParam: public TorchBoundedParam {
+  public:
+    TorchLayoutParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchDeviceParam: public TorchBoundedParam {
+  public:
+    TorchDeviceParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
