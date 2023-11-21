@@ -29,7 +29,8 @@ void set_module_mode() { module_mode = true; }
 bool is_module_mode() { return module_mode; }
 
 
-TorchIntParam::TorchIntParam(std::string name_): TorchParam(TPK_Int, name_) {}
+TorchIntParam::TorchIntParam(std::string name_, std::string range_)
+  : TorchParam(TPK_Int, name_), range(range_) {}
 void TorchIntParam::set_default(Expr* default_expr) {
   if (default_expr == nullptr)
     return;
@@ -45,10 +46,10 @@ void TorchIntParam::set_default(int value) {
 }
 
 std::string TorchIntParam::type() const {
-  return "long";
+  return range;
 }
 std::string TorchIntParam::initializer() const {
-  return callback_var(name);
+  return  bracket(type()) + bracket(callback_var(name));
 }
 
 std::vector<std::string> TorchIntParam::gen_arg_setup() const {
@@ -294,7 +295,8 @@ bool TorchDeviceParam::classof(const TorchParam *param) {
 TorchDtypeParam::TorchDtypeParam(std::string name_): TorchBoundedParam(TPK_Dtype, name_, "dtype_list") {}
 
 std::string TorchDtypeParam::type() const {
-  return "torch::Dtype";
+  //return "torch::Dtype";
+  return "c10::ScalarType";
 }
 std::string TorchDtypeParam::initializer() const {
   return get_dtype(name);
@@ -364,22 +366,6 @@ void TorchVariantParam::resolve_name_conflict(std::set<std::string>& names_seen)
     param->resolve_name_conflict(names_seen);
 }
 
-std::vector<std::string> TorchVariantParam::gen_api_options_init(
-  std::string api_optons_class_name, std::string api_optons_var_name) const
-{
-  std::vector<std::string> api_options_init;
-  api_options_init.push_back(api_optons_class_name + space + api_optons_var_name + semicolon);
-  for (size_t i = 0; i < params.size(); i++) {
-    std::string if_cond = i == 0 ? "" : "} else ";
-    api_options_init.push_back(if_cond + "if " + bracket(callback_var(name) + " == " + std::to_string(i)) + " {");
-    api_options_init.push_back(
-      "  " + api_optons_var_name + assign +
-      api_optons_class_name + bracket(params[i]->expr()) + semicolon);
-  }
-  api_options_init.push_back("}");
-  return api_options_init;
-}
-
 bool TorchVariantParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Variant;
 }
@@ -387,7 +373,7 @@ bool TorchVariantParam::classof(const TorchParam *param) {
 std::vector<std::string> TorchVariantParam::gen_typedef() const {
   std::vector<std::string> typedef_str;
   typedef_str.push_back("typedef");
-  typedef_str.push_back("  c10::variant<");
+  typedef_str.push_back("  std::variant<");
   for (size_t i = 0; i < params.size(); i++) {
     std::string param_type = "    " + params[i]->type();
     if (i != params.size() - 1)
@@ -494,7 +480,7 @@ bool TorchVectorParam::classof(const TorchParam *param) {
 }
 
 
-TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+/* TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
   : TorchUnfixedArrayParam(TPK_ArrayRef, name_, std::move(params_))
 { assert(params.size() == MAX_ARRAYREF_SIZE); }
 
@@ -507,6 +493,44 @@ std::string TorchArrayRefParam::initializer() const {
 
 bool TorchArrayRefParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_ArrayRef;
+} */
+
+TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchParam(TPK_ArrayRef, name_)
+{
+  assert(!params_.empty());
+  base_type = params_[0]->type();
+  vec = std::make_unique<TorchVectorParam>(name + "_vec", std::move(params_));
+}
+
+std::string TorchArrayRefParam::type() const {
+  return "c10::ArrayRef<" + base_type + ">";
+}
+std::string TorchArrayRefParam::var() const {
+  return name;
+}
+std::string TorchArrayRefParam::initializer() const {
+  return type() + bracket(vec->expr());
+}
+
+std::vector<std::string> TorchArrayRefParam::gen_arg_setup() const {
+  return vec->gen_arg_setup();
+}
+std::vector<std::string> TorchArrayRefParam::gen_hard_constraint() const {
+  return vec->gen_hard_constraint();
+}
+std::vector<std::string> TorchArrayRefParam::gen_soft_constraint() const {
+  return vec->gen_soft_constraint();
+}
+std::vector<std::string> TorchArrayRefParam::gen_arg_initialization() const {
+  std::vector<std::string> arg_initialization;
+  concat(arg_initialization, vec->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
+  return arg_initialization;
+}
+void TorchArrayRefParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TorchParam::resolve_name_conflict(names_seen);
+  vec->resolve_name_conflict(names_seen);
 }
 
 
@@ -660,7 +684,7 @@ TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, na
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
   rank = std::make_unique<TorchBoundedIntParam>(name + "_rank", MAX_RANK + 1);
   for (size_t i = 0; i < MAX_RANK; i++)
-    dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i)));
+    dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i), "long"));
   for (auto&& dim: dims)
     dim->set_default(1);
 }
@@ -705,7 +729,7 @@ bool TorchTensorParam::classof(const TorchParam *param) {
 
 TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, name_) {
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
-  intValue = std::make_unique<TorchIntParam>(name + "_int");
+  intValue = std::make_unique<TorchIntParam>(name + "_int", "int");
   uintValue = std::make_unique<TorchUnsignedIntParam>(name + "_uint");
   bfloatValue = std::make_unique<TorchBFloatParam>(name + "_bfloat");
   halfValue = std::make_unique<TorchHalfParam>(name + "_half");
@@ -918,33 +942,17 @@ std::vector<std::string> TorchAPIOptionsParam::gen_member_param_set() const {
 std::vector<std::string> TorchAPIOptionsParam::gen_api_options_init() const {
   std::vector<std::string> api_options_init;
 
-  bool is_sole_variant_ctor =
-    ctor_params.size() == 1 && isa<TorchVariantParam>(ctor_params[0].get());
-
-  if (is_sole_variant_ctor) {
-    TorchVariantParam* sole_variant_ctor =
-      dyn_cast<TorchVariantParam>(ctor_params[0].get());
-    concat(
-      api_options_init,
-      sole_variant_ctor->gen_api_options_init(api_optons_class_name, name));
-    auto member_param_set = gen_member_param_set();
-    if (!member_param_set.empty())
-      api_options_init.push_back(name);
-    for (auto& param_set: gen_member_param_set())
-      api_options_init.push_back("  " + param_set);
-  } else {
-    api_options_init.push_back("auto " + name + assign);
-    std::string initializer = "  " + api_optons_class_name + "(";
-    for (size_t i = 0; i < ctor_params.size(); i++) {
-      initializer += ctor_params[i]->expr();
-      if (i != ctor_params.size() - 1)
-        initializer += comma;
-    }
-    initializer += ")";
-    api_options_init.push_back(initializer);
-    for (auto& param_set: gen_member_param_set())
-      api_options_init.push_back("    " + param_set);
+  api_options_init.push_back("auto " + name + assign);
+  std::string initializer = "  " + api_optons_class_name + "(";
+  for (size_t i = 0; i < ctor_params.size(); i++) {
+    initializer += ctor_params[i]->expr();
+    if (i != ctor_params.size() - 1)
+      initializer += comma;
   }
+  initializer += ")";
+  api_options_init.push_back(initializer);
+  for (auto& param_set: gen_member_param_set())
+    api_options_init.push_back("    " + param_set);
   api_options_init.back() = api_options_init.back() + semicolon;
   return api_options_init;
 }
