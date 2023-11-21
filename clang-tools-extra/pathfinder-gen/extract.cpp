@@ -31,6 +31,21 @@ std::unique_ptr<TorchParam> extractTorchBuiltin(clang::QualType t, std::string n
   return torch_param;
 }
 
+std::unique_ptr<TorchParam> extractTorchString(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TorchParam> torch_param;
+
+  if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
+    if (tstype->isSugared()) {
+      if (const auto* rtype = dyn_cast<RecordType>(tstype->desugar())) {
+        if (rtype->getDecl()->getNameAsString() == "basic_string" || rtype->getDecl()->getNameAsString() == "basic_string_view")
+          torch_param = std::make_unique<TorchStringParam>(name);
+      }
+    }
+  }
+
+  return torch_param;
+}
+
 std::unique_ptr<TorchParam> extractTorchDtype(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TorchParam> torch_param;
 
@@ -357,10 +372,8 @@ std::unique_ptr<TorchParam> extractTorchSymint(clang::QualType t, std::string na
   std::unique_ptr<TorchParam> torch_param;
 
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
-    if (rtype->getDecl()->getNameAsString() == "SymInt") {
-      std::cerr << "Enter SymInt extract" << std::endl;
+    if (rtype->getDecl()->getNameAsString() == "SymInt")
       torch_param = std::make_unique<TorchIntParam>(name);
-    }
   }
   
   return torch_param;
@@ -566,10 +579,10 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
 
 std::unique_ptr<TorchParam> extractTorchParam(clang::QualType t, std::string name, ASTContext &Ctx) {
   // Base case
-  //if (auto tensorOptions_param = extractTorchTensorOptions(t, name, Ctx))
-  //  return tensorOptions_param;
   if (auto builtin_param = extractTorchBuiltin(t, name, Ctx))
     return builtin_param;
+  if (auto string_param = extractTorchString(t, name, Ctx))
+    return string_param;
   if (auto dtype_param = extractTorchDtype(t, name, Ctx))
     return dtype_param;
   if (auto enum_param = extractTorchEnum(t, name, Ctx))

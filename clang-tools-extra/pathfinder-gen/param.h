@@ -18,6 +18,7 @@ extern const size_t MAX_ARRAYREF_SIZE;
 
 const std::string symbolic_int_var = "sym_int_arg";
 const std::string callback_input_var = "x";
+const std::string string_value_dictionary = "string_dict";
 const std::string bfloat_value_dictionary = "bfloat_dict";
 const std::string half_value_dictionary = "half_dict";
 const std::string float_value_dictionary = "float_dict";
@@ -39,6 +40,7 @@ class TorchParam {
       TPK_Null,
       TPK_BoundedInt,
       TPK_Bool,
+      TPK_String,
       TPK_BFloat,
       TPK_Half,
       TPK_Float,
@@ -170,6 +172,16 @@ class TorchBoundedIntParam: public TorchBoundedParam {
 class TorchBoolParam: public TorchBoundedParam {
   public:
     TorchBoolParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchStringParam: public TorchBoundedParam {
+  public:
+    TorchStringParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;

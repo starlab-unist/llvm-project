@@ -179,6 +179,20 @@ bool TorchBoolParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Bool;
 }
 
+TorchStringParam::TorchStringParam(std::string name_)
+  : TorchBoundedParam(TPK_String, name_, string_value_dictionary + ".size()") {}
+
+std::string TorchStringParam::type() const {
+  return "String";
+}
+std::string TorchStringParam::initializer() const {
+  return string_value_dictionary + square(callback_var(name));
+}
+
+bool TorchStringParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_String;
+}
+
 TorchBFloatParam::TorchBFloatParam(std::string name_)
   : TorchBoundedParam(TPK_Float, name_, bfloat_value_dictionary + ".size()") {}
 
