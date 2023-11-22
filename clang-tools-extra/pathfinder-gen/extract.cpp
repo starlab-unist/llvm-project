@@ -117,9 +117,14 @@ std::unique_ptr<TorchParam> extractTorchVector(clang::QualType t, std::string na
               std::unique_ptr<TorchParam> param =
                 extractTorchParam(targs[0].getAsType(), param_name, Ctx);
               if (param == nullptr)
-                return nullptr;
+                break;
               params.push_back(std::move(param));
             }
+            if (params.empty())
+              std::cerr <<
+                "WARNING: While extracting `vector` param `" << name << "`, failed to extract base type `" <<
+                targs[0].getAsType().getAsString() << "`.\n" <<
+                "         param `" << name << "` will be fixed to empty vector." << std::endl;
             torch_param = std::make_unique<TorchVectorParam>(name, std::move(params));
           } else {
             assert(false);
@@ -175,9 +180,14 @@ std::unique_ptr<TorchParam> extractTorchArrayRef(clang::QualType t, std::string 
           std::unique_ptr<TorchParam> param =
             extractTorchParam(targ[0].getAsType(), param_name, Ctx);
           if (param == nullptr)
-            return nullptr;
+            break;
           params.push_back(std::move(param));
         }
+        if (params.empty())
+          std::cerr <<
+            "WARNING: While extracting `ArrayRef` param `" << name << "`, failed to extract base type `" <<
+            targ[0].getAsType().getAsString() << "`.\n" <<
+            "         param `" << name << "` will be fixed to empty ArrayRef." << std::endl;
         torch_param = std::make_unique<TorchArrayRefParam>(name, std::move(params));
       }
     }
@@ -202,9 +212,14 @@ std::unique_ptr<TorchParam> extractTorchOptionalArrayRef(clang::QualType t, std:
         std::unique_ptr<TorchParam> param =
           extractTorchParam(targ[0].getAsType(), name + "_" + std::to_string(i), Ctx);
         if (param == nullptr)
-          return nullptr;
+          break;
         params.push_back(std::move(param));
       }
+      if (params.empty())
+        std::cerr <<
+          "WARNING: While extracting `OptionalArrayRef` param `" << name << "`, failed to extract base type `" <<
+          targ[0].getAsType().getAsString() << "`.\n" <<
+          "         param `" << name << "` will be fixed to nullopt." << std::endl;
       std::unique_ptr<TorchParam> arrayref =
         std::make_unique<TorchArrayRefParam>(name + "_arrayref", std::move(params));
       torch_param = std::make_unique<TorchOptionalParam>(name, std::move(arrayref));
@@ -403,7 +418,7 @@ std::unique_ptr<TorchParam> extractTorchSymint(clang::QualType t, std::string na
 
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
     if (rtype->getDecl()->getNameAsString() == "SymInt")
-      torch_param = std::make_unique<TorchIntParam>(name);
+      torch_param = std::make_unique<TorchIntParam>(name, "long");
   }
   
   return torch_param;
@@ -421,7 +436,10 @@ std::unique_ptr<TorchParam> extractTorchOptional(clang::QualType t, std::string 
           std::unique_ptr<TorchParam> param =
             extractTorchParam(targ[0].getAsType(), name + "_base", Ctx);
           if (param == nullptr)
-            param = std::make_unique<TorchNullParam>(name + "_null");
+            std::cerr <<
+              "WARNING: While extracting `optional` param `" << name << "`, failed to extract base type `" <<
+              targ[0].getAsType().getAsString() << "`.\n" <<
+              "         param `" << name << "` will be fixed to `nullopt`." << std::endl;
           torch_param = std::make_unique<TorchOptionalParam>(name, std::move(param));
         }
       }
@@ -565,7 +583,6 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
   std::vector<std::unique_ptr<TorchParam>> ctor_params;
   std::vector<std::unique_ptr<TorchParam>> member_params;
   std::set<std::string> ctor_param_names;
-  std::set<std::string> ctor_params_seen;
   std::set<std::string> member_params_seen;
 
   bool default_ctor_available = false;
@@ -620,15 +637,6 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
       continue;
     if (method->parameters().size() != 1)
       continue;
-    bool duplicate = false;
-    for (auto&& p: member_params) {
-      if (p->get_name() == param_name) {
-        duplicate = true;
-        break;
-      }
-    }
-    if (duplicate)
-      continue;
     if (get_base(method->getReturnType(), Ctx) != get_base(t, Ctx))
       continue;
 
@@ -641,10 +649,18 @@ std::unique_ptr<TorchParam> extractTorchAPIOptions(clang::QualType t, std::strin
     }
     param->set_default(get_default_expr(param_name, cdecl));
 
-    if (member_params_seen.find(param_name) == member_params_seen.end()) {
-      member_params.push_back(std::move(param));
-      member_params_seen.insert(param_name);
+    bool insert = true;
+    for (size_t i = 0; i < member_params.size(); i++) {
+      if (member_params[i]->get_name() == param_name) {
+        insert = false;
+        if (!member_params[i]->stable()) {
+          member_params[i] = std::move(param);
+          break;
+        }
+      }
     }
+    if (insert)
+      member_params.push_back(std::move(param));
   }
   std::unique_ptr<TorchParam> torch_param =
     std::make_unique<TorchAPIOptionsParam>(

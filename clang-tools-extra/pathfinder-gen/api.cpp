@@ -25,17 +25,25 @@ std::vector<std::string> TorchAPI::arg_setup_code() const {
 }
 std::vector<std::string> TorchAPI::hard_constraint_code() const {
   std::vector<std::string> hard_constraint;
-  hard_constraint.push_back("PathFinderAddHardConstraint({");
   for (auto& param: params)
     concat(hard_constraint, "  ", param->gen_hard_constraint(), comma);
+
+  if (hard_constraint.empty())
+    return {};
+
+  hard_constraint.insert(hard_constraint.begin(), "PathFinderAddHardConstraint({");
   hard_constraint.push_back("});");
   return hard_constraint;
 }
 std::vector<std::string> TorchAPI::soft_constraint_code() const {
   std::vector<std::string> soft_constraint;
-  soft_constraint.push_back("PathFinderAddSoftConstraint({");
   for (auto& param: params)
     concat(soft_constraint, "  ", param->gen_soft_constraint(), comma);
+
+  if (soft_constraint.empty())
+    return {};
+
+  soft_constraint.insert(soft_constraint.begin(), "PathFinderAddSoftConstraint({");
   soft_constraint.push_back("});");
   return soft_constraint;
 }

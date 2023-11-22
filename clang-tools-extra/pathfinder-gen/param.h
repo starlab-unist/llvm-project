@@ -97,6 +97,7 @@ class TorchParam {
       name = unique_name(name, names_seen);
     }
     
+    virtual bool stable() const { return true; }
     std::string get_name() const { return name; }
     TorchParamKind get_kind() const { return kind; }
   private:
@@ -330,6 +331,8 @@ class TorchUnfixedArrayParam: public TorchParam {
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    virtual bool stable() const override;
   protected:
     std::unique_ptr<TorchBoundedIntParam> size;
     std::vector<std::unique_ptr<TorchParam>> params;
@@ -368,6 +371,8 @@ class TorchArrayRefParam: public TorchParam {
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    virtual bool stable() const override;
 
     static bool classof(const TorchParam *param);
   private:
@@ -519,6 +524,8 @@ class TorchOptionalParam: public TorchParam {
     virtual std::vector<std::string> gen_input_pass_condition() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    virtual bool stable() const override;
 
     std::string base_type() const;
 
