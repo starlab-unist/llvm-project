@@ -138,6 +138,18 @@ std::vector<std::string> TorchBoundedParam::gen_arg_setup() const {
   return {"PathFinderEnumArg" + bracket(setup_args) + semicolon};
 }
 
+// constexpr nullopt_t nullopt{0};
+TorchNullParam::TorchNullParam(std::string name_)
+  : TorchBoundedParam(TPK_Null, name_, std::vector<std::string>({"c10::nullopt"})) {}
+std::string TorchNullParam::type() const {
+  return "nullopt_t";
+}
+std::string TorchNullParam::initializer() const {
+  return bracket(type()) + bracket(callback_var(name));
+}
+bool TorchNullParam::classof(const TorchParam *param){
+  return param->get_kind() == TPK_Null;
+}
 
 TorchBoundedIntParam::TorchBoundedIntParam(std::string name_, size_t size_)
   : TorchBoundedParam(TPK_BoundedInt, name_, size_) {}
@@ -161,11 +173,25 @@ std::string TorchBoolParam::type() const {
   return "bool";
 }
 std::string TorchBoolParam::initializer() const {
-  return  bracket(type()) + bracket(callback_var(name));
+  return bracket(type()) + bracket(callback_var(name));
 }
 
 bool TorchBoolParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Bool;
+}
+
+TorchStringParam::TorchStringParam(std::string name_)
+  : TorchBoundedParam(TPK_String, name_, string_value_dictionary + ".size()") {}
+
+std::string TorchStringParam::type() const {
+  return "String";
+}
+std::string TorchStringParam::initializer() const {
+  return string_value_dictionary + square(callback_var(name));
+}
+
+bool TorchStringParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_String;
 }
 
 TorchBFloatParam::TorchBFloatParam(std::string name_)
@@ -222,6 +248,48 @@ std::string TorchDoubleParam::initializer() const {
 
 bool TorchDoubleParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Double;
+}
+
+TorchMemoryFormatParam::TorchMemoryFormatParam(std::string name_)
+  : TorchBoundedParam(TPK_MemoryFormat, name_, memory_format_dictionary + ".size()") {}
+
+std::string TorchMemoryFormatParam::type() const {
+  return "c10::MemoryFormat";
+}
+std::string TorchMemoryFormatParam::initializer() const {
+  return memory_format_dictionary + square(callback_var(name));
+}
+
+bool TorchMemoryFormatParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_MemoryFormat;
+}
+
+TorchLayoutParam::TorchLayoutParam(std::string name_)
+  : TorchBoundedParam(TPK_Layout, name_, layout_dictionary + ".size()") {}
+
+std::string TorchLayoutParam::type() const {
+  return "c10::Layout";
+}
+std::string TorchLayoutParam::initializer() const {
+  return layout_dictionary + square(callback_var(name));
+}
+
+bool TorchLayoutParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Layout;
+}
+
+TorchDeviceParam::TorchDeviceParam(std::string name_)
+  : TorchBoundedParam(TPK_Device, name_, device_dictionary + ".size()") {}
+
+std::string TorchDeviceParam::type() const {
+  return "c10::Device";
+}
+std::string TorchDeviceParam::initializer() const {
+  return device_dictionary + square(callback_var(name));
+}
+
+bool TorchDeviceParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_Device;
 }
 
 TorchDtypeParam::TorchDtypeParam(std::string name_): TorchBoundedParam(TPK_Dtype, name_, "dtype_list") {}
