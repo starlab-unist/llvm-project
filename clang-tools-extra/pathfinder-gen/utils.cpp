@@ -228,12 +228,13 @@ void make_group_dir_and_write_fuzz_targets(
 std::map<std::string, std::map<std::string, std::set<std::string>>> api_groups;
 
 void save_fuzz_target(std::string api_group_name, std::string api_name, std::string fuzz_target) {
+  std::string file_name = api_group_name + "_" + api_name;
   if (api_groups.find(api_group_name) == api_groups.end())
     api_groups[api_group_name] = {};
-  if (api_groups[api_group_name].find(api_name) == api_groups[api_group_name].end())
-    api_groups[api_group_name][api_name] = {};
+  if (api_groups[api_group_name].find(file_name) == api_groups[api_group_name].end())
+    api_groups[api_group_name][file_name] = {};
 
-  api_groups[api_group_name][api_name].insert(fuzz_target);
+  api_groups[api_group_name][file_name].insert(fuzz_target);
 }
 
 void write_fuzz_target() {

@@ -121,14 +121,17 @@ std::vector<std::string> TorchAPI::footer() const {
 
 TorchFunction::TorchFunction(
   std::string func_name,
-  std::vector<std::unique_ptr<TorchParam>> params_)
-  : TorchAPI(func_name)
+  std::vector<std::unique_ptr<TorchParam>> params_,
+  bool is_void_function_)
+  : TorchAPI(func_name), is_void_function(is_void_function_)
 {
   params = std::move(params_);
 }
 
 std::vector<std::string> TorchFunction::api_call_code() const {
   std::string api_call =
+    is_void_function ?
+    api_name + "(" :
     "auto " + callback_result_var + " = " + api_name + "(";
   for (size_t i = 0; i < params.size(); i++) {
     api_call += params[i]->expr();

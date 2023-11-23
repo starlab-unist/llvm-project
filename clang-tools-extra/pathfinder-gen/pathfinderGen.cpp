@@ -55,7 +55,8 @@ public:
       params.push_back(std::move(p));
     }
 
-    TorchFunction torch_function(function_name_qualified, std::move(params));
+    bool is_void_function = Declaration->getReturnType()->isVoidType();
+    TorchFunction torch_function(function_name_qualified, std::move(params), is_void_function);
     save_fuzz_target(function_group, function_name, torch_function.gen_fuzz_target());
 
     return true;
