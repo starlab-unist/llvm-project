@@ -1,0 +1,12 @@
+compile
+freeze
+getFusionStrategy
+getInlineEverythingMode
+import_ir_module
+jitModuleFromSourceAndConstants
+load
+load_jit_module_from_file
+load_jit_module_from_stream
+optimize_for_inference
+parse_and_initialize_jit_module
+setFusionStrategy
