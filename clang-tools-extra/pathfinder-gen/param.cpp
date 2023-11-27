@@ -330,33 +330,67 @@ bool TorchDeviceParam::classof(const TorchParam *param) {
 }
 
 
-TorchDtypeParam::TorchDtypeParam(std::string name_)
-  : TorchBoundedParam(TPK_Dtype, name_, "dtype_dict().size()") {}
+TorchBasicDtypeParam::TorchBasicDtypeParam(std::string name_)
+  : TorchBoundedParam(TPK_BasicDtype, name_, "dtype_dict().size()") {}
+
+std::string TorchBasicDtypeParam::type() const {
+  return "c10::ScalarType";
+}
+std::string TorchBasicDtypeParam::initializer() const {
+  return "get_dtype" + bracket(callback_var(name));
+}
+
+bool TorchBasicDtypeParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_BasicDtype;
+}
+
+
+TorchExtendedDtypeParam::TorchExtendedDtypeParam(std::string name_)
+  : TorchBoundedParam(TPK_ExtendedDtype, name_, "qdtype_dict().size()") {}
+
+std::string TorchExtendedDtypeParam::type() const {
+  return "c10::ScalarType";
+}
+std::string TorchExtendedDtypeParam::initializer() const {
+  return "get_qdtype" + bracket(callback_var(name));
+}
+
+bool TorchExtendedDtypeParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_ExtendedDtype;
+}
+
+
+TorchDtypeParam::TorchDtypeParam(std::string name_): TorchParam(TPK_Dtype, name_) {
+  basic = std::make_unique<TorchBasicDtypeParam>(name_);
+  extended = std::make_unique<TorchExtendedDtypeParam>(name_);
+}
 
 std::string TorchDtypeParam::type() const {
   return "c10::ScalarType";
 }
 std::string TorchDtypeParam::initializer() const {
-  return "get_dtype" + bracket(callback_var(name));
+  return
+    get_fuzz_target_type() == FTT_Quantization ?
+    extended->initializer() :
+    basic->initializer();
+}
+
+std::vector<std::string> TorchDtypeParam::gen_arg_setup() const {
+  return
+    get_fuzz_target_type() == FTT_Quantization ?
+    extended->gen_arg_setup() :
+    basic->gen_arg_setup();
+}
+void TorchDtypeParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  if (get_fuzz_target_type() == FTT_Quantization) {
+    extended->resolve_name_conflict(names_seen);
+  } else {
+    basic->resolve_name_conflict(names_seen);
+  }
 }
 
 bool TorchDtypeParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Dtype;
-}
-
-
-TorchQDtypeParam::TorchQDtypeParam(std::string name_)
-  : TorchBoundedParam(TPK_QDtype, name_, "qdtype_dict().size()") {}
-
-std::string TorchQDtypeParam::type() const {
-  return "c10::ScalarType";
-}
-std::string TorchQDtypeParam::initializer() const {
-  return "get_qdtype" + bracket(callback_var(name));
-}
-
-bool TorchQDtypeParam::classof(const TorchParam *param) {
-  return param->get_kind() == TPK_QDtype;
 }
 
 
@@ -799,7 +833,6 @@ bool TorchPairParam::classof(const TorchParam *param) {
 
 TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, name_) {
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
-  qdtype = std::make_unique<TorchQDtypeParam>(name + "_qdtype");
   layout = std::make_unique<TorchLayoutParam>(name + "_layout");
   rank = std::make_unique<TorchBoundedIntParam>(name + "_rank", MAX_RANK + 1);
   for (size_t i = 0; i < MAX_RANK; i++)
@@ -811,22 +844,16 @@ TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, na
 std::string TorchTensorParam::type() const { return "torch::Tensor"; }
 std::string TorchTensorParam::var() const { return name; }
 std::string TorchTensorParam::initializer() const {
-  std::string dtype_expr =
-    get_fuzz_target_type() == FTT_Quantization ? qdtype->expr() : dtype->expr();
   std::string layout_expr =
     get_fuzz_target_type() == FTT_Sparse ? layout->expr() + comma : "";
   std::string args =
-    dtype_expr + comma + layout_expr + rank->expr() + comma + to_string(dims);
+    dtype->expr() + comma + layout_expr + rank->expr() + comma + to_string(dims);
   return "torch_tensor" + bracket(args);
 }
 
 std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
-  if (get_fuzz_target_type() == FTT_Quantization) {
-    concat(arg_setup, qdtype->gen_arg_setup());
-  } else {
-    concat(arg_setup, dtype->gen_arg_setup());
-  }
+  concat(arg_setup, dtype->gen_arg_setup());
   if (get_fuzz_target_type() == FTT_Sparse)
     concat(arg_setup, layout->gen_arg_setup());
   concat(arg_setup, rank->gen_arg_setup());
@@ -848,11 +875,7 @@ std::vector<std::string> TorchTensorParam::gen_arg_initialization() const {
 }
 void TorchTensorParam::resolve_name_conflict(std::set<std::string>& names_seen) {
   TorchParam::resolve_name_conflict(names_seen);
-  if (get_fuzz_target_type() == FTT_Quantization) {
-    qdtype->resolve_name_conflict(names_seen);
-  } else {
-    dtype->resolve_name_conflict(names_seen);
-  }
+  dtype->resolve_name_conflict(names_seen);
   if (get_fuzz_target_type() == FTT_Sparse)
     layout->resolve_name_conflict(names_seen);
   rank->resolve_name_conflict(names_seen);

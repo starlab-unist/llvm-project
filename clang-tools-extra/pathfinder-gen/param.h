@@ -38,6 +38,7 @@ class TorchParam {
       TPK_Int,
       TPK_SymInt,
       TPK_UnsignedInt,
+      TPK_Dtype,
       
       // TorchBoundedParam
       TPK_Null,
@@ -51,8 +52,8 @@ class TorchParam {
       TPK_MemoryFormat,
       TPK_Layout,
       TPK_Device,
-      TPK_Dtype,
-      TPK_QDtype,
+      TPK_BasicDtype,
+      TPK_ExtendedDtype,
       TPK_Variant,
       TPK_Bounded_First = TPK_Null,
       TPK_Bounded_Last = TPK_Variant,
@@ -287,9 +288,9 @@ class TorchDeviceParam: public TorchBoundedParam {
     static bool classof(const TorchParam *param);
 };
 
-class TorchDtypeParam: public TorchBoundedParam {
+class TorchBasicDtypeParam: public TorchBoundedParam {
   public:
-    TorchDtypeParam(std::string name_);
+    TorchBasicDtypeParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -297,14 +298,30 @@ class TorchDtypeParam: public TorchBoundedParam {
     static bool classof(const TorchParam *param);
 };
 
-class TorchQDtypeParam: public TorchBoundedParam {
+class TorchExtendedDtypeParam: public TorchBoundedParam {
   public:
-    TorchQDtypeParam(std::string name_);
+    TorchExtendedDtypeParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
     static bool classof(const TorchParam *param);
+};
+
+class TorchDtypeParam: public TorchParam {
+  public:
+    TorchDtypeParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    static bool classof(const TorchParam *param);
+  private:
+    std::unique_ptr<TorchBasicDtypeParam> basic;
+    std::unique_ptr<TorchExtendedDtypeParam> extended;
 };
 
 class TorchVariantParam: public TorchBoundedParam {
@@ -512,7 +529,6 @@ class TorchTensorParam: public TorchParam {
     static bool classof(const TorchParam *param);
   private:
     std::unique_ptr<TorchDtypeParam> dtype;
-    std::unique_ptr<TorchQDtypeParam> qdtype;
     std::unique_ptr<TorchLayoutParam> layout;
     std::unique_ptr<TorchBoundedIntParam> rank;
     std::vector<std::unique_ptr<TorchIntParam>> dims;
