@@ -11,6 +11,7 @@
 #include "utils.h"
 #include <iostream>
 #include <fstream>
+#include <regex>
 
 using namespace clang::tooling;
 using namespace llvm;
@@ -103,7 +104,7 @@ public:
     std::string function_group;
     for (auto& entry: get_torch_function_list()) {
       if (entry.second.find(function_name_qualified) != entry.second.end()) {
-        function_group = entry.first;
+        function_group = std::regex_replace(entry.first, std::regex("::"), "_");
         break;
       }
     }
@@ -284,9 +285,10 @@ public:
       std::move(ctor_params),
       std::move(forward_params));
 
-    output.add("basic", torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target(FTT_Basic));
-    output.add("quantization", torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target(FTT_Quantization));
-    output.add("sparse", torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target(FTT_Sparse));
+    std::string module_group_name = std::regex_replace(torch_module_list_file_name(), std::regex("::"), "_");
+    output.add("basic", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Basic));
+    output.add("quantization", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Quantization));
+    output.add("sparse", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Sparse));
 
     return true;
   }

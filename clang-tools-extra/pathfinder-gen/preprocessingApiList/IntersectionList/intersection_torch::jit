@@ -1,3 +1,0 @@
-torch::jit::freeze
-torch::jit::load
-torch::jit::optimize_for_inference

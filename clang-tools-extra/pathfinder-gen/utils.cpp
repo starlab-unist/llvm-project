@@ -123,7 +123,7 @@ std::string torch_api_list_dir_name() {
   return "torch-api-list";
 }
 std::string torch_module_list_file_name() {
-  return "module";
+  return "torch::nn";
 }
 
 std::vector<std::string> get_torch_api_groups() {

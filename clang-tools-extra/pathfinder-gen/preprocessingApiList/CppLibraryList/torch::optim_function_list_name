@@ -1,5 +1,0 @@
-deque_to_list
-list_to_deque
-operator<<
-operator>>
-serialize
