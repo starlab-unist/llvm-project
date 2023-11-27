@@ -1,0 +1,47 @@
+Function torch::jit::compile
+
+Function torch::jit::freeze
+
+Function torch::jit::getFusionStrategy
+
+Function torch::jit::getInlineEverythingMode
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, const std::string&, c10::optional<c10::Device>, bool)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, std::istream&, c10::optional<c10::Device>, bool)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, std::unique_ptr<caffe2::serialize::ReadAdapterInterface>, c10::optional<c10::Device>, bool)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, const std::string&, c10::optional<c10::Device>, ExtraFilesMap&, bool, bool)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, std::shared_ptr<caffe2::serialize::PyTorchStreamReader>, std::shared_ptr<torch::jit::DeserializationStorageContext>, c10::optional<at::Device>, std::string)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, std::istream&, c10::optional<c10::Device>, ExtraFilesMap&, bool, bool)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, std::unique_ptr<caffe2::serialize::ReadAdapterInterface>, c10::optional<c10::Device>, ExtraFilesMap&, bool)
+
+Function torch::jit::import_ir_module(std::shared_ptr<CompilationUnit>, std::shared_ptr<caffe2::serialize::ReadAdapterInterface>, c10::optional<c10::Device>, ExtraFilesMap&, bool)
+
+Function torch::jit::jitModuleFromSourceAndConstants
+
+Function torch::jit::load(std::istream&, c10::optional<c10::Device>, bool)
+
+Function torch::jit::load(std::istream&, c10::optional<c10::Device>, ExtraFilesMap&, bool)
+
+Function torch::jit::load(const std::string&, c10::optional<c10::Device>, bool)
+
+Function torch::jit::load(const std::string&, c10::optional<c10::Device>, ExtraFilesMap&, bool)
+
+Function torch::jit::load(std::shared_ptr<caffe2::serialize::ReadAdapterInterface>, c10::optional<c10::Device>, bool)
+
+Function torch::jit::load(std::shared_ptr<caffe2::serialize::ReadAdapterInterface>, c10::optional<c10::Device>, ExtraFilesMap&, bool)
+
+Function torch::jit::load_jit_module_from_file
+
+Function torch::jit::load_jit_module_from_stream
+
+Function torch::jit::optimize_for_inference
+
+Function torch::jit::parse_and_initialize_jit_module
+
+Function torch::jit::setFusionStrategy

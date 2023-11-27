@@ -1,0 +1,17 @@
+Function torch::nn::utils::_check_param_device
+
+Function torch::nn::utils::clip_grad_norm_(std::initializer_list<Tensor>, double, double, bool)
+
+Function torch::nn::utils::clip_grad_norm_(Tensor, double, double, bool)
+
+Function torch::nn::utils::clip_grad_norm_(const std::vector<Tensor>&, double, double, bool)
+
+Function torch::nn::utils::clip_grad_value_(Tensor, double)
+
+Function torch::nn::utils::clip_grad_value_(const std::vector<Tensor>&, double)
+
+Function torch::nn::utils::clip_grad_value_(std::initializer_list<Tensor>, double)
+
+Function torch::nn::utils::parameters_to_vector
+
+Function torch::nn::utils::vector_to_parameters

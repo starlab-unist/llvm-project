@@ -1,0 +1,143 @@
+Function torch::linalg::cholesky
+
+Function torch::linalg::cholesky_out
+
+Function torch::linalg::det
+
+Function torch::linalg::eig
+
+Function torch::linalg::eig_out
+
+Function torch::linalg::eigh
+
+Function torch::linalg::eigh_out
+
+Function torch::linalg::eigvals
+
+Function torch::linalg::eigvals_out
+
+Function torch::linalg::eigvalsh
+
+Function torch::linalg::eigvalsh_out
+
+Function torch::linalg::householder_product
+
+Function torch::linalg::householder_product_out
+
+Function torch::linalg::inv
+
+Function torch::linalg::inv_out
+
+Function torch::linalg::ldl_factor_ex
+
+Function torch::linalg::ldl_factor_ex_out
+
+Function torch::linalg::ldl_solve
+
+Function torch::linalg::ldl_solve_out
+
+Function torch::linalg::linalg_det
+
+Function torch::linalg::linalg_norm(const Tensor&, const optional<Scalar>&, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::linalg_norm(const Tensor&, c10::string_view, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::linalg_norm_out(Tensor&, const Tensor&, const optional<Scalar>&, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::linalg_norm_out(Tensor&, const Tensor&, c10::string_view, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::lstsq
+
+Function torch::linalg::lu
+
+Function torch::linalg::lu_factor
+
+Function torch::linalg::lu_factor_out
+
+Function torch::linalg::lu_out
+
+Function torch::linalg::matrix_exp
+
+Function torch::linalg::matrix_norm(const Tensor&, const Scalar&, IntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::matrix_norm(const Tensor&, std::string, IntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::matrix_norm_out(const Tensor&, const Scalar&, IntArrayRef, bool, optional<ScalarType>, Tensor&)
+
+Function torch::linalg::matrix_norm_out(const Tensor&, std::string, IntArrayRef, bool, optional<ScalarType>, Tensor&)
+
+Function torch::linalg::matrix_power
+
+Function torch::linalg::matrix_power_out
+
+Function torch::linalg::matrix_rank(const Tensor&, double, bool)
+
+Function torch::linalg::matrix_rank(const Tensor&, const Tensor&, bool)
+
+Function torch::linalg::matrix_rank(const Tensor&, c10::optional<double>, c10::optional<double>, bool)
+
+Function torch::linalg::matrix_rank(const Tensor&, const c10::optional<Tensor>&, const c10::optional<Tensor>&, bool)
+
+Function torch::linalg::matrix_rank_out(Tensor&, const Tensor&, double, bool)
+
+Function torch::linalg::matrix_rank_out(Tensor&, const Tensor&, const Tensor&, bool)
+
+Function torch::linalg::matrix_rank_out(Tensor&, const Tensor&, c10::optional<double>, c10::optional<double>, bool)
+
+Function torch::linalg::matrix_rank_out(Tensor&, const Tensor&, const c10::optional<Tensor>&, const c10::optional<Tensor>&, bool)
+
+Function torch::linalg::multi_dot
+
+Function torch::linalg::multi_dot_out
+
+Function torch::linalg::norm(const Tensor&, const optional<Scalar>&, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::norm(const Tensor&, std::string, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::norm_out(Tensor&, const Tensor&, const optional<Scalar>&, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::norm_out(Tensor&, const Tensor&, std::string, OptionalIntArrayRef, bool, optional<ScalarType>)
+
+Function torch::linalg::pinv
+
+Function torch::linalg::pinv_out
+
+Function torch::linalg::qr
+
+Function torch::linalg::qr_out
+
+Function torch::linalg::slogdet
+
+Function torch::linalg::slogdet_out
+
+Function torch::linalg::solve
+
+Function torch::linalg::solve_ex
+
+Function torch::linalg::solve_ex_out
+
+Function torch::linalg::solve_out
+
+Function torch::linalg::solve_triangular
+
+Function torch::linalg::solve_triangular_out
+
+Function torch::linalg::svd
+
+Function torch::linalg::svd_out
+
+Function torch::linalg::svdvals
+
+Function torch::linalg::svdvals_out
+
+Function torch::linalg::tensorinv
+
+Function torch::linalg::tensorinv_out
+
+Function torch::linalg::tensorsolve
+
+Function torch::linalg::tensorsolve_out
+
+Function torch::linalg::vector_norm
+
+Function torch::linalg::vector_norm_out

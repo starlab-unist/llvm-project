@@ -1,0 +1,7 @@
+Template Function torch::nn::parallel::data_parallel
+
+Template Function torch::nn::parallel::parallel_apply
+
+Template Function torch::nn::parallel::replicate(const ModuleHolder<ModuleType>&, const std::vector<Device>&)
+
+Template Function torch::nn::parallel::replicate(const std::shared_ptr<ModuleType>&, const std::vector<Device>&)
