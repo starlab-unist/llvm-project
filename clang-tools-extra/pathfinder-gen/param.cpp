@@ -5,17 +5,14 @@
 const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 6;
 const size_t MAX_ARRAYREF_SIZE = 6;
-const std::string dtype_dictionary = "dtype_dict";
-const std::string string_dictionary = "string_dict";
-const std::string bfloat_dictionary = "bfloat_dict";
-const std::string half_dictionary = "half_dict";
-const std::string float_dictionary = "float_dict";
-const std::string double_dictionary = "double_dict";
-const std::string memory_format_dictionary = "memory_format_dict";
-const std::string layout_dictionary = "layout_dict";
-const std::string device_dictionary = "device_dict";
 
-
+static FuzzTargetType ftt = FTT_Basic;
+void set_fuzz_target_type(FuzzTargetType ftt_) {
+  ftt = ftt_;
+}
+FuzzTargetType get_fuzz_target_type() {
+  return ftt;
+}
 
 std::string setup_var(std::string param_name) {
   return symbolic_int_var + sq_quoted(param_name);
@@ -146,6 +143,7 @@ bool TorchUnsignedIntParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_UnsignedInt;
 }
 
+
 TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, const std::vector<std::string>& value_names_)
   : TorchParam(kind_, name_)
 {
@@ -208,8 +206,9 @@ bool TorchBoolParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Bool;
 }
 
+
 TorchStringParam::TorchStringParam(std::string name_, bool is_view_)
-  : TorchBoundedParam(TPK_String, name_, string_dictionary + ".size()"), is_view(is_view_) {}
+  : TorchBoundedParam(TPK_String, name_, "string_dict().size()"), is_view(is_view_) {}
 
 std::string TorchStringParam::type() const {
   if (is_view)
@@ -218,123 +217,146 @@ std::string TorchStringParam::type() const {
   return "std::string";
 }
 std::string TorchStringParam::initializer() const {
-  return string_dictionary + square(callback_var(name));
+  return "get_string" + bracket(callback_var(name));
 }
 
 bool TorchStringParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_String;
 }
 
+
 TorchBFloatParam::TorchBFloatParam(std::string name_)
-  : TorchBoundedParam(TPK_Float, name_, bfloat_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Float, name_, "bfloat_dict().size()") {}
 
 std::string TorchBFloatParam::type() const {
   return "__bf16";
 }
 std::string TorchBFloatParam::initializer() const {
-  return bfloat_dictionary + square(callback_var(name));
+  return "get_bfloat" + bracket(callback_var(name));
 }
 
 bool TorchBFloatParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_BFloat;
 }
 
+
 TorchHalfParam::TorchHalfParam(std::string name_)
-  : TorchBoundedParam(TPK_Float, name_, half_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Float, name_, "half_dict().size()") {}
 
 std::string TorchHalfParam::type() const {
   return "__fp16";
 }
 std::string TorchHalfParam::initializer() const {
-  return half_dictionary + square(callback_var(name));
+  return "get_half" + bracket(callback_var(name));
 }
 
 bool TorchHalfParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Half;
 }
 
+
 TorchFloatParam::TorchFloatParam(std::string name_)
-  : TorchBoundedParam(TPK_Float, name_, float_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Float, name_, "float_dict().size()") {}
 
 std::string TorchFloatParam::type() const {
   return "float";
 }
 std::string TorchFloatParam::initializer() const {
-  return float_dictionary + square(callback_var(name));
+  return "get_float" + bracket(callback_var(name));
 }
 
 bool TorchFloatParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Float;
 }
 
+
 TorchDoubleParam::TorchDoubleParam(std::string name_)
-  : TorchBoundedParam(TPK_Float, name_, double_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Float, name_, "double_dict().size()") {}
 
 std::string TorchDoubleParam::type() const {
   return "double";
 }
 std::string TorchDoubleParam::initializer() const {
-  return double_dictionary + square(callback_var(name));
+  return "get_double" + bracket(callback_var(name));
 }
 
 bool TorchDoubleParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Double;
 }
 
+
 TorchMemoryFormatParam::TorchMemoryFormatParam(std::string name_)
-  : TorchBoundedParam(TPK_MemoryFormat, name_, memory_format_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_MemoryFormat, name_, "memory_format_dict().size()") {}
 
 std::string TorchMemoryFormatParam::type() const {
   return "c10::MemoryFormat";
 }
 std::string TorchMemoryFormatParam::initializer() const {
-  return memory_format_dictionary + square(callback_var(name));
+  return "get_memory_format" + bracket(callback_var(name));
 }
 
 bool TorchMemoryFormatParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_MemoryFormat;
 }
 
+
 TorchLayoutParam::TorchLayoutParam(std::string name_)
-  : TorchBoundedParam(TPK_Layout, name_, layout_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Layout, name_, "layout_dict().size()") {}
 
 std::string TorchLayoutParam::type() const {
   return "c10::Layout";
 }
 std::string TorchLayoutParam::initializer() const {
-  return layout_dictionary + square(callback_var(name));
+  return "get_layout" + bracket(callback_var(name));
 }
 
 bool TorchLayoutParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Layout;
 }
 
+
 TorchDeviceParam::TorchDeviceParam(std::string name_)
-  : TorchBoundedParam(TPK_Device, name_, device_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Device, name_, "device_dict().size()") {}
 
 std::string TorchDeviceParam::type() const {
   return "c10::Device";
 }
 std::string TorchDeviceParam::initializer() const {
-  return device_dictionary + square(callback_var(name));
+  return "get_device" + bracket(callback_var(name));
 }
 
 bool TorchDeviceParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Device;
 }
 
+
 TorchDtypeParam::TorchDtypeParam(std::string name_)
-  : TorchBoundedParam(TPK_Dtype, name_, dtype_dictionary + ".size()") {}
+  : TorchBoundedParam(TPK_Dtype, name_, "dtype_dict().size()") {}
 
 std::string TorchDtypeParam::type() const {
   return "c10::ScalarType";
 }
 std::string TorchDtypeParam::initializer() const {
-  return dtype_dictionary + square(callback_var(name));
+  return "get_dtype" + bracket(callback_var(name));
 }
 
 bool TorchDtypeParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Dtype;
+}
+
+
+TorchQDtypeParam::TorchQDtypeParam(std::string name_)
+  : TorchBoundedParam(TPK_QDtype, name_, "qdtype_dict().size()") {}
+
+std::string TorchQDtypeParam::type() const {
+  return "c10::ScalarType";
+}
+std::string TorchQDtypeParam::initializer() const {
+  return "get_qdtype" + bracket(callback_var(name));
+}
+
+bool TorchQDtypeParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_QDtype;
 }
 
 
@@ -777,6 +799,8 @@ bool TorchPairParam::classof(const TorchParam *param) {
 
 TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, name_) {
   dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
+  qdtype = std::make_unique<TorchQDtypeParam>(name + "_qdtype");
+  layout = std::make_unique<TorchLayoutParam>(name + "_layout");
   rank = std::make_unique<TorchBoundedIntParam>(name + "_rank", MAX_RANK + 1);
   for (size_t i = 0; i < MAX_RANK; i++)
     dims.push_back(std::make_unique<TorchIntParam>(name + "_" + std::to_string(i), "long"));
@@ -787,12 +811,24 @@ TorchTensorParam::TorchTensorParam(std::string name_): TorchParam(TPK_Tensor, na
 std::string TorchTensorParam::type() const { return "torch::Tensor"; }
 std::string TorchTensorParam::var() const { return name; }
 std::string TorchTensorParam::initializer() const {
-  return "torch_tensor" + bracket(dtype->expr() + comma + rank->expr() + comma + to_string(dims));
+  std::string dtype_expr =
+    get_fuzz_target_type() == FTT_Quantization ? qdtype->expr() : dtype->expr();
+  std::string layout_expr =
+    get_fuzz_target_type() == FTT_Sparse ? layout->expr() + comma : "";
+  std::string args =
+    dtype_expr + comma + layout_expr + rank->expr() + comma + to_string(dims);
+  return "torch_tensor" + bracket(args);
 }
 
 std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
-  concat(arg_setup, dtype->gen_arg_setup());
+  if (get_fuzz_target_type() == FTT_Quantization) {
+    concat(arg_setup, qdtype->gen_arg_setup());
+  } else {
+    concat(arg_setup, dtype->gen_arg_setup());
+  }
+  if (get_fuzz_target_type() == FTT_Sparse)
+    concat(arg_setup, layout->gen_arg_setup());
   concat(arg_setup, rank->gen_arg_setup());
   for (auto& dim: dims)
     concat(arg_setup, dim->gen_arg_setup());
@@ -812,7 +848,13 @@ std::vector<std::string> TorchTensorParam::gen_arg_initialization() const {
 }
 void TorchTensorParam::resolve_name_conflict(std::set<std::string>& names_seen) {
   TorchParam::resolve_name_conflict(names_seen);
-  dtype->resolve_name_conflict(names_seen);
+  if (get_fuzz_target_type() == FTT_Quantization) {
+    qdtype->resolve_name_conflict(names_seen);
+  } else {
+    dtype->resolve_name_conflict(names_seen);
+  }
+  if (get_fuzz_target_type() == FTT_Sparse)
+    layout->resolve_name_conflict(names_seen);
   rank->resolve_name_conflict(names_seen);
   for (auto& dim: dims)
     dim->resolve_name_conflict(names_seen);

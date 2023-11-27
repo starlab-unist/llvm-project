@@ -153,7 +153,6 @@ at::native::fft_fftshift
 at::native::cov
 at::native::smm
 at::native::diff
-at::native::_fft_c2c_cufft
 at::native::_fft_c2c
 at::native::_fft_c2c_mkl
 at::native::
@@ -232,7 +231,6 @@ at::native::reflection_pad2d_cpu
 at::native::reflection_pad2d
 at::native::_fft_r2c_mkl
 at::native::_fft_r2c
-at::native::_fft_r2c_cufft
 at::native::log_sigmoid
 at::native::_compute_linear_combination
 at::native::linalg_tensorsolve
@@ -521,7 +519,6 @@ at::native::inner
 at::native::pixel_shuffle
 at::native::narrow
 at::native::var
-at::native::_fft_c2r_cufft
 at::native::_fft_c2r_mkl
 at::native::_fft_c2r
 at::native::tanh_sparse_csr

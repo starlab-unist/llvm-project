@@ -16,6 +16,80 @@ using namespace clang::tooling;
 using namespace llvm;
 using namespace clang;
 
+class Output {
+  typedef std::pair<std::string, std::string> api;
+  typedef std::map<std::string, std::vector<api>> group;
+
+  public:
+    Output() {}
+    void add(std::string fuzz_target_type, std::string group_name, std::string api_name, std::string code) {
+      if (output.find(fuzz_target_type) == output.end())
+        output[fuzz_target_type] = {};
+      if (output[fuzz_target_type].find(group_name) == output[fuzz_target_type].end())
+        output[fuzz_target_type][group_name] = {};
+      output[fuzz_target_type][group_name].push_back({api_name, code});
+    }
+    void write() {
+      std::set<std::string> names_seen;
+
+      make_dir("generated");
+      std::string cmake_contents0;
+      for (auto& p0: output) {
+        std::string fuzz_target_type = p0.first;
+        auto groups = p0.second;
+        make_dir("generated/" + fuzz_target_type);
+        cmake_contents0 += "add_subdirectory(" + fuzz_target_type + ")\n";
+        std::string cmake_contents1;
+        for (auto& p1: groups) {
+          std::string group_name = p1.first;
+          auto apis = p1.second;
+          make_dir("generated/" + fuzz_target_type + "/" + group_name);
+          cmake_contents1 += "add_subdirectory(" + group_name + ")\n";
+          std::string cmake_contents2;
+          for (auto& p2: apis) {
+            std::string api_name = p2.first;
+            auto code = p2.second;
+            std::string file_name =
+              unique_name(fuzz_target_type + "_" + group_name + "_" + api_name, names_seen) + ".cpp";
+            std::ofstream writeFile("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name);
+            if(writeFile.is_open()){
+              writeFile << code;
+              writeFile.close();
+              cmake_contents2 += "add_pathfinder_fuzz_target(" + strip_ext(file_name) + ")\n";
+            } else {
+              assert(false);
+            }
+          }
+          std::ofstream cmake2("generated/" + fuzz_target_type + "/" + group_name + "/CMakeLists.txt");
+          if(cmake2.is_open()){
+            cmake2 << cmake_contents2;
+            cmake2.close();
+          } else {
+            assert(false);
+          }
+        }
+        std::ofstream cmake1("generated/" + fuzz_target_type + "/CMakeLists.txt");
+        if(cmake1.is_open()){
+          cmake1 << cmake_contents1;
+          cmake1.close();
+        } else {
+          assert(false);
+        }
+      }
+      std::ofstream cmake0("generated/CMakeLists.txt");
+      if(cmake0.is_open()){
+        cmake0 << cmake_contents0;
+        cmake0.close();
+      } else {
+        assert(false);
+      }
+    }
+  private:
+    std::map<std::string, group> output;
+};
+
+Output output;
+
 class FindNamedClassVisitor
   : public RecursiveASTVisitor<FindNamedClassVisitor> {
 public:
@@ -57,7 +131,9 @@ public:
 
     bool is_void_function = Declaration->getReturnType()->isVoidType();
     TorchFunction torch_function(function_name_qualified, std::move(params), is_void_function);
-    save_fuzz_target(function_group, function_name, torch_function.gen_fuzz_target());
+    output.add("basic", function_group, function_name, torch_function.gen_fuzz_target(FTT_Basic));
+    output.add("quantization", function_group, function_name, torch_function.gen_fuzz_target(FTT_Quantization));
+    output.add("sparse", function_group, function_name, torch_function.gen_fuzz_target(FTT_Sparse));
 
     return true;
   }
@@ -208,7 +284,9 @@ public:
       std::move(ctor_params),
       std::move(forward_params));
 
-    save_fuzz_target(torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target());
+    output.add("basic", torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target(FTT_Basic));
+    output.add("quantization", torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target(FTT_Quantization));
+    output.add("sparse", torch_module_list_file_name(), module_name, torch_module.gen_fuzz_target(FTT_Sparse));
 
     return true;
   }
@@ -248,7 +326,7 @@ int main(int argc, const char **argv) {
 
   Tool.run(newFrontendActionFactory<FindNamedClassAction>().get());
 
-  write_fuzz_target();
+  output.write();
 
   return 0;
 }

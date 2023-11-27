@@ -13,12 +13,18 @@
 using namespace llvm;
 using namespace clang;
 
+enum FuzzTargetType {
+  FTT_Basic,
+  FTT_Quantization,
+  FTT_Sparse,
+};
+void set_fuzz_target_type(FuzzTargetType ftt_);
+
 extern const size_t MAX_VECTOR_SIZE;
 extern const size_t MAX_ARRAYREF_SIZE;
 
 const std::string symbolic_int_var = "sym_int_arg";
 const std::string callback_input_var = "x";
-
 
 void set_function_mode();
 void set_module_mode();
@@ -46,6 +52,7 @@ class TorchParam {
       TPK_Layout,
       TPK_Device,
       TPK_Dtype,
+      TPK_QDtype,
       TPK_Variant,
       TPK_Bounded_First = TPK_Null,
       TPK_Bounded_Last = TPK_Variant,
@@ -290,6 +297,16 @@ class TorchDtypeParam: public TorchBoundedParam {
     static bool classof(const TorchParam *param);
 };
 
+class TorchQDtypeParam: public TorchBoundedParam {
+  public:
+    TorchQDtypeParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
 class TorchVariantParam: public TorchBoundedParam {
   public:
     TorchVariantParam(
@@ -495,6 +512,8 @@ class TorchTensorParam: public TorchParam {
     static bool classof(const TorchParam *param);
   private:
     std::unique_ptr<TorchDtypeParam> dtype;
+    std::unique_ptr<TorchQDtypeParam> qdtype;
+    std::unique_ptr<TorchLayoutParam> layout;
     std::unique_ptr<TorchBoundedIntParam> rank;
     std::vector<std::unique_ptr<TorchIntParam>> dims;
 };

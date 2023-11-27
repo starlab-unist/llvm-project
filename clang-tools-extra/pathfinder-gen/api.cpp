@@ -3,7 +3,8 @@
 const std::string callback_result_var = "result";
 
 TorchAPI::TorchAPI(std::string api_name_): api_name(api_name_) {}
-std::string TorchAPI::gen_fuzz_target() {
+std::string TorchAPI::gen_fuzz_target(FuzzTargetType ftt) {
+  set_fuzz_target_type(ftt);
   resolve_name_conflict();
   std::vector<std::string> lines;
   concat(lines, header());

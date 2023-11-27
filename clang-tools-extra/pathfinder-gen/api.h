@@ -9,7 +9,7 @@ using namespace clang;
 class TorchAPI {
   public:
     TorchAPI(std::string api_name_);
-    std::string gen_fuzz_target();
+    std::string gen_fuzz_target(FuzzTargetType ftt);
   protected:
     std::string api_name;
     std::vector<std::unique_ptr<TorchParam>> params;
