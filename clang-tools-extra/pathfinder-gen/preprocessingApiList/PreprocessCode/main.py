@@ -19,6 +19,7 @@ outputFile.close()
 outputFile2.close()
 
 # Get intersection Api list
+apiPathExtractor.getIntersectionApiList("at::Tensor", "../CppLibraryList/at::Tensor_function_list")
 apiPathExtractor.getIntersectionApiList("at", "../CppLibraryList/at_function_list")
 apiPathExtractor.getIntersectionApiList("at::native", "../CppLibraryList/at::native_function_list")
 apiPathExtractor.getIntersectionApiList("torch", "../CppLibraryList/torch_function_list")
@@ -38,6 +39,7 @@ apiPathExtractor.getIntersectionApiList("torch::special", "../CppLibraryList/tor
 '''
 at
 at::native
+at::Tensor
 torch
 torch::fft
 torch::jit

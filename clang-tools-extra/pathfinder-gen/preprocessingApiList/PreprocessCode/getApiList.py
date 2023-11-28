@@ -4,6 +4,7 @@ class getApiList:
     def __init__(self, pyApiListPath):
         self.pyApiDict = self.preprocessPythonApi(pyApiListPath)
         self.pyPathList = self.pyApiDict.keys()
+        self.tensorList = []
     
     def preprocessPythonApi(self, pyApiListPath):
         listFile = open(pyApiListPath, 'r')
@@ -40,6 +41,8 @@ class getApiList:
         if apiNamespace == "at" or apiNamespace == "at::native":
             for key in self.pyApiDict:
                 intersectionApiList.extend(self.getIntersectionList(preprocessedApiList, self.pyApiDict[key]))
+        elif apiNamespace == "at::Tensor":
+            intersectionApiList.extend(self.getIntersectionList(preprocessedApiList, self.pyApiDict["torch.Tensor"]))
         else:
             convertedApiNameSpace = apiNamespace.replace("::", ".")
             intersectionApiList.extend(self.getIntersectionList(preprocessedApiList, self.pyApiDict[convertedApiNameSpace]))
@@ -56,6 +59,8 @@ class getApiList:
             return self.preprocessAtApi(apiListPath, 4)           
         elif apiNamespace == "at::native":
             return self.preprocessAtApi(apiListPath, 12)
+        elif apiNamespace == "at::Tensor":
+            return self.preprocessTensorApi(apiListPath)
         else:
             return self.preprocessAnotherApi(apiNamespace, apiListPath)
         
@@ -71,6 +76,9 @@ class getApiList:
         outputFile.close()
     
     def preprocessAtApi(self, apiListPath, removeLength):
+        if (removeLength == 4 and self.tensorList == []):
+            print("wrong order: at, at::tensor")
+        
         listFile = open(apiListPath, 'r')
         apiLines = listFile.readlines()
         
@@ -83,6 +91,9 @@ class getApiList:
                 splitLine = splitLine[:-1]
             result.append(splitLine)
         result = list(set(result))
+        # Remove intersection with tensor        
+        if removeLength == 4:
+            result = list(set(result) - set(self.tensorList))
         result.sort()
         
         if removeLength == 4:
@@ -94,9 +105,38 @@ class getApiList:
         
         return result
     
+    def preprocessTensorApi(self, apiListPath):
+        listFile = open(apiListPath, 'r')
+        apiLines = listFile.readlines()
+        
+        result = []
+        for line in apiLines:
+            if line == '\n':
+                continue
+            if line.find('(') == -1:
+                continue
+            else:
+                splitLine = line[:line.find('(')]
+            splitLine = splitLine.split(" ")[-1]
+            if splitLine != "":
+                if splitLine[0] == "&":
+                    splitLine = splitLine[1:]
+                result.append(splitLine)
+        
+        result = list(set(result))
+        result.sort()
+        
+        self.makeOutputFile("../CppLibraryList/at::Tensor_function_list_name", result)
+        
+        listFile.close()
+        
+        self.tensorList.extend(result)
+        
+        return result
+        
+    
 
     def preprocessAnotherApi(self, apiNamespace, apiListPath):
-        #print(type(apiListPath))
         listFile = open(apiListPath, 'r')
         apiLines = listFile.readlines()
         
