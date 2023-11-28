@@ -52,41 +52,26 @@ class Output {
             auto code = p2.second;
             std::string file_name =
               unique_name(fuzz_target_type + "_" + group_name + "_" + api_name, names_seen) + ".cpp";
-            std::ofstream writeFile("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name);
-            if(writeFile.is_open()){
-              writeFile << code;
-              writeFile.close();
-              cmake_contents2 += "add_pathfinder_fuzz_target(" + strip_ext(file_name) + ")\n";
-            } else {
-              assert(false);
-            }
+            write_file("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name, code);
+            cmake_contents2 += "add_pathfinder_fuzz_target(" + strip_ext(file_name) + ")\n";
           }
-          std::ofstream cmake2("generated/" + fuzz_target_type + "/" + group_name + "/CMakeLists.txt");
-          if(cmake2.is_open()){
-            cmake2 << cmake_contents2;
-            cmake2.close();
-          } else {
-            assert(false);
-          }
+          write_file("generated/" + fuzz_target_type + "/" + group_name + "/CMakeLists.txt", cmake_contents2);
         }
-        std::ofstream cmake1("generated/" + fuzz_target_type + "/CMakeLists.txt");
-        if(cmake1.is_open()){
-          cmake1 << cmake_contents1;
-          cmake1.close();
-        } else {
-          assert(false);
-        }
+        write_file("generated/" + fuzz_target_type + "/CMakeLists.txt", cmake_contents1);
       }
-      std::ofstream cmake0("generated/CMakeLists.txt");
-      if(cmake0.is_open()){
-        cmake0 << cmake_contents0;
-        cmake0.close();
+      write_file("generated/CMakeLists.txt", cmake_contents0);
+    }
+  private:
+    std::map<std::string, group> output;
+    void write_file(std::string file_path, std::string contents) {
+      std::ofstream f(file_path);
+      if(f.is_open()){
+        f << contents;
+        f.close();
       } else {
         assert(false);
       }
     }
-  private:
-    std::map<std::string, group> output;
 };
 
 Output output;
@@ -198,7 +183,7 @@ public:
     return std::move(ctor_params_candidates[best_idx]);
   }
 
-  bool extractModule(CXXRecordDecl* Declaration) {
+  void extractModule(CXXRecordDecl* Declaration) {
     std::string module_name = Declaration->getNameAsString();
     std::string module_name_qualified = Declaration->getQualifiedNameAsString();
 
@@ -211,7 +196,7 @@ public:
     const auto* tstype = dyn_cast<TemplateSpecializationType>(elaborated->desugar());
     assert(tstype->isSugared());
     if(!(tstype->desugar()->getAs<RecordType>()->getDecl()->getNameAsString() == "ModuleHolder"))
-      return true;
+      return;
     auto targs = tstype->template_arguments();
     assert(targs.size() == 1);
     auto* class_decl = dyn_cast<CXXRecordDecl>(targs[0].getAsType()->getAs<RecordType>()->getDecl());
@@ -271,7 +256,7 @@ public:
 
     if (ctor_params_candidates.empty() || forward_params.empty()) {
       std::cerr << "FAILED: Generating fuzz target of API `" << module_name_qualified << "` failed." << std::endl;
-      return true;
+      return;
     }
     auto ctor_params = pickBest(std::move(ctor_params_candidates));
 
@@ -285,64 +270,58 @@ public:
     output.add("basic", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Basic));
     output.add("quantization", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Quantization));
     output.add("sparse", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Sparse));
-
-    return true;
   }
 
-  bool extractTensorMethod(CXXRecordDecl* Declaration) {
-    static bool done = false;
-    if (done)
-      return true;
+  bool extractTensorMethod(CXXMethodDecl* method) {
+    std::string method_name = method->getNameAsString();
+    std::cout << "Generating fuzz target of Tensor method `" << method_name << "`..." << std::endl;
 
-
-    auto torch_tensor_method_list = get_torch_tensor_method_list();
-    for (auto method: Declaration->methods()) {
-      std::string method_name = method->getNameAsString();
-      if (torch_tensor_method_list.find(method_name) == torch_tensor_method_list.end())
-        continue;
-
-      std::cout << "Generating fuzz target of Tensor method `" << method_name << "`..." << std::endl;
-
-      std::vector<std::unique_ptr<TorchParam>> params;
-      for (const auto* param: method->parameters()) {
-        clang::QualType t = param->getType();
-        std::string name = param->getNameAsString();
-        std::unique_ptr<TorchParam> p = extractTorchParam(t, name, *Context);
-        if (p == nullptr) {
-          std::cerr <<
-            "WARNING: Parsing fail on param `" << name << "`.\n" <<
-            "         Type `" << t.getAsString() << "` is not supported." << std::endl;
-          continue;
-        }
-        params.push_back(std::move(p));
+    std::vector<std::unique_ptr<TorchParam>> params;
+    for (const auto* param: method->parameters()) {
+      clang::QualType t = param->getType();
+      std::string name = param->getNameAsString();
+      std::unique_ptr<TorchParam> p = extractTorchParam(t, name, *Context);
+      if (p == nullptr) {
+        std::cerr <<
+          "WARNING: Parsing fail on param `" << name << "`.\n" <<
+          "         Type `" << t.getAsString() << "` is not supported.\n" <<
+          "FAILED: Generating fuzz target of Tensor method `" << method_name << "` failed." << std::endl;
+        return false;
       }
-
-      bool is_void_function = method->getReturnType()->isVoidType();
-
-      TorchTensorMethod torch_tensor_method(
-        method_name,
-        std::make_unique<TorchTensorParam>(tensor_method_self_var),
-        std::move(params),
-        is_void_function);
-
-      std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
-      output.add("basic", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));
-      output.add("quantization", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Quantization));
-      output.add("sparse", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Sparse));
-
-      done = true;
+      params.push_back(std::move(p));
     }
+
+    bool is_void_function = method->getReturnType()->isVoidType();
+
+    TorchTensorMethod torch_tensor_method(
+      method_name,
+      std::make_unique<TorchTensorParam>(tensor_method_self_var),
+      std::move(params),
+      is_void_function);
+
+    std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
+    output.add("basic", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));
+    output.add("quantization", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Quantization));
+    output.add("sparse", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Sparse));
 
     return true;
   }
 
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
+    // We want to visit Tensor class only once
+    static bool tensor_method_done = false;
+
     auto torch_module_list = get_torch_module_list();
-    if (torch_module_list.find(Declaration->getQualifiedNameAsString()) != torch_module_list.end()) {
-      return extractModule(Declaration);
-    } else if (Declaration->getNameAsString() == "Tensor") {
-      return extractTensorMethod(Declaration);
-    }
+    if (torch_module_list.find(Declaration->getQualifiedNameAsString()) != torch_module_list.end())
+      extractModule(Declaration);
+
+    auto torch_tensor_method_list = get_torch_tensor_method_list();
+    if (!tensor_method_done && Declaration->getNameAsString() == "Tensor")
+      for (auto method: Declaration->methods())
+        if (torch_tensor_method_list.find(method->getNameAsString()) != torch_tensor_method_list.end())
+          if (extractTensorMethod(method))
+            tensor_method_done = true;
+
     return true;
   }
 

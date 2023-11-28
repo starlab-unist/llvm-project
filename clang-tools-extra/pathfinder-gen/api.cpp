@@ -165,7 +165,7 @@ TorchTensorMethod::TorchTensorMethod(
 std::vector<std::string> TorchTensorMethod::api_call_code() const {
   std::string api_call =
     is_void_function ?
-    api_name + "(" :
+    tensor_method_self_var + "." + api_name + "(" :
     "auto " + callback_result_var + " = " + tensor_method_self_var + "." + api_name + "(";
   for (size_t i = 1; i < params.size(); i++) {
     api_call += params[i]->expr();

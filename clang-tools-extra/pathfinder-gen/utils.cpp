@@ -139,7 +139,9 @@ std::vector<std::string> get_torch_api_groups() {
 std::map<std::string, std::set<std::string>> read_torch_function_list() {
   std::map<std::string, std::set<std::string>> torch_function_list;
   for (auto& torch_api_group: get_torch_api_groups()) {
-    if (torch_api_group == torch_module_list_file_name() || startswith(torch_api_group, "_"))
+    if (torch_api_group == torch_tensor_method_list_file_name() ||
+        torch_api_group == torch_module_list_file_name() ||
+        startswith(torch_api_group, "_"))
       continue;
 
     std::string torch_api_list_dir = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
