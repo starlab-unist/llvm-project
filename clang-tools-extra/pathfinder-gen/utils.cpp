@@ -122,6 +122,9 @@ void ListFilesInDir(const std::string& Dir, std::vector<std::string>& V) {
 std::string torch_api_list_dir_name() {
   return "torch-api-list";
 }
+std::string torch_tensor_method_list_file_name() {
+  return "torch::Tensor";
+}
 std::string torch_module_list_file_name() {
   return "torch::nn";
 }
@@ -147,6 +150,13 @@ std::map<std::string, std::set<std::string>> read_torch_function_list() {
   return torch_function_list;
 }
 
+std::set<std::string> read_torch_tensor_method_list() {
+  std::string torch_api_list_dir_path = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
+  std::string filepath = DirPlusFile(torch_api_list_dir_path, torch_tensor_method_list_file_name());
+  std::vector<std::string> lines = read_lines(filepath);
+  return std::set<std::string>(lines.begin(), lines.end());
+}
+
 std::set<std::string> read_torch_module_list() {
   std::string torch_api_list_dir_path = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
   std::string filepath = DirPlusFile(torch_api_list_dir_path, torch_module_list_file_name());
@@ -155,15 +165,21 @@ std::set<std::string> read_torch_module_list() {
 }
 
 std::map<std::string, std::set<std::string>> torch_function_list;
+std::set<std::string> torch_tensor_method_list;
 std::set<std::string> torch_module_list;
 
 void init_torch_api_list() {
   torch_function_list = read_torch_function_list();
+  torch_tensor_method_list = read_torch_tensor_method_list();
   torch_module_list = read_torch_module_list();
 }
 
 const std::map<std::string, std::set<std::string>>& get_torch_function_list() {
   return torch_function_list;
+}
+
+const std::set<std::string>& get_torch_tensor_method_list() {
+  return torch_tensor_method_list;
 }
 
 const std::set<std::string>& get_torch_module_list() {

@@ -1,6 +1,7 @@
 #include "api.h"
 
 const std::string callback_result_var = "result";
+const std::string tensor_method_self_var = "self";
 
 TorchAPI::TorchAPI(std::string api_name_): api_name(api_name_) {}
 std::string TorchAPI::gen_fuzz_target(FuzzTargetType ftt) {
@@ -135,6 +136,38 @@ std::vector<std::string> TorchFunction::api_call_code() const {
     api_name + "(" :
     "auto " + callback_result_var + " = " + api_name + "(";
   for (size_t i = 0; i < params.size(); i++) {
+    api_call += params[i]->expr();
+    if (i != params.size() - 1)
+      api_call += comma;
+  }
+  api_call += ")";
+  
+  return {
+    "PathFinderExecuteTarget(",
+    "  " + api_call + ");",
+  };
+}
+
+
+TorchTensorMethod::TorchTensorMethod(
+  std::string method_name,
+  std::unique_ptr<TorchTensorParam> self_,
+  std::vector<std::unique_ptr<TorchParam>> params_,
+  bool is_void_function_)
+  : TorchAPI(method_name), is_void_function(is_void_function_)
+{
+  self = self_.get();
+  params.push_back(std::move(self_));
+  for (auto& param: params_)
+    params.push_back(std::move(param));
+}
+
+std::vector<std::string> TorchTensorMethod::api_call_code() const {
+  std::string api_call =
+    is_void_function ?
+    api_name + "(" :
+    "auto " + callback_result_var + " = " + tensor_method_self_var + "." + api_name + "(";
+  for (size_t i = 1; i < params.size(); i++) {
     api_call += params[i]->expr();
     if (i != params.size() - 1)
       api_call += comma;

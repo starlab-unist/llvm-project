@@ -888,7 +888,7 @@ bool TorchTensorParam::classof(const TorchParam *param) {
 }
 
 TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, name_) {
-  dtype = std::make_unique<TorchDtypeParam>(name + "_dtype");
+  dtype = std::make_unique<TorchBasicDtypeParam>(name + "_dtype");
   intValue = std::make_unique<TorchIntParam>(name + "_int", "int");
   uintValue = std::make_unique<TorchUnsignedIntParam>(name + "_uint");
   bfloatValue = std::make_unique<TorchBFloatParam>(name + "_bfloat");

@@ -550,7 +550,7 @@ class TorchScalarParam: public TorchParam {
 
     static bool classof(const TorchParam *param);
   private:
-    std::unique_ptr<TorchDtypeParam> dtype;
+    std::unique_ptr<TorchBasicDtypeParam> dtype;
     std::unique_ptr<TorchIntParam> intValue;
     std::unique_ptr<TorchUnsignedIntParam> uintValue;
     std::unique_ptr<TorchBFloatParam> bfloatValue;

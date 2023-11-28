@@ -139,7 +139,7 @@ public:
     return true;
   }
 
-  Optional<std::vector<std::unique_ptr<TorchParam>>> parseModuleCtor(CXXConstructorDecl* ctor) {
+  Optional<std::vector<std::unique_ptr<TorchParam>>> extractModuleCtor(CXXConstructorDecl* ctor) {
     if (ctor->isCopyOrMoveConstructor() ||
         ctor->isSpecializationCopyingObject() ||
         ctor->isInheritingConstructor())
@@ -162,7 +162,7 @@ public:
     return params;
   }
 
-  Optional<std::vector<std::unique_ptr<TorchParam>>> parseForward(CXXMethodDecl* forward) {
+  Optional<std::vector<std::unique_ptr<TorchParam>>> extractForward(CXXMethodDecl* forward) {
     std::vector<std::unique_ptr<TorchParam>> params;
     for (const auto* param: forward->parameters()) {
       clang::QualType t = param->getType();
@@ -198,13 +198,9 @@ public:
     return std::move(ctor_params_candidates[best_idx]);
   }
 
-  bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
+  bool extractModule(CXXRecordDecl* Declaration) {
     std::string module_name = Declaration->getNameAsString();
     std::string module_name_qualified = Declaration->getQualifiedNameAsString();
-
-    auto torch_module_list = get_torch_module_list();
-    if (torch_module_list.find(module_name_qualified) == torch_module_list.end())
-      return true;
 
     std::cout << "Generating fuzz target of API `" << module_name_qualified << "`..." << std::endl;
 
@@ -224,12 +220,12 @@ public:
     std::vector<std::unique_ptr<TorchParam>> forward_params;
 
     for (auto ctor: class_decl->ctors())
-      if (auto parsed = parseModuleCtor(ctor))
-        ctor_params_candidates.push_back(std::move(parsed.getValue()));
+      if (auto extracted = extractModuleCtor(ctor))
+        ctor_params_candidates.push_back(std::move(extracted.getValue()));
     for (auto method: class_decl->methods()) {
       if (method->getNameAsString() == "forward") {
-        if (auto parsed = parseForward(method)) {
-          forward_params = std::move(parsed.getValue());
+        if (auto extracted = extractForward(method)) {
+          forward_params = std::move(extracted.getValue());
           break;
         }
       }
@@ -256,14 +252,14 @@ public:
             ctor_params_candidates.push_back(std::move(params));
           } else {
             for (auto ctor: ctsdecl->ctors())
-              if (auto parsed = parseModuleCtor(ctor))
-                ctor_params_candidates.push_back(std::move(parsed.getValue()));
+              if (auto extracted = extractModuleCtor(ctor))
+                ctor_params_candidates.push_back(std::move(extracted.getValue()));
           }
           if (forward_params.empty()) {
             for (auto method: ctsdecl->methods()) {
               if (method->getNameAsString() == "forward") {
-                if (auto parsed = parseForward(method)) {
-                  forward_params = std::move(parsed.getValue());
+                if (auto extracted = extractForward(method)) {
+                  forward_params = std::move(extracted.getValue());
                   break;
                 }
               }
@@ -290,6 +286,63 @@ public:
     output.add("quantization", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Quantization));
     output.add("sparse", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Sparse));
 
+    return true;
+  }
+
+  bool extractTensorMethod(CXXRecordDecl* Declaration) {
+    static bool done = false;
+    if (done)
+      return true;
+
+
+    auto torch_tensor_method_list = get_torch_tensor_method_list();
+    for (auto method: Declaration->methods()) {
+      std::string method_name = method->getNameAsString();
+      if (torch_tensor_method_list.find(method_name) == torch_tensor_method_list.end())
+        continue;
+
+      std::cout << "Generating fuzz target of Tensor method `" << method_name << "`..." << std::endl;
+
+      std::vector<std::unique_ptr<TorchParam>> params;
+      for (const auto* param: method->parameters()) {
+        clang::QualType t = param->getType();
+        std::string name = param->getNameAsString();
+        std::unique_ptr<TorchParam> p = extractTorchParam(t, name, *Context);
+        if (p == nullptr) {
+          std::cerr <<
+            "WARNING: Parsing fail on param `" << name << "`.\n" <<
+            "         Type `" << t.getAsString() << "` is not supported." << std::endl;
+          continue;
+        }
+        params.push_back(std::move(p));
+      }
+
+      bool is_void_function = method->getReturnType()->isVoidType();
+
+      TorchTensorMethod torch_tensor_method(
+        method_name,
+        std::make_unique<TorchTensorParam>(tensor_method_self_var),
+        std::move(params),
+        is_void_function);
+
+      std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
+      output.add("basic", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));
+      output.add("quantization", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Quantization));
+      output.add("sparse", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Sparse));
+
+      done = true;
+    }
+
+    return true;
+  }
+
+  bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
+    auto torch_module_list = get_torch_module_list();
+    if (torch_module_list.find(Declaration->getQualifiedNameAsString()) != torch_module_list.end()) {
+      return extractModule(Declaration);
+    } else if (Declaration->getNameAsString() == "Tensor") {
+      return extractTensorMethod(Declaration);
+    }
     return true;
   }
 

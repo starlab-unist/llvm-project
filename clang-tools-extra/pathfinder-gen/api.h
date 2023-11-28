@@ -40,6 +40,22 @@ class TorchFunction: public TorchAPI {
     virtual std::vector<std::string> api_call_code() const override;
 };
 
+extern const std::string tensor_method_self_var;
+
+class TorchTensorMethod: public TorchAPI {
+  public:
+    TorchTensorMethod(
+      std::string method_name,
+      std::unique_ptr<TorchTensorParam> self_,
+      std::vector<std::unique_ptr<TorchParam>> params_,
+      bool is_void_function_);
+  private:
+    TorchParam* self;
+    bool is_void_function;
+
+    virtual std::vector<std::string> api_call_code() const override;
+};
+
 class TorchModule: public TorchAPI {
   public:
     TorchModule(
