@@ -895,6 +895,8 @@ TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, na
   halfValue = std::make_unique<TorchHalfParam>(name + "_half");
   floatValue = std::make_unique<TorchFloatParam>(name + "_float");
   doubleValue = std::make_unique<TorchDoubleParam>(name + "_double");
+  realValue32 = std::make_unique<TorchHalfParam>(name + "_real32");
+  imaginaryValue32 = std::make_unique<TorchHalfParam>(name + "_imag32");
   realValue64 = std::make_unique<TorchFloatParam>(name + "_real64");
   imaginaryValue64 = std::make_unique<TorchFloatParam>(name + "_imag64");
   realValue128 = std::make_unique<TorchDoubleParam>(name + "_real128");
@@ -907,6 +909,8 @@ TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, na
   params.push_back(halfValue.get());
   params.push_back(floatValue.get());
   params.push_back(doubleValue.get());
+  params.push_back(realValue32.get());
+  params.push_back(imaginaryValue32.get());
   params.push_back(realValue64.get());
   params.push_back(imaginaryValue64.get());
   params.push_back(realValue128.get());

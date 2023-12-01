@@ -557,6 +557,8 @@ class TorchScalarParam: public TorchParam {
     std::unique_ptr<TorchHalfParam> halfValue;
     std::unique_ptr<TorchFloatParam> floatValue;
     std::unique_ptr<TorchDoubleParam> doubleValue;
+    std::unique_ptr<TorchHalfParam> realValue32;
+    std::unique_ptr<TorchHalfParam> imaginaryValue32;
     std::unique_ptr<TorchFloatParam> realValue64;
     std::unique_ptr<TorchFloatParam> imaginaryValue64;
     std::unique_ptr<TorchDoubleParam> realValue128;

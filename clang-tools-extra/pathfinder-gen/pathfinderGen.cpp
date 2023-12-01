@@ -115,8 +115,7 @@ public:
       params.push_back(std::move(p));
     }
 
-    bool is_void_function = Declaration->getReturnType()->isVoidType();
-    TorchFunction torch_function(function_name_qualified, std::move(params), is_void_function);
+    TorchFunction torch_function(function_name_qualified, std::move(params));
     output.add("basic", function_group, function_name, torch_function.gen_fuzz_target(FTT_Basic));
     output.add("quantization", function_group, function_name, torch_function.gen_fuzz_target(FTT_Quantization));
     output.add("sparse", function_group, function_name, torch_function.gen_fuzz_target(FTT_Sparse));
@@ -291,13 +290,10 @@ public:
       params.push_back(std::move(p));
     }
 
-    bool is_void_function = method->getReturnType()->isVoidType();
-
     TorchTensorMethod torch_tensor_method(
       method_name,
       std::make_unique<TorchTensorParam>(tensor_method_self_var),
-      std::move(params),
-      is_void_function);
+      std::move(params));
 
     std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
     output.add("basic", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));

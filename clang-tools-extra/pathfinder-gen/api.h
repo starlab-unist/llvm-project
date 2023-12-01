@@ -32,11 +32,8 @@ class TorchFunction: public TorchAPI {
   public:
     TorchFunction(
       std::string func_name,
-      std::vector<std::unique_ptr<TorchParam>> params_,
-      bool is_void_function_);
+      std::vector<std::unique_ptr<TorchParam>> params_);
   private:
-    bool is_void_function;
-
     virtual std::vector<std::string> api_call_code() const override;
 };
 
@@ -47,11 +44,9 @@ class TorchTensorMethod: public TorchAPI {
     TorchTensorMethod(
       std::string method_name,
       std::unique_ptr<TorchTensorParam> self_,
-      std::vector<std::unique_ptr<TorchParam>> params_,
-      bool is_void_function_);
+      std::vector<std::unique_ptr<TorchParam>> params_);
   private:
     TorchParam* self;
-    bool is_void_function;
 
     virtual std::vector<std::string> api_call_code() const override;
 };

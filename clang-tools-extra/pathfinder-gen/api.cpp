@@ -1,6 +1,5 @@
 #include "api.h"
 
-const std::string callback_result_var = "result";
 const std::string tensor_method_self_var = "self";
 
 TorchAPI::TorchAPI(std::string api_name_): api_name(api_name_) {}
@@ -15,7 +14,7 @@ std::string TorchAPI::gen_fuzz_target(FuzzTargetType ftt) {
   return join_strs(lines, newline);
 }
 void TorchAPI::resolve_name_conflict() {
-  std::set<std::string> names_seen = {callback_input_var, callback_result_var};
+  std::set<std::string> names_seen = {callback_input_var};
   for (auto& param: params)
     param->resolve_name_conflict(names_seen);
 }
@@ -106,8 +105,10 @@ std::vector<std::string> TorchAPI::callback() const {
   callback_code.push_back("\n  try {");
   concat(callback_code, "    ", arg_initialization_code());
   concat(callback_code, "    ", api_call_code());
+  callback_code.push_back("  } catch (c10::Error& e) {");
+  callback_code.push_back("    return abort_if_pytorch_internal_assertion_failed(e.what());");
   callback_code.push_back("  } catch (std::exception& e) {");
-  callback_code.push_back("    return -2;");
+  callback_code.push_back("    return abort_if_not_expected_exception(e.what());");
   callback_code.push_back("  }\n");
   callback_code.push_back("  return 0;");
   callback_code.push_back("}\n");
@@ -123,18 +124,14 @@ std::vector<std::string> TorchAPI::footer() const {
 
 TorchFunction::TorchFunction(
   std::string func_name,
-  std::vector<std::unique_ptr<TorchParam>> params_,
-  bool is_void_function_)
-  : TorchAPI(func_name), is_void_function(is_void_function_)
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchAPI(func_name)
 {
   params = std::move(params_);
 }
 
 std::vector<std::string> TorchFunction::api_call_code() const {
-  std::string api_call =
-    is_void_function ?
-    api_name + "(" :
-    "auto " + callback_result_var + " = " + api_name + "(";
+  std::string api_call = api_name + "(";
   for (size_t i = 0; i < params.size(); i++) {
     api_call += params[i]->expr();
     if (i != params.size() - 1)
@@ -152,9 +149,8 @@ std::vector<std::string> TorchFunction::api_call_code() const {
 TorchTensorMethod::TorchTensorMethod(
   std::string method_name,
   std::unique_ptr<TorchTensorParam> self_,
-  std::vector<std::unique_ptr<TorchParam>> params_,
-  bool is_void_function_)
-  : TorchAPI(method_name), is_void_function(is_void_function_)
+  std::vector<std::unique_ptr<TorchParam>> params_)
+  : TorchAPI(method_name)
 {
   self = self_.get();
   params.push_back(std::move(self_));
@@ -163,10 +159,7 @@ TorchTensorMethod::TorchTensorMethod(
 }
 
 std::vector<std::string> TorchTensorMethod::api_call_code() const {
-  std::string api_call =
-    is_void_function ?
-    tensor_method_self_var + "." + api_name + "(" :
-    "auto " + callback_result_var + " = " + tensor_method_self_var + "." + api_name + "(";
+  std::string api_call = tensor_method_self_var + "." + api_name + "(";
   for (size_t i = 1; i < params.size(); i++) {
     api_call += params[i]->expr();
     if (i != params.size() - 1)
@@ -212,8 +205,7 @@ std::vector<std::string> TorchModule::api_call_code() const {
   }
   module_init += ");\n";
   
-  std::string forward_call =
-    "auto " + callback_result_var + " = " + module_var + "->forward(";
+  std::string forward_call = module_var + "->forward(";
   for (size_t i = 0; i < forward_params.size(); i++) {
     forward_call += forward_params[i]->expr();
     if (i != forward_params.size() - 1)
