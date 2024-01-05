@@ -118,6 +118,10 @@ std::vector<std::string> TorchAPI::callback() const {
 std::vector<std::string> TorchAPI::footer() const {
   return {
     "}  // extern \"C\"\n",
+    "int main(int argc, char **argv) {",
+    "  pathfinder::parse_arg(argc, argv);",
+    "  return pathfinder::driver(PathFinderTestOneInput);",
+    "}",
   };
 }
 
