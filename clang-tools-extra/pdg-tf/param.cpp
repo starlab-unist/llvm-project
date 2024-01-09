@@ -34,7 +34,7 @@ void set_module_mode() { module_mode = true; }
 bool is_module_mode() { return module_mode; }
 
 
-TFScopeParam::TFScopeParam(std::string name_): TFParam(TFPK_Scope, name_) {}
+TFScopeParam::TFScopeParam(): TFParam(TFPK_Scope, scope_var) {}
 
 std::string TFScopeParam::type() const {
   return "Scope";
@@ -48,6 +48,9 @@ std::string TFScopeParam::initializer() const {
 
 std::vector<std::string> TFScopeParam::gen_arg_initialization() const {
   return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+void TFScopeParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  return;
 }
 
 
@@ -236,6 +239,36 @@ std::string TFStringPieceParam::initializer() const {
 
 bool TFStringPieceParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_StringPiece;
+}
+
+
+TFDataFormatParam::TFDataFormatParam(std::string name_)
+  : TFBoundedParam(TFPK_DataFormat, name_, "dataformat_dict().size()") {}
+
+std::string TFDataFormatParam::type() const {
+  return "StringPiece";
+}
+std::string TFDataFormatParam::initializer() const {
+  return "get_dataformat" + bracket(callback_var(name));
+}
+
+bool TFDataFormatParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_DataFormat;
+}
+
+
+TFPaddingParam::TFPaddingParam(std::string name_)
+  : TFBoundedParam(TFPK_Padding, name_, "padding_dict().size()") {}
+
+std::string TFPaddingParam::type() const {
+  return "StringPiece";
+}
+std::string TFPaddingParam::initializer() const {
+  return "get_padding" + bracket(callback_var(name));
+}
+
+bool TFPaddingParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_Padding;
 }
 
 
@@ -918,7 +951,7 @@ std::string TFTensorParam::type() const { return "Input"; }
 std::string TFTensorParam::var() const { return name; }
 std::string TFTensorParam::initializer() const {
   std::string args =
-    dtype->expr() + comma + rank->expr() + comma + to_string(dims);
+    scope_var + comma + dtype->expr() + comma + rank->expr() + comma + to_string(dims);
   return "tf_tensor" + bracket(args);
 }
 
@@ -1050,106 +1083,114 @@ bool TFOptionalParam::classof(const TFParam *param) {
 }
 
 
-TFAPIOptionsParam::TFAPIOptionsParam(
+
+
+
+
+
+TFAPIAttrsParam::TFAPIAttrsParam(
   std::string name_,
-  std::string api_optons_class_name_,
-  std::vector<std::unique_ptr<TFParam>> ctor_params_,
-  std::vector<std::unique_ptr<TFParam>> member_params_)
-  : TFParam(TPK_APIOptions, name_)
+  std::string api_attrs_class_name_,
+  std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_)
+  : TFParam(TFPK_APIAttrs, name_)
 {
-  api_optons_class_name = api_optons_class_name_;
-  ctor_params = std::move(ctor_params_);
-  member_params = std::move(member_params_);
-  for (auto& member_param: member_params)
-    member_param_setters.push_back(member_param->get_name());
+  api_attrs_class_name = api_attrs_class_name_;
+  setters = std::move(setters_);
 }
 
-std::string TFAPIOptionsParam::type() const {
-  return api_optons_class_name;
+std::string TFAPIAttrsParam::type() const {
+  return api_attrs_class_name;
 }
-std::string TFAPIOptionsParam::var() const {
+std::string TFAPIAttrsParam::var() const {
   return name;
 }
-std::string TFAPIOptionsParam::initializer() const {
+std::string TFAPIAttrsParam::initializer() const {
   assert(false);
 }
 
-std::vector<std::string> TFAPIOptionsParam::gen_arg_setup() const {
+std::vector<std::string> TFAPIAttrsParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
-  for (auto& param: ctor_params)
-    concat(arg_setup, param->gen_arg_setup());
-  for (auto& param: member_params)
-    concat(arg_setup, param->gen_arg_setup());
+  for (auto& t: setters) {
+    //auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    concat(arg_setup, setter_flag->gen_arg_setup());
+    concat(arg_setup, setter_param->gen_arg_setup());
+  }
   return arg_setup;
 }
-std::vector<std::string> TFAPIOptionsParam::gen_hard_constraint() const {
+std::vector<std::string> TFAPIAttrsParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
-  for (auto& param: ctor_params)
-    concat(hard_ctrs, param->gen_hard_constraint());
-  for (auto& param: member_params)
-    concat(hard_ctrs, param->gen_hard_constraint());
+  for (auto& t: setters) {
+    //auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    concat(hard_ctrs, setter_flag->gen_hard_constraint());
+    concat(hard_ctrs, setter_param->gen_hard_constraint());
+  }
   return hard_ctrs;
 }
-std::vector<std::string> TFAPIOptionsParam::gen_soft_constraint() const {
+std::vector<std::string> TFAPIAttrsParam::gen_soft_constraint() const {
   std::vector<std::string> soft_ctrs;
-  for (auto& param: ctor_params)
-    concat(soft_ctrs, param->gen_soft_constraint());
-  for (auto& param: member_params)
-    concat(soft_ctrs, param->gen_soft_constraint());
+  for (auto& t: setters) {
+    //auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    concat(soft_ctrs, setter_flag->gen_soft_constraint());
+    concat(soft_ctrs, setter_param->gen_soft_constraint());
+  }
   return soft_ctrs;
 }
-std::vector<std::string> TFAPIOptionsParam::gen_input_pass_condition() const {
+std::vector<std::string> TFAPIAttrsParam::gen_input_pass_condition() const {
   std::vector<std::string> ignore_conds;
-  for (auto& param: ctor_params)
-    concat(ignore_conds, param->gen_input_pass_condition());
-  for (auto& param: member_params)
-    concat(ignore_conds, param->gen_input_pass_condition());
+  for (auto& t: setters) {
+    //auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    concat(ignore_conds, setter_flag->gen_input_pass_condition());
+    concat(ignore_conds, setter_param->gen_input_pass_condition());
+  }
   return ignore_conds;
 }
-std::vector<std::string> TFAPIOptionsParam::gen_arg_initialization() const {
+std::vector<std::string> TFAPIAttrsParam::gen_arg_initialization() const {
   std::vector<std::string> arg_initialization;
-  for (auto& param: ctor_params)
-    concat(arg_initialization, param->gen_arg_initialization());
-  for (auto& param: member_params)
-    concat(arg_initialization, param->gen_arg_initialization());
-  concat(arg_initialization, gen_api_options_init());
-  arg_initialization.back() = arg_initialization.back() + newline;
+  for (auto& t: setters) {
+    //auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    concat(arg_initialization, setter_flag->gen_arg_initialization());
+    concat(arg_initialization, setter_param->gen_arg_initialization());
+  }
+  concat(arg_initialization, gen_api_attrs_init());
+  if (!arg_initialization.empty())
+    arg_initialization.back() = arg_initialization.back() + newline;
   return arg_initialization;
 }
-void TFAPIOptionsParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+void TFAPIAttrsParam::resolve_name_conflict(std::set<std::string>& names_seen) {
   TFParam::resolve_name_conflict(names_seen);
-  for (auto& param: ctor_params)
-    param->resolve_name_conflict(names_seen);
-  for (auto& param: member_params)
-    param->resolve_name_conflict(names_seen);
-}
-
-bool TFAPIOptionsParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_APIOptions;
-}
-
-std::vector<std::string> TFAPIOptionsParam::gen_member_param_set() const {
-  std::vector<std::string> member_param_set;
-  assert(member_params.size() == member_param_setters.size());
-  for (size_t i = 0; i < member_params.size(); i++)
-    member_param_set.push_back("." + member_param_setters[i] + bracket(member_params[i]->expr()));
-  return member_param_set;
-}
-
-std::vector<std::string> TFAPIOptionsParam::gen_api_options_init() const {
-  std::vector<std::string> api_options_init;
-
-  api_options_init.push_back("auto " + name + assign);
-  std::string initializer = "  " + api_optons_class_name + "(";
-  for (size_t i = 0; i < ctor_params.size(); i++) {
-    initializer += ctor_params[i]->expr();
-    if (i != ctor_params.size() - 1)
-      initializer += comma;
+  for (auto& t: setters) {
+    //auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    setter_flag->resolve_name_conflict(names_seen);
+    setter_param->resolve_name_conflict(names_seen);
   }
-  initializer += ")";
-  api_options_init.push_back(initializer);
-  for (auto& param_set: gen_member_param_set())
-    api_options_init.push_back("    " + param_set);
-  api_options_init.back() = api_options_init.back() + semicolon;
-  return api_options_init;
+}
+
+bool TFAPIAttrsParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_APIAttrs;
+}
+
+std::vector<std::string> TFAPIAttrsParam::gen_api_attrs_init() const {
+  std::vector<std::string> api_attrs_init;
+
+  api_attrs_init.push_back("auto " + name + assign + api_attrs_class_name + "();");
+  for (auto& t: setters) {
+    auto& setter_name = std::get<0>(t);
+    auto& setter_flag = std::get<1>(t);
+    auto& setter_param = std::get<2>(t);
+    api_attrs_init.push_back("if (" + setter_flag->expr() + ")");
+    api_attrs_init.push_back("  " + name + assign + name + "." + setter_name + bracket(setter_param->expr()) + semicolon);
+  }
+  return api_attrs_init;
 }

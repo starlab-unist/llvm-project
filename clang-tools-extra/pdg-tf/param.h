@@ -25,6 +25,7 @@ extern const size_t MAX_ARRAYREF_SIZE;
 
 const std::string symbolic_int_var = "sym_int_arg";
 const std::string callback_input_var = "x";
+const std::string scope_var = "scope";
 
 void set_function_mode();
 void set_module_mode();
@@ -52,6 +53,8 @@ class TFParam {
       TPK_Bool,
       TPK_String,
       TFPK_StringPiece,
+      TFPK_DataFormat,
+      TFPK_Padding,
       TPK_BFloat,
       TPK_Half,
       TPK_Float,
@@ -84,7 +87,7 @@ class TFParam {
 
       TPK_Tensor,
       TPK_Optional,
-      TPK_APIOptions,
+      TFPK_APIAttrs,
     };
 
     TFParam(TFParamKind kind_, std::string name_): kind(kind_), name(name_) {}
@@ -117,13 +120,14 @@ class TFParam {
 
 class TFScopeParam: public TFParam {
   public:
-    TFScopeParam(std::string name_);
+    TFScopeParam();
 
     virtual std::string type() const override;
     virtual std::string var() const override;
     virtual std::string initializer() const override;
 
     virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 };
 
 class TFIntParam: public TFParam {
@@ -228,6 +232,26 @@ class TFBoolParam: public TFBoundedParam {
 class TFStringPieceParam: public TFBoundedParam {
   public:
     TFStringPieceParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TFParam *param);
+};
+
+class TFDataFormatParam: public TFBoundedParam {
+  public:
+    TFDataFormatParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TFParam *param);
+};
+
+class TFPaddingParam: public TFBoundedParam {
+  public:
+    TFPaddingParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -602,7 +626,31 @@ class TFOptionalParam: public TFParam {
     std::string base_type_str;
 };
 
+class TFAPIAttrsParam: public TFParam {
+  public:
+    TFAPIAttrsParam(
+      std::string name_,
+      std::string api_attrs_class_name_,
+      std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_);
 
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_soft_constraint() const override;
+    virtual std::vector<std::string> gen_input_pass_condition() const override;
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    static bool classof(const TFParam *param);
+  private:
+    std::string api_attrs_class_name;
+    std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
+
+    std::vector<std::string> gen_api_attrs_init() const;
+};
 
 class TFAPIOptionsParam: public TFParam {
   public:

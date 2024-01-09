@@ -10,8 +10,7 @@ std::unique_ptr<TFParam> extractTFScope(clang::QualType t, std::string name, AST
 
   if (const auto* rtype = t->getAs<RecordType>())
     if (rtype->getDecl()->getQualifiedNameAsString() == "tensorflow::Scope") {
-      std::cout << "Found Scope" << std::endl;
-      tf_param = std::make_unique<TFScopeParam>(name);
+      tf_param = std::make_unique<TFScopeParam>();
     }
 
   return tf_param;
@@ -48,9 +47,22 @@ std::unique_ptr<TFParam> extractTFStringPiece(clang::QualType t, std::string nam
 
   if (const auto* tdtype = dyn_cast<TypedefType>(t))
     if (tdtype->getDecl()->getNameAsString() == "StringPiece") {
-      tf_param = std::make_unique<TFStringPieceParam>(name);
-      std::cout << "Found StringPiece" << std::endl;
+      if (name == "padding") {
+        tf_param = std::make_unique<TFPaddingParam>(name);
+      } else {
+        tf_param = std::make_unique<TFStringPieceParam>(name);
+      }
     }
+
+  return tf_param;
+}
+
+std::unique_ptr<TFParam> extractTFDataFormat(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TFParam> tf_param;
+
+  if (const auto* tdtype = dyn_cast<TypedefType>(t))
+    if (tdtype->getDecl()->getNameAsString() == "StringPiece")
+      tf_param = std::make_unique<TFDataFormatParam>(name);
 
   return tf_param;
 }
@@ -172,10 +184,8 @@ std::unique_ptr<TFParam> extractTFTensor(clang::QualType t, std::string name, AS
   std::unique_ptr<TFParam> tf_param;
 
   if (const auto* rtype = t->getAs<RecordType>())
-    if (rtype->getDecl()->getQualifiedNameAsString() == "tensorflow::Input") {
-      std::cout << "Found Tensor" << std::endl;
+    if (rtype->getDecl()->getQualifiedNameAsString() == "tensorflow::Input")
       tf_param = std::make_unique<TFTensorParam>(name);
-    }
 
   return tf_param;
 }
@@ -243,46 +253,6 @@ std::unique_ptr<TFParam> extractTFArraySlice(clang::QualType t, std::string name
   
   return tf_param;
 }
-
-/* std::unique_ptr<TFParam> extractTFArraySlice(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* rtype = dyn_cast<RecordType>(t)) {
-    if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
-      //std::cout << "======================================" << std::endl;
-      //ctsdecl->dump();
-      //std::cout << "======================================" << std::endl;
-      //if (ctsdecl->getNameAsString() == "ArraySlice") {
-      if (ctsdecl->getNameAsString() == "Span") {
-        std::cout << "Found Span" << std::endl;
-        ctsdecl->dump();
-        const auto& targ = ctsdecl->getTemplateArgs();
-        assert(targ.size() == 1);
-        assert(targ[0].getKind() == TemplateArgument::ArgKind::Type); 
-        std::vector<std::unique_ptr<TFParam>> params;
-        for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
-          std::string param_name = name + "_" + std::to_string(i);
-          std::unique_ptr<TFParam> param =
-            extractTFParam(targ[0].getAsType(), param_name, Ctx);
-          if (param == nullptr)
-            break;
-          params.push_back(std::move(param));
-        }
-        if (params.empty()) {
-          std::cerr <<
-            "WARNING: While extracting `ArrayRef` param `" << name << "`, failed to extract base type `" <<
-            targ[0].getAsType().getAsString() << "`.\n" <<
-            "         param `" << name << "` will be fixed to empty ArrayRef." << std::endl;
-          tf_param = std::make_unique<TFArrayRefParam>(name, targ[0].getAsType().getAsString());
-        } else {
-          tf_param = std::make_unique<TFArrayRefParam>(name, std::move(params));
-        }
-      }
-    }
-  }
-  
-  return tf_param;
-} */
 
 std::unique_ptr<TFParam> extractTFArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
@@ -625,141 +595,83 @@ clang::QualType get_base(clang::QualType t, ASTContext &Ctx) {
   return after;
 }
 
-std::unique_ptr<TFParam> extractTFAPIOptions(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TFParam> extractTFAPIAttrs(clang::QualType t, std::string name, ASTContext &Ctx) {
   if (option_class_done) return nullptr;
 
-  static std::string option_suffix = "Options";
-  std::string api_options_class_name;
-  const RecordType* rtype;
-  if (const auto* tdtype = dyn_cast<TypedefType>(t)) {
-    api_options_class_name = tdtype->getDecl()->getQualifiedNameAsString();
-    if (api_options_class_name.length() > option_suffix.length() &&
-        api_options_class_name.compare(
-          api_options_class_name.length() - option_suffix.length(),
-          option_suffix.length(), option_suffix) == 0) {
-      option_class_done = true;
-      assert(tdtype->isSugared());
+  static std::string attrs_suffix = "Attrs";
+  std::string api_attrs_class_name;
 
-      const TemplateSpecializationType* tstype;
-      if (const auto* tdtype2 = dyn_cast<TypedefType>(tdtype->desugar())) {
-        assert(tdtype2->isSugared());
-        tstype = dyn_cast<TemplateSpecializationType>(tdtype2->desugar());
-      } else {
-        tstype = dyn_cast<TemplateSpecializationType>(tdtype->desugar());
-      }
+  const auto* rtype = dyn_cast<RecordType>(t);
+  if (rtype == nullptr)
+    return nullptr;
 
-      if (tstype != nullptr) {
-        assert(tstype->isSugared());
-        rtype = dyn_cast<RecordType>(tstype->desugar());
-      } else {
-        rtype = dyn_cast<RecordType>(tdtype->desugar());
-      }
-    }
-  } else if ((rtype = dyn_cast<RecordType>(t))) {
-    api_options_class_name = rtype->getDecl()->getQualifiedNameAsString();
-    if (api_options_class_name.length() > option_suffix.length() &&
-        api_options_class_name.compare(
-          api_options_class_name.length() - option_suffix.length(),
-          option_suffix.length(), option_suffix) == 0) {
-      option_class_done = true;
-      if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl()))
-        api_options_class_name = get_specialized_name(ctsdecl);
-    }
-  }
-
-  if (rtype == nullptr || !option_class_done) return nullptr;
+  api_attrs_class_name = rtype->getDecl()->getQualifiedNameAsString();
+  bool is_attrs =
+    api_attrs_class_name.length() > attrs_suffix.length() &&
+    api_attrs_class_name.compare(
+      api_attrs_class_name.length() - attrs_suffix.length(),
+      attrs_suffix.length(), attrs_suffix) == 0;
+  if (!is_attrs)
+    return nullptr;
 
   const auto* cdecl = rtype->getAsCXXRecordDecl();
-  assert(cdecl != nullptr);
+  if (cdecl == nullptr)
+    return nullptr;
 
-  std::vector<std::unique_ptr<TFParam>> ctor_params;
-  std::vector<std::unique_ptr<TFParam>> member_params;
-  std::set<std::string> ctor_param_names;
-  std::set<std::string> member_params_seen;
+  //cdecl->dump();
+
+  std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
 
   bool default_ctor_available = false;
   for (auto ctordecl: cdecl->ctors())
     if (ctordecl->isDefaultConstructor())
       default_ctor_available = true;
 
-  if (!default_ctor_available) {
-    for (auto ctordecl: cdecl->ctors()) {
-      bool is_special_ctor =
-        ctordecl->isDefaultConstructor() ||
-        ctordecl->isCopyOrMoveConstructor() ||
-        ctordecl->isSpecializationCopyingObject() ||
-        ctordecl->isInheritingConstructor();
-      if (!is_special_ctor) {
-        std::vector<std::unique_ptr<TFParam>> ctor_params_;
-        std::set<std::string> ctor_param_names_;
-        bool extract_succeed = true;
-        for (const auto* param: ctordecl->parameters()) {
-          std::string param_name = param->getNameAsString();
-          std::unique_ptr<TFParam> tf_param = extractTFParam(param->getType(), param_name, Ctx);
-          if (tf_param == nullptr) {
-            std::cerr <<
-              "WARNING: Parsing fail on param `" << param_name << "` in `" << api_options_class_name << "`.\n" <<
-              "         Type `" << param->getType().getAsString() << "` is not supported." << std::endl;
-            extract_succeed = false;
-            break;
-          }
-          tf_param->set_default(get_default_expr(param_name, cdecl));
-          ctor_params_.push_back(std::move(tf_param));
-          ctor_param_names_.insert(param_name);
-        }
-        if (extract_succeed) {
-          ctor_params = std::move(ctor_params_);
-          ctor_param_names = ctor_param_names_;
-          break;
-        }
-      }
+  if (!default_ctor_available)
+    return nullptr;
+
+  for (auto setter: cdecl->methods()) {
+    if (dyn_cast<CXXConstructorDecl>(setter) != nullptr)
+      continue;
+
+    std::string setter_name = setter->getNameAsString();
+    if (setter->isCopyAssignmentOperator() || setter->isMoveAssignmentOperator())
+      continue;
+    if (setter->parameters().size() != 1)
+      continue;
+    if (get_base(setter->getReturnType(), Ctx) != get_base(t, Ctx))
+      continue;
+
+    std::string dataformat_suffix = "Format";
+    bool is_dataformat_param =
+      setter_name.length() >= dataformat_suffix.length() &&
+      setter_name.compare(
+        setter_name.length() - dataformat_suffix.length(),
+        dataformat_suffix.length(), dataformat_suffix) == 0;
+
+    std::unique_ptr<TFParam> param;
+    if (is_dataformat_param) {
+      param = std::move(extractTFDataFormat(setter->parameters()[0]->getType(), setter->parameters()[0]->getNameAsString(), Ctx));
+    } else {
+      param = std::move(extractTFParam(setter->parameters()[0]->getType(), setter->parameters()[0]->getNameAsString(), Ctx));
     }
-    if (ctor_params.empty())
-      return nullptr;
-  }
-
-  for (auto method: cdecl->methods()) {
-    if (dyn_cast<CXXConstructorDecl>(method) != nullptr)
-      continue;
-
-    std::string param_name = method->getNameAsString();
-    if (ctor_param_names.find(param_name) != ctor_param_names.end())
-      continue;
-    if (method->isCopyAssignmentOperator() || method->isMoveAssignmentOperator())
-      continue;
-    if (method->parameters().size() != 1)
-      continue;
-    if (get_base(method->getReturnType(), Ctx) != get_base(t, Ctx))
-      continue;
-
-    std::unique_ptr<TFParam> param = extractTFParam(method->parameters()[0]->getType(), param_name, Ctx);
+    
     if (param == nullptr) {
       std::cerr <<
-        "WARNING: Parsing fail on param `" << param_name << "` in `" << api_options_class_name << "`.\n" <<
-        "         Type `" << method->parameters()[0]->getType().getAsString() << "` is not supported." << std::endl;
+        "WARNING: Parsing fail on param `" << setter_name << "` in `" << api_attrs_class_name << "`.\n" <<
+        "         Type `" << setter->parameters()[0]->getType().getAsString() << "` is not supported." << std::endl;
       continue;
     }
-    param->set_default(get_default_expr(param_name, cdecl));
 
-    bool insert = true;
-    for (size_t i = 0; i < member_params.size(); i++) {
-      if (member_params[i]->get_name() == param_name) {
-        insert = false;
-        if (!member_params[i]->stable()) {
-          member_params[i] = std::move(param);
-          break;
-        }
-      }
-    }
-    if (insert)
-      member_params.push_back(std::move(param));
+    setters.push_back(
+      std::move(std::make_tuple(setter_name, std::make_unique<TFBoolParam>("set_" + setter_name) ,std::move(param))));
   }
+
   std::unique_ptr<TFParam> tf_param =
-    std::make_unique<TFAPIOptionsParam>(
+    std::make_unique<TFAPIAttrsParam>(
       name,
-      api_options_class_name,
-      std::move(ctor_params),
-      std::move(member_params));
+      api_attrs_class_name,
+      std::move(setters));
   return tf_param;
 }
 
@@ -807,7 +719,7 @@ std::unique_ptr<TFParam> extractTFParam(clang::QualType t, std::string name, AST
     return optional_param;
   if (auto variant_param = extractTFVariant(t, name, Ctx))
     return variant_param;
-  if (auto api_options_param = extractTFAPIOptions(t, name, Ctx))
+  if (auto api_options_param = extractTFAPIAttrs(t, name, Ctx))
     return api_options_param;
 
   // Simplifying sugars
