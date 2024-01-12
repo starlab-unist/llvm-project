@@ -82,9 +82,9 @@ std::vector<std::string> TFAPI::header() const {
     "#include \"tensorflow/cc/ops/array_ops.h\"",
     "#include \"tensorflow/cc/ops/standard_ops.h\"",
     "#include \"tensorflow/core/kernels/pathfinder/fuzzer_util.h\"",
-    "#include \"src/pathfinder.h\"",
+    "#include \"src/pathfinder.h\"\n",
 
-    "using namespace tensorflow;\n",
+    "using namespace tensorflow;",
     "using namespace fuzzer_util;\n",
 
     "extern \"C\" {\n",
@@ -122,19 +122,25 @@ std::vector<std::string> TFAPI::callback() const {
   concat(callback_code, "  ", input_pass_condition_code());
 
   concat(callback_code, "  ", arg_initialization_code());
-  concat(callback_code, "  ", api_call_code());
-
-  callback_code.push_back("  GraphDef " + graphdef_var + ";");
-  callback_code.push_back("  TF_CHECK_OK(" + scope_var + ".ToGraphDef(&" + graphdef_var + "));");
-  callback_code.push_back("  Status " + status_var + " = " + session_var + "->Create(" + graphdef_var + ");");
-  callback_code.push_back("  if (!" + status_var + ".ok()) {");
-  callback_code.push_back("    LOG(FATAL) << \"Could not create " + session_var + ": \" << " + status_var + ".message();");
-  callback_code.push_back("  }\n");
-
-  callback_code.push_back("  std::vector<Tensor> " + outputs_var + ";\n");
 
   callback_code.push_back("  PathFinderExecuteTarget(");
-  callback_code.push_back("    " + status_var + " = " + session_var + "->Run({}, {\"result\"}, {\"result\"}, &" + outputs_var + "));\n");
+  concat(callback_code, "    ", api_call_code());
+
+  callback_code.push_back("    GraphDef " + graphdef_var + ";");
+  callback_code.push_back("    Status " + status_var + " = " + scope_var + ".ToGraphDef(&" + graphdef_var + ");");
+  callback_code.push_back("    if (!" + status_var + ".ok())");
+  callback_code.push_back("      return -2;\n");
+  callback_code.push_back("    " + status_var + " = " + session_var + "->Create(" + graphdef_var + ");");
+  callback_code.push_back("    if (!" + status_var + ".ok())");
+  callback_code.push_back("      return -2;\n");
+
+  callback_code.push_back("    std::vector<Tensor> " + outputs_var + ";");
+
+  
+  callback_code.push_back("    " + status_var + " = " + session_var + "->Run({}, {\"" + target_var + "\"}, {}, &" + outputs_var + ");");
+  callback_code.push_back("    if (!" + status_var + ".ok())");
+  callback_code.push_back("      return -2;");
+  callback_code.push_back("  );\n");
 
   callback_code.push_back("  return 0;");
   callback_code.push_back("}\n");
@@ -154,11 +160,10 @@ std::vector<std::string> TFAPI::footer() const {
 std::vector<std::string> TFAPI::api_call_code() const {
   std::string module_init =
     "auto " + target_var + assign + api_name + "(";
-  for (size_t i = 0; i < params.size(); i++) {
-    module_init += params[i]->expr();
-    if (i != params.size() - 1)
-      module_init += comma;
-  }
+  assert(!params.empty() && params[0]->get_kind() == TFParam::TFPK_Scope);
+  module_init += params[0]->expr() + ".WithOpName(\"" + target_var + "\")";
+  for (size_t i = 1; i < params.size(); i++)
+    module_init += comma + params[i]->expr();
   module_init += ");\n";
 
   return {module_init};

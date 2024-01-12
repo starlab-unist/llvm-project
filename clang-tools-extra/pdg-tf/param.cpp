@@ -43,7 +43,7 @@ std::string TFScopeParam::var() const {
   return name;
 }
 std::string TFScopeParam::initializer() const {
-  return "Scope::DisabledShapeInferenceScope().ExitOnError()";
+  return "Scope::DisabledShapeInferenceScope()";
 }
 
 std::vector<std::string> TFScopeParam::gen_arg_initialization() const {
