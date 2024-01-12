@@ -1,7 +1,7 @@
 #include "param.h"
 
 // Should be consistent with
-// <TORCH_HOME>/test/cpp/fuzzing/fuzzer_util.h
+// <TENSORFLOW_HOME>/tensorflow/core/kernels/pathfinder/fuzzer_util.h
 const size_t MAX_RANK = 5;
 const size_t MAX_VECTOR_SIZE = 6;
 const size_t MAX_ARRAYREF_SIZE = 6;
@@ -93,38 +93,7 @@ bool TFIntParam::classof(const TFParam *param) {
 }
 
 
-TFSymIntParam::TFSymIntParam(std::string name_)
-  : TFParam(TPK_SymInt, name_)
-{
-  intparam = std::make_unique<TFIntParam>(name + "_int", "long");
-}
-void TFSymIntParam::set_default(Expr* default_expr) {
-  intparam->set_default(default_expr);
-}
-void TFSymIntParam::set_default(int value) {
-  intparam->set_default(value);
-}
-
-std::string TFSymIntParam::type() const {
-  return "c10::SymInt";
-}
-std::string TFSymIntParam::initializer() const {
-  return  type() + bracket(intparam->expr());
-}
-
-std::vector<std::string> TFSymIntParam::gen_arg_setup() const {
-  return intparam->gen_arg_setup();
-}
-std::vector<std::string> TFSymIntParam::gen_soft_constraint() const {
-  return intparam->gen_soft_constraint();
-}
-
-bool TFSymIntParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_SymInt;
-}
-
-
-TFUnsignedIntParam::TFUnsignedIntParam(std::string name_): TFParam(TPK_UnsignedInt, name_) {}
+TFUnsignedIntParam::TFUnsignedIntParam(std::string name_): TFParam(TFPK_UnsignedInt, name_) {}
 void TFUnsignedIntParam::set_default(Expr* default_expr) {
   if (default_expr == nullptr)
     return;
@@ -160,27 +129,27 @@ std::vector<std::string> TFUnsignedIntParam::gen_soft_constraint() const {
 }
 
 bool TFUnsignedIntParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_UnsignedInt;
+  return param->get_kind() == TFPK_UnsignedInt;
 }
 
 
 TFBoundedParam::TFBoundedParam(TFParamKind kind_, std::string name_, const std::vector<std::string>& value_names_)
   : TFParam(kind_, name_)
 {
-  assert(TPK_Bounded_First <= get_kind() && get_kind() <= TPK_Bounded_Last);
+  assert(TFPK_Bounded_First <= get_kind() && get_kind() <= TFPK_Bounded_Last);
   for (auto value_name_: value_names_)
     value_names.push_back(quoted(value_name_));
 }
 TFBoundedParam::TFBoundedParam(TFParamKind kind_, std::string name_, size_t size_)
   : TFParam(kind_, name_)
 {
-  assert(TPK_Bounded_First <= get_kind() && get_kind() <= TPK_Bounded_Last);
+  assert(TFPK_Bounded_First <= get_kind() && get_kind() <= TFPK_Bounded_Last);
   size = size_;
 }
 TFBoundedParam::TFBoundedParam(TFParamKind kind_, std::string name_, const std::string& value_list_var_)
   : TFParam(kind_, name_)
 {
-  assert(TPK_Bounded_First <= get_kind() && get_kind() <= TPK_Bounded_Last);
+  assert(TFPK_Bounded_First <= get_kind() && get_kind() <= TFPK_Bounded_Last);
   value_list_var = value_list_var_;
 }
 
@@ -213,7 +182,7 @@ bool TFBoundedIntParam::classof(const TFParam *param) {
 
 
 TFBoolParam::TFBoolParam(std::string name_)
-  : TFBoundedParam(TPK_Bool, name_, std::vector<std::string>({"false", "true"})) {}
+  : TFBoundedParam(TFPK_Bool, name_, std::vector<std::string>({"false", "true"})) {}
 
 std::string TFBoolParam::type() const {
   return "bool";
@@ -223,7 +192,7 @@ std::string TFBoolParam::initializer() const {
 }
 
 bool TFBoolParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Bool;
+  return param->get_kind() == TFPK_Bool;
 }
 
 
@@ -272,26 +241,8 @@ bool TFPaddingParam::classof(const TFParam *param) {
 }
 
 
-TFStringParam::TFStringParam(std::string name_, bool is_view_)
-  : TFBoundedParam(TPK_String, name_, "string_dict().size()"), is_view(is_view_) {}
-
-std::string TFStringParam::type() const {
-  if (is_view)
-    return "c10::string_view";
-
-  return "std::string";
-}
-std::string TFStringParam::initializer() const {
-  return "get_string" + bracket(callback_var(name));
-}
-
-bool TFStringParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_String;
-}
-
-
 TFBFloatParam::TFBFloatParam(std::string name_)
-  : TFBoundedParam(TPK_Float, name_, "bfloat_dict().size()") {}
+  : TFBoundedParam(TFPK_Float, name_, "bfloat_dict().size()") {}
 
 std::string TFBFloatParam::type() const {
   return "__bf16";
@@ -301,12 +252,12 @@ std::string TFBFloatParam::initializer() const {
 }
 
 bool TFBFloatParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_BFloat;
+  return param->get_kind() == TFPK_BFloat;
 }
 
 
 TFHalfParam::TFHalfParam(std::string name_)
-  : TFBoundedParam(TPK_Float, name_, "half_dict().size()") {}
+  : TFBoundedParam(TFPK_Float, name_, "half_dict().size()") {}
 
 std::string TFHalfParam::type() const {
   return "__fp16";
@@ -316,12 +267,12 @@ std::string TFHalfParam::initializer() const {
 }
 
 bool TFHalfParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Half;
+  return param->get_kind() == TFPK_Half;
 }
 
 
 TFFloatParam::TFFloatParam(std::string name_)
-  : TFBoundedParam(TPK_Float, name_, "float_dict().size()") {}
+  : TFBoundedParam(TFPK_Float, name_, "float_dict().size()") {}
 
 std::string TFFloatParam::type() const {
   return "float";
@@ -331,12 +282,12 @@ std::string TFFloatParam::initializer() const {
 }
 
 bool TFFloatParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Float;
+  return param->get_kind() == TFPK_Float;
 }
 
 
 TFDoubleParam::TFDoubleParam(std::string name_)
-  : TFBoundedParam(TPK_Float, name_, "double_dict().size()") {}
+  : TFBoundedParam(TFPK_Double, name_, "double_dict().size()") {}
 
 std::string TFDoubleParam::type() const {
   return "double";
@@ -346,52 +297,7 @@ std::string TFDoubleParam::initializer() const {
 }
 
 bool TFDoubleParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Double;
-}
-
-
-TFMemoryFormatParam::TFMemoryFormatParam(std::string name_)
-  : TFBoundedParam(TPK_MemoryFormat, name_, "memory_format_dict().size()") {}
-
-std::string TFMemoryFormatParam::type() const {
-  return "c10::MemoryFormat";
-}
-std::string TFMemoryFormatParam::initializer() const {
-  return "get_memory_format" + bracket(callback_var(name));
-}
-
-bool TFMemoryFormatParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_MemoryFormat;
-}
-
-
-TFLayoutParam::TFLayoutParam(std::string name_)
-  : TFBoundedParam(TPK_Layout, name_, "layout_dict().size()") {}
-
-std::string TFLayoutParam::type() const {
-  return "c10::Layout";
-}
-std::string TFLayoutParam::initializer() const {
-  return "get_layout" + bracket(callback_var(name));
-}
-
-bool TFLayoutParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Layout;
-}
-
-
-TFDeviceParam::TFDeviceParam(std::string name_)
-  : TFBoundedParam(TPK_Device, name_, "device_dict().size()") {}
-
-std::string TFDeviceParam::type() const {
-  return "c10::Device";
-}
-std::string TFDeviceParam::initializer() const {
-  return "get_device" + bracket(callback_var(name));
-}
-
-bool TFDeviceParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Device;
+  return param->get_kind() == TFPK_Double;
 }
 
 
@@ -425,7 +331,7 @@ bool TFExtendedDtypeParam::classof(const TFParam *param) {
 }
 
 
-TFDtypeParam::TFDtypeParam(std::string name_): TFParam(TPK_Dtype, name_) {
+TFDtypeParam::TFDtypeParam(std::string name_): TFParam(TFPK_Dtype, name_) {
   basic = std::make_unique<TFBasicDtypeParam>(name_);
   extended = std::make_unique<TFExtendedDtypeParam>(name_);
 }
@@ -455,14 +361,14 @@ void TFDtypeParam::resolve_name_conflict(std::set<std::string>& names_seen) {
 }
 
 bool TFDtypeParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Dtype;
+  return param->get_kind() == TFPK_Dtype;
 }
 
 
 TFVariantParam::TFVariantParam(
   std::string name_,
   std::vector<std::unique_ptr<TFParam>> params_)
-  : TFBoundedParam(TPK_Variant, name_, get_names(params_))
+  : TFBoundedParam(TFPK_Variant, name_, get_names(params_))
 {
   params = std::move(params_);
 }
@@ -519,7 +425,7 @@ void TFVariantParam::resolve_name_conflict(std::set<std::string>& names_seen) {
 }
 
 bool TFVariantParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Variant;
+  return param->get_kind() == TFPK_Variant;
 }
 
 std::vector<std::string> TFVariantParam::gen_typedef() const {
@@ -549,31 +455,13 @@ std::vector<std::string> TFVariantParam::gen_vector() const {
 }
 
 
-TFEnumParam::TFEnumParam(std::string name_, std::string enum_name_)
-  : TFParam(TPK_Enum, name_)
-{
-  enum_name = enum_name_;
-}
-
-std::string TFEnumParam::type() const {
-  return "torch::enumtype::" + enum_name;
-}
-std::string TFEnumParam::initializer() const {
-  return "torch::" + enum_name;
-}
-
-bool TFEnumParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Enum;
-}
-
-
 TFUnfixedArrayParam::TFUnfixedArrayParam(
   TFParamKind kind_,
   std::string name_,
   std::vector<std::unique_ptr<TFParam>> params_)
   : TFParam(kind_, name_)
 {
-  assert(TPK_UnfixedArray_First <= get_kind() && get_kind() <= TPK_UnfixedArray_Last);
+  assert(TFPK_UnfixedArray_First <= get_kind() && get_kind() <= TFPK_UnfixedArray_Last);
   params = std::move(params_);
   size = std::make_unique<TFBoundedIntParam>(name + "_size", params.size() + 1);
 }
@@ -583,7 +471,7 @@ TFUnfixedArrayParam::TFUnfixedArrayParam(
   std::string base_type_str_)
   : TFParam(kind_, name_), base_type_str(base_type_str_)
 {
-  assert(TPK_UnfixedArray_First <= get_kind() && get_kind() <= TPK_UnfixedArray_Last);
+  assert(TFPK_UnfixedArray_First <= get_kind() && get_kind() <= TFPK_UnfixedArray_Last);
 }
 
 std::string TFUnfixedArrayParam::var() const {
@@ -655,9 +543,9 @@ std::string TFUnfixedArrayParam::base_type() const {
 
 
 TFVectorParam::TFVectorParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_)
-  : TFUnfixedArrayParam(TPK_Vector, name_, std::move(params_)) {}
+  : TFUnfixedArrayParam(TFPK_Vector, name_, std::move(params_)) {}
 TFVectorParam::TFVectorParam(std::string name_, std::string base_type_str_)
-  : TFUnfixedArrayParam(TPK_Vector, name_, base_type_str_) {}
+  : TFUnfixedArrayParam(TFPK_Vector, name_, base_type_str_) {}
 
 std::string TFVectorParam::type() const {
   return "std::vector<" + TFUnfixedArrayParam::base_type() + ">";
@@ -670,10 +558,8 @@ std::string TFVectorParam::initializer() const {
 }
 
 bool TFVectorParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Vector;
+  return param->get_kind() == TFPK_Vector;
 }
-
-
 
 
 TFArraySliceParam::TFArraySliceParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_)
@@ -682,7 +568,7 @@ TFArraySliceParam::TFArraySliceParam(std::string name_, std::vector<std::unique_
   vec = std::make_unique<TFVectorParam>(name + "_vec", std::move(params_));
 }
 TFArraySliceParam::TFArraySliceParam(std::string name_, std::string base_type_str_)
-  : TFParam(TPK_ArrayRef, name_)
+  : TFParam(TFPK_ArraySlice, name_)
 {
   vec = std::make_unique<TFVectorParam>(name + "_vec", base_type_str_);
 }
@@ -717,79 +603,10 @@ void TFArraySliceParam::resolve_name_conflict(std::set<std::string>& names_seen)
   vec->resolve_name_conflict(names_seen);
 }
 
-/* bool TFArrayRefParam::stable() const {
-  return vec->stable();
-} */
-
 bool TFArraySliceParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_ArraySlice;
 }
 
-
-
-
-
-
-TFArrayRefParam::TFArrayRefParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_)
-  : TFParam(TPK_ArrayRef, name_)
-{
-  vec = std::make_unique<TFVectorParam>(name + "_vec", std::move(params_));
-}
-TFArrayRefParam::TFArrayRefParam(std::string name_, std::string base_type_str_)
-  : TFParam(TPK_ArrayRef, name_)
-{
-  vec = std::make_unique<TFVectorParam>(name + "_vec", base_type_str_);
-}
-
-std::string TFArrayRefParam::type() const {
-  return "c10::ArrayRef<" + vec->base_type() + ">";
-}
-std::string TFArrayRefParam::var() const {
-  //if (!stable())
-  //  return "";
-
-  return name;
-}
-std::string TFArrayRefParam::initializer() const {
-  //if (!stable())
-  //  return type() + "({})";
-
-  return type() + bracket(vec->expr());
-}
-
-std::vector<std::string> TFArrayRefParam::gen_arg_setup() const {
-  return vec->gen_arg_setup();
-}
-std::vector<std::string> TFArrayRefParam::gen_hard_constraint() const {
-  return vec->gen_hard_constraint();
-}
-std::vector<std::string> TFArrayRefParam::gen_soft_constraint() const {
-  return vec->gen_soft_constraint();
-}
-std::vector<std::string> TFArrayRefParam::gen_arg_initialization() const {
-  //if (!stable())
-  //  return {};
-
-  std::vector<std::string> arg_initialization;
-  concat(arg_initialization, vec->gen_arg_initialization());
-  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
-  return arg_initialization;
-}
-void TFArrayRefParam::resolve_name_conflict(std::set<std::string>& names_seen) {
-  //if (!stable())
-  //  return;
-
-  TFParam::resolve_name_conflict(names_seen);
-  vec->resolve_name_conflict(names_seen);
-}
-
-/* bool TFArrayRefParam::stable() const {
-  return vec->stable();
-} */
-
-bool TFArrayRefParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_ArrayRef;
-}
 
 TFFixedArrayParam::TFFixedArrayParam(
   TFParamKind kind_,
@@ -798,7 +615,7 @@ TFFixedArrayParam::TFFixedArrayParam(
   std::vector<std::unique_ptr<TFParam>> params_)
   : TFParam(kind_, name_)
 {
-  assert(TPK_FixedArray_First <= get_kind() && get_kind() <= TPK_FixedArray_Last);
+  assert(TFPK_FixedArray_First <= get_kind() && get_kind() <= TFPK_FixedArray_Last);
   size = size_;
   params = std::move(params_);
   assert(params.size() == size);
@@ -840,67 +657,11 @@ void TFFixedArrayParam::resolve_name_conflict(std::set<std::string>& names_seen)
 }
 
 
-TFExpandingArrayParam::TFExpandingArrayParam(
-  std::string name_,
-  size_t size_,
-  std::vector<std::unique_ptr<TFParam>> params_)
-  : TFFixedArrayParam(TPK_ExpandingArray, name_, size_, std::move(params_)) {}
-void TFExpandingArrayParam::set_default(Expr* default_expr) {
-  for (auto&& param: params)
-    param->set_default(default_expr);
-}
-
-std::string TFExpandingArrayParam::type() const {
-  return "torch::ExpandingArray<" + std::to_string(size) + comma + params[0]->type() + ">";
-}
-std::string TFExpandingArrayParam::initializer() const {
-  return type() + bracket(to_string(params));
-}
-
-bool TFExpandingArrayParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_ExpandingArray;
-}
-
-
-TFExpandingArrayWithOptionalElemParam::TFExpandingArrayWithOptionalElemParam(
-  std::string name_,
-  size_t size_,
-  std::vector<std::unique_ptr<TFParam>> params_)
-  : TFFixedArrayParam(TPK_ExpandingArrayWithOptionalElem, name_, size_, std::move(params_))
-{
-  for (auto& param: params)
-    assert(isa<TFOptionalParam>(param.get()));
-}
-void TFExpandingArrayWithOptionalElemParam::set_default(Expr* default_expr) {
-  for (auto&& param: params)
-    param->set_default(default_expr);
-}
-
-std::string TFExpandingArrayWithOptionalElemParam::type() const {
-  return "torch::ExpandingArrayWithOptionalElem<" + std::to_string(size) + comma + base_type() + ">";
-}
-std::string TFExpandingArrayWithOptionalElemParam::initializer() const {
-  return
-    "expandingarray_with_optional_elem<" +
-      std::to_string(size) + comma + base_type() +
-    ">" + bracket(to_string(params));
-}
-
-bool TFExpandingArrayWithOptionalElemParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_ExpandingArrayWithOptionalElem;
-}
-
-std::string TFExpandingArrayWithOptionalElemParam::base_type() const {
-  TFOptionalParam* param = dyn_cast<TFOptionalParam>(params[0].get());
-  return param->base_type();
-}
-
-
 TFTupleParam::TFTupleParam(
   std::string name_,
   size_t size_,
   std::vector<std::unique_ptr<TFParam>> params_)
-  : TFFixedArrayParam(TPK_Tuple, name_, size_, std::move(params_)) {}
+  : TFFixedArrayParam(TFPK_Tuple, name_, size_, std::move(params_)) {}
 
 std::string TFTupleParam::type() const {
   std::string type_str = "std::tuple<";
@@ -918,13 +679,13 @@ std::string TFTupleParam::initializer() const {
 }
 
 bool TFTupleParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Tuple;
+  return param->get_kind() == TFPK_Tuple;
 }
 
 TFPairParam::TFPairParam(
   std::string name_,
   std::vector<std::unique_ptr<TFParam>> params_)
-  : TFFixedArrayParam(TPK_Pair, name_, 2, std::move(params_)) {}
+  : TFFixedArrayParam(TFPK_Pair, name_, 2, std::move(params_)) {}
 
 std::string TFPairParam::type() const {
   return "std::pair<" + params[0]->type() + comma + params[1]->type() + ">";
@@ -934,12 +695,11 @@ std::string TFPairParam::initializer() const {
 }
 
 bool TFPairParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Pair;
+  return param->get_kind() == TFPK_Pair;
 }
 
 TFTensorParam::TFTensorParam(std::string name_): TFParam(TFPK_Tensor, name_) {
   dtype = std::make_unique<TFDtypeParam>(name + "_dtype");
-  //layout = std::make_unique<TFLayoutParam>(name + "_layout");
   rank = std::make_unique<TFBoundedIntParam>(name + "_rank", MAX_RANK + 1);
   for (size_t i = 0; i < MAX_RANK; i++)
     dims.push_back(std::make_unique<TFIntParam>(name + "_" + std::to_string(i), "long"));
@@ -987,14 +747,15 @@ bool TFTensorParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_Tensor;
 }
 
-TFOptionalParam::TFOptionalParam(std::string name_, std::unique_ptr<TFParam> param_)
-  : TFParam(TPK_Optional, name_)
+
+/* TFOptionalParam::TFOptionalParam(std::string name_, std::unique_ptr<TFParam> param_)
+  : TFParam(TFPK_Optional, name_)
 {
   has_value = std::make_unique<TFBoolParam>(name + "_hasValue");
   param = std::move(param_);
 }
 TFOptionalParam::TFOptionalParam(std::string name_, std::string base_type_str_)
-  : TFParam(TPK_Optional, name_), base_type_str(base_type_str_) {}
+  : TFParam(TFPK_Optional, name_), base_type_str(base_type_str_) {}
 void TFOptionalParam::set_default(Expr* default_expr) {
   if (!stable())
     return;
@@ -1079,13 +840,8 @@ std::string TFOptionalParam::base_type() const {
 }
 
 bool TFOptionalParam::classof(const TFParam *param) {
-  return param->get_kind() == TPK_Optional;
-}
-
-
-
-
-
+  return param->get_kind() == TFPK_Optional;
+} */
 
 
 TFAPIAttrsParam::TFAPIAttrsParam(

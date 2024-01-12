@@ -55,77 +55,12 @@ std::unique_ptr<TFParam> extractTFStringPiece(clang::QualType t, std::string nam
   return tf_param;
 }
 
-std::unique_ptr<TFParam> extractTFString(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
-    if (tstype->isSugared()) {
-      if (const auto* rtype = dyn_cast<RecordType>(tstype->desugar())) {
-        std::string type_name = rtype->getDecl()->getNameAsString();
-        if (type_name == "basic_string") {
-          tf_param = std::make_unique<TFStringParam>(name, false);
-        } else if (type_name == "basic_string_view") {
-          tf_param = std::make_unique<TFStringParam>(name, true);
-        }
-      }
-    }
-  }
-
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFMemoryFormat(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* etype = t->getAs<EnumType>())
-    if (etype->getDecl()->getNameAsString() == "MemoryFormat")
-      tf_param = std::make_unique<TFMemoryFormatParam>(name);
-
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFLayout(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* etype = t->getAs<EnumType>())
-    if (etype->getDecl()->getNameAsString() == "Layout")
-      tf_param = std::make_unique<TFLayoutParam>(name);
-
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFDevice(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* rtype = t->getAs<RecordType>())
-    if (rtype->getDecl()->getQualifiedNameAsString() == "c10::Device")
-      tf_param = std::make_unique<TFDeviceParam>(name);
-
-  return tf_param;
-}
-
 std::unique_ptr<TFParam> extractTFDtype(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
 
   if (const auto* etype = t->getAs<EnumType>())
     if (etype->getDecl()->getNameAsString() == "DataType")
       tf_param = std::make_unique<TFDtypeParam>(name);
-
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFEnum(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-  static const std::string enum_prefix = "torch::enumtype::";
-
-  if (const auto* rtype = t->getAs<RecordType>()) {
-    std::string qualified_name = rtype->getDecl()->getQualifiedNameAsString();
-    if (qualified_name.compare(0, enum_prefix.size(), enum_prefix) == 0)
-      tf_param =
-        std::make_unique<TFEnumParam>(
-          name,
-          qualified_name.substr(enum_prefix.size(), qualified_name.size() - enum_prefix.size()));
-  }
 
   return tf_param;
 }
@@ -178,23 +113,6 @@ std::unique_ptr<TFParam> extractTFTensor(clang::QualType t, std::string name, AS
   return tf_param;
 }
 
-/* std::unique_ptr<TFParam> extractTFTensor(clang::QualType t, std::string name,  ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* elaborated = t->getAs<ElaboratedType>()) {
-    if (elaborated->isSugared())
-      if (const auto* rtype = elaborated->desugar()->getAs<RecordType>())
-        if (rtype->getDecl()->getNameAsString() == "Tensor")
-          tf_param = std::make_unique<TFTensorParam>(name);
-  } else if (const auto* underlying = t.getTypePtrOrNull()) {
-    if (const auto* rtype = underlying->getAs<RecordType>())
-      if (rtype->getDecl()->getNameAsString() == "Tensor")
-        tf_param = std::make_unique<TFTensorParam>(name);
-  }
-
-  return tf_param;
-} */
-
 std::unique_ptr<TFParam> extractTFArraySlice(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
 
@@ -239,168 +157,6 @@ std::unique_ptr<TFParam> extractTFArraySlice(clang::QualType t, std::string name
     tf_param = std::make_unique<TFArraySliceParam>(name, std::move(params));
   }
   
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFArrayRef(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* rtype = dyn_cast<RecordType>(t)) {
-    if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl())) {
-      if (ctsdecl->getNameAsString() == "ArrayRef") {
-        const auto& targ = ctsdecl->getTemplateArgs();
-        assert(targ.size() == 1);
-        assert(targ[0].getKind() == TemplateArgument::ArgKind::Type); 
-        std::vector<std::unique_ptr<TFParam>> params;
-        for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
-          std::string param_name = name + "_" + std::to_string(i);
-          std::unique_ptr<TFParam> param =
-            extractTFParam(targ[0].getAsType(), param_name, Ctx);
-          if (param == nullptr)
-            break;
-          params.push_back(std::move(param));
-        }
-        if (params.empty()) {
-          std::cerr <<
-            "WARNING: While extracting `ArrayRef` param `" << name << "`, failed to extract base type `" <<
-            targ[0].getAsType().getAsString() << "`.\n" <<
-            "         param `" << name << "` will be fixed to empty ArrayRef." << std::endl;
-          tf_param = std::make_unique<TFArrayRefParam>(name, targ[0].getAsType().getAsString());
-        } else {
-          tf_param = std::make_unique<TFArrayRefParam>(name, std::move(params));
-        }
-      }
-    }
-  }
-  
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFExpandingArray(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  const RecordType* rtype;
-  const TemplateSpecializationType* tstype;
-  const SubstTemplateTypeParmType* sttptype;
-  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
-    assert(tstype->isSugared());
-    rtype = dyn_cast<RecordType>(tstype->desugar());
-    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArray") {
-      auto targ = tstype->template_arguments();
-      if (targ.size() != 1 && targ.size() != 2)
-        return nullptr;
-      int64_t expandingarray_size =
-        targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).value().getExtValue();
-      assert(expandingarray_size > 0);
-      std::vector<std::unique_ptr<TFParam>> params;
-      if (targ.size() == 1){
-        for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
-          std::string param_name = name + "_" + std::to_string(i);
-          std::unique_ptr<TFParam> param = std::make_unique<TFIntParam>(param_name, "long");
-          params.push_back(std::move(param));
-        }
-      }
-      else if (targ.size() == 2){
-        for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
-          std::string param_name = name + "_" + std::to_string(i);
-          std::unique_ptr<TFParam> param =
-            extractTFParam(targ[1].getAsType(), param_name, Ctx);
-          if (param == nullptr)
-            return nullptr;
-          params.push_back(std::move(param));
-        }
-      }
-      tf_param =
-        std::make_unique<TFExpandingArrayParam>(name, expandingarray_size, std::move(params));
-    }
-  } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
-    assert(sttptype->isSugared());
-    if (const auto* rtype2 = dyn_cast<RecordType>(sttptype->getReplacementType())) {
-      if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype2->getDecl())) {
-        if (ctsdecl->getNameAsString() == "ExpandingArray") {
-          const auto& targ = ctsdecl->getTemplateArgs();
-          assert(targ.size() == 2);
-          assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
-          int64_t expandingarray_size =
-            targ[0].getAsIntegral().getExtValue();
-          assert(expandingarray_size > 0);
-          std::vector<std::unique_ptr<TFParam>> params;
-          for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
-            std::string param_name = name + "_" + std::to_string(i);
-            std::unique_ptr<TFParam> param =
-              extractTFParam(targ[1].getAsType(), param_name, Ctx);
-            if (param == nullptr)
-              return nullptr;
-            params.push_back(std::move(param));
-          }
-          tf_param =
-            std::make_unique<TFExpandingArrayParam>(name, expandingarray_size, std::move(params));
-        }
-      }
-    }
-  }
-
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFExpandingArrayWithOptionalElem(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  const RecordType* rtype;
-  const TemplateSpecializationType* tstype;
-  const SubstTemplateTypeParmType* sttptype;
-  if ((tstype = dyn_cast<TemplateSpecializationType>(t))) {
-    assert(tstype->isSugared());
-    rtype = dyn_cast<RecordType>(tstype->desugar());
-    if (rtype != nullptr && rtype->getDecl()->getNameAsString() == "ExpandingArrayWithOptionalElem") {
-      auto targ = tstype->template_arguments();
-      if (targ.size() != 1)
-        return nullptr;
-      int64_t expandingarray_size =
-        targ[0].getAsExpr()->getIntegerConstantExpr(Ctx).value().getExtValue();
-      assert(expandingarray_size > 0);
-      std::vector<std::unique_ptr<TFParam>> params;
-      for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
-        std::string param_name = name + "_" + std::to_string(i);
-        std::unique_ptr<TFParam> param = std::make_unique<TFIntParam>(param_name, "long");
-        std::unique_ptr<TFParam> optional_param =
-          std::make_unique<TFOptionalParam>(param_name, std::move(param));
-        params.push_back(std::move(optional_param));
-      }
-      tf_param =
-        std::make_unique<TFExpandingArrayWithOptionalElemParam>(
-          name, expandingarray_size, std::move(params));
-    }
-  } else if ((sttptype = dyn_cast<SubstTemplateTypeParmType>(t))) {
-    assert(sttptype->isSugared());
-    if (const auto* rtype2 = dyn_cast<RecordType>(sttptype->getReplacementType())) {
-      if (const auto* ctsdecl = dyn_cast<ClassTemplateSpecializationDecl>(rtype2->getDecl())) {
-        if (ctsdecl->getNameAsString() == "ExpandingArrayWithOptionalElem") {
-          const auto& targ = ctsdecl->getTemplateArgs();
-          assert(targ.size() == 2);
-          assert(targ[0].getKind() == TemplateArgument::ArgKind::Integral);
-          int64_t expandingarray_size =
-            targ[0].getAsIntegral().getExtValue();
-          assert(expandingarray_size > 0);
-          std::vector<std::unique_ptr<TFParam>> params;
-          for (size_t i = 0; i < (size_t)expandingarray_size; i++) {
-            std::string param_name = name + "_" + std::to_string(i);
-            std::unique_ptr<TFParam> param =
-              extractTFParam(targ[1].getAsType(), param_name + "_base", Ctx);
-            if (param == nullptr)
-              return nullptr;
-            std::unique_ptr<TFParam> optional_param =
-              std::make_unique<TFOptionalParam>(param_name, std::move(param));
-            params.push_back(std::move(optional_param));
-          }
-          tf_param =
-            std::make_unique<TFExpandingArrayWithOptionalElemParam>(
-              name, expandingarray_size, std::move(params));
-        }
-      }
-    }
-  }
-
   return tf_param;
 }
 
@@ -460,18 +216,7 @@ std::unique_ptr<TFParam> extractTFPair(clang::QualType t, std::string name, ASTC
   return tf_param;
 }
 
-std::unique_ptr<TFParam> extractTFSymint(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* rtype = dyn_cast<RecordType>(t)) {
-    if (rtype->getDecl()->getNameAsString() == "SymInt")
-      tf_param = std::make_unique<TFSymIntParam>(name);
-  }
-  
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
+/* std::unique_ptr<TFParam> extractTFOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
 
   if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
@@ -497,7 +242,7 @@ std::unique_ptr<TFParam> extractTFOptional(clang::QualType t, std::string name, 
   }
 
   return tf_param;
-}
+} */
 
 std::unique_ptr<TFParam> extractTFVariant(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
@@ -523,46 +268,6 @@ std::unique_ptr<TFParam> extractTFVariant(clang::QualType t, std::string name, A
   }
 
   return tf_param;
-}
-
-std::string get_specialized_name(const ClassTemplateSpecializationDecl* ctsdecl) {
-  std::string name = ctsdecl->getQualifiedNameAsString() + "<";
-
-  const auto& targs = ctsdecl->getTemplateArgs();
-  for (size_t i = 0; i < targs.size(); i++) {
-    if (targs[i].getKind() == TemplateArgument::ArgKind::Type) {
-      auto t = targs[i].getAsType();
-      if (const auto* rtype = t->getAs<RecordType>()) {
-        if (const auto* ctsdecl2 = dyn_cast<ClassTemplateSpecializationDecl>(rtype->getDecl()))
-          name += get_specialized_name(ctsdecl2);
-      } else if (t->getAs<BuiltinType>() != nullptr) {
-        name += t.getAsString();
-      } else {
-        assert(false);
-      }
-    } else if (targs[i].getKind() == TemplateArgument::ArgKind::Integral) {
-      name += std::to_string(targs[i].getAsIntegral().getExtValue());
-    } else {
-      assert(false);
-    }
-
-    if (i != targs.size()-1)
-      name += ",";
-  }
-  name += ">";
-
-  return name;
-}
-
-Expr* get_default_expr(std::string param_name, const CXXRecordDecl* cdecl) {
-  for (auto field: cdecl->fields()) {
-    std::string field_name = field->getNameAsString();
-    if (param_name.length() + 1 == field_name.length() &&
-        field_name.compare(0, field_name.length(), param_name + "_") == 0) {
-      return field->getInClassInitializer()->IgnoreUnlessSpelledInSource();
-    }
-  }
-  return nullptr;
 }
 
 clang::QualType get_base(clang::QualType t, ASTContext &Ctx) {
@@ -668,40 +373,22 @@ std::unique_ptr<TFParam> extractTFParam(clang::QualType t, std::string name, AST
     return builtin_param;
   if (auto string_piece_param = extractTFStringPiece(t, name, Ctx))
     return string_piece_param;
-  if (auto string_param = extractTFString(t, name, Ctx))
-    return string_param;
-  if (auto memory_format_param = extractTFMemoryFormat(t, name, Ctx))
-    return memory_format_param;
-  if (auto layout_param = extractTFLayout(t, name, Ctx))
-    return layout_param;
-  if (auto device_param = extractTFDevice(t, name, Ctx))
-    return device_param;
   if (auto dtype_param = extractTFDtype(t, name, Ctx))
     return dtype_param;
-  if (auto enum_param = extractTFEnum(t, name, Ctx))
-    return enum_param;
   if (auto vector_param = extractTFVector(t, name, Ctx))
     return vector_param;
   if (auto tensor_param = extractTFTensor(t, name, Ctx))
     return tensor_param;
-  if (auto arrayref_param = extractTFArraySlice(t, name, Ctx))
-    return arrayref_param;
-  if (auto arrayref_param = extractTFArrayRef(t, name, Ctx))
-    return arrayref_param;
-  if (auto expandingarray_param = extractTFExpandingArray(t, name, Ctx))
-    return expandingarray_param;
-  if (auto expandingarraywithoptionalelem_param = extractTFExpandingArrayWithOptionalElem(t, name, Ctx))
-    return expandingarraywithoptionalelem_param;
+  if (auto array_slice_param = extractTFArraySlice(t, name, Ctx))
+    return array_slice_param;
   if (auto tuple_param = extractTFTuple(t, name, Ctx))
     return tuple_param;
   if (auto pair_param = extractTFPair(t, name, Ctx))
     return pair_param;
-  if (auto symint_param = extractTFSymint(t, name, Ctx))
-    return symint_param;
 
   // Recursive case
-  if (auto optional_param = extractTFOptional(t, name, Ctx))
-    return optional_param;
+  //if (auto optional_param = extractTFOptional(t, name, Ctx))
+  //  return optional_param;
   if (auto variant_param = extractTFVariant(t, name, Ctx))
     return variant_param;
   if (auto api_options_param = extractTFAPIAttrs(t, name, Ctx))

@@ -122,67 +122,21 @@ void ListFilesInDir(const std::string& Dir, std::vector<std::string>& V) {
 std::string tf_api_list_dir_name() {
   return "tensorflow-api-list";
 }
-std::string torch_tensor_method_list_file_name() {
-  return "torch::Tensor";
-}
 std::string tf_module_list_file_name() {
-  //return "torch::nn";
   return "tensorflow::ops::nn_ops";
 }
 
-std::vector<std::string> get_torch_api_groups() {
-  std::string torch_api_list_dir = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
-  std::vector<std::string> torch_api_groups;
-  ListFilesInDir(torch_api_list_dir, torch_api_groups);
-  return torch_api_groups;
-}
-
-std::map<std::string, std::set<std::string>> read_torch_function_list() {
-  std::map<std::string, std::set<std::string>> torch_function_list;
-  for (auto& torch_api_group: get_torch_api_groups()) {
-    if (torch_api_group == torch_tensor_method_list_file_name() ||
-        torch_api_group == tf_module_list_file_name() ||
-        startswith(torch_api_group, "_"))
-      continue;
-
-    std::string torch_api_list_dir = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
-    std::string filepath = DirPlusFile(torch_api_list_dir, torch_api_group);
-    std::vector<std::string> lines = read_lines(filepath);
-    torch_function_list[torch_api_group] = std::set<std::string>(lines.begin(), lines.end());
-  }
-  return torch_function_list;
-}
-
-std::set<std::string> read_torch_tensor_method_list() {
-  std::string torch_api_list_dir_path = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
-  std::string filepath = DirPlusFile(torch_api_list_dir_path, torch_tensor_method_list_file_name());
-  std::vector<std::string> lines = read_lines(filepath);
-  return std::set<std::string>(lines.begin(), lines.end());
-}
-
 std::set<std::string> read_tf_module_list() {
-  std::string torch_api_list_dir_path = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
-  std::string filepath = DirPlusFile(torch_api_list_dir_path, tf_module_list_file_name());
+  std::string tf_api_list_dir_path = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
+  std::string filepath = DirPlusFile(tf_api_list_dir_path, tf_module_list_file_name());
   std::vector<std::string> lines = read_lines(filepath);
   return std::set<std::string>(lines.begin(), lines.end());
 }
 
-std::map<std::string, std::set<std::string>> torch_function_list;
-std::set<std::string> torch_tensor_method_list;
 std::set<std::string> tf_module_list;
 
 void init_tf_api_list() {
-  //torch_function_list = read_torch_function_list();
-  //torch_tensor_method_list = read_torch_tensor_method_list();
   tf_module_list = read_tf_module_list();
-}
-
-const std::map<std::string, std::set<std::string>>& get_torch_function_list() {
-  return torch_function_list;
-}
-
-const std::set<std::string>& get_torch_tensor_method_list() {
-  return torch_tensor_method_list;
 }
 
 const std::set<std::string>& get_tf_module_list() {

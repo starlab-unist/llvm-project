@@ -36,57 +36,43 @@ class TFParam {
     enum TFParamKind {
       TFPK_Scope,
 
-      TFPK_Tensor,
-
-      /////////////
-
-      TPK_Enum,
-
       TFPK_Int,
-      TPK_SymInt,
-      TPK_UnsignedInt,
-      TPK_Dtype,
+      TFPK_SymInt,
+      TFPK_UnsignedInt,
+      TFPK_Dtype,
       
       // TFBoundedParam
-      TPK_Null,
+      TFPK_Null,
       TFPK_BoundedInt,
-      TPK_Bool,
-      TPK_String,
+      TFPK_Bool,
       TFPK_StringPiece,
       TFPK_DataFormat,
       TFPK_Padding,
-      TPK_BFloat,
-      TPK_Half,
-      TPK_Float,
-      TPK_Double,
-      TPK_MemoryFormat,
-      TPK_Layout,
-      TPK_Device,
+      TFPK_BFloat,
+      TFPK_Half,
+      TFPK_Float,
+      TFPK_Double,
       TFPK_BasicDtype,
       TFPK_ExtendedDtype,
-      TPK_Variant,
-      TPK_Bounded_First = TPK_Null,
-      TPK_Bounded_Last = TPK_Variant,
+      TFPK_Variant,
+      TFPK_Bounded_First = TFPK_Null,
+      TFPK_Bounded_Last = TFPK_Variant,
 
       // TFUnfixedArrayParam
+      TFPK_Vector,
+      TFPK_UnfixedArray_First = TFPK_Vector,
+      TFPK_UnfixedArray_Last = TFPK_Vector,
+
       TFPK_ArraySlice,
 
-      TPK_Vector,
-      TPK_ArrayRef,
-      TPK_OptionalArrayRef,
-      TPK_UnfixedArray_First = TPK_Vector,
-      TPK_UnfixedArray_Last = TPK_OptionalArrayRef,
-
       // TFfixedArrayParam
-      TPK_ExpandingArray,
-      TPK_ExpandingArrayWithOptionalElem,
-      TPK_Tuple,
-      TPK_Pair,
-      TPK_FixedArray_First = TPK_ExpandingArray,
-      TPK_FixedArray_Last = TPK_Pair,
+      TFPK_Tuple,
+      TFPK_Pair,
+      TFPK_FixedArray_First = TFPK_Tuple,
+      TFPK_FixedArray_Last = TFPK_Pair,
 
-      TPK_Tensor,
-      TPK_Optional,
+      TFPK_Tensor,
+      //TFPK_Optional,
       TFPK_APIAttrs,
     };
 
@@ -599,7 +585,7 @@ class TFTensorParam: public TFParam {
     std::vector<std::unique_ptr<TFIntParam>> dims;
 };
 
-class TFOptionalParam: public TFParam {
+/* class TFOptionalParam: public TFParam {
   public:
     TFOptionalParam(std::string name_, std::unique_ptr<TFParam> param_);
     TFOptionalParam(std::string name_, std::string base_type_str_);
@@ -624,7 +610,7 @@ class TFOptionalParam: public TFParam {
     std::unique_ptr<TFBoolParam> has_value;
     std::unique_ptr<TFParam> param;
     std::string base_type_str;
-};
+}; */
 
 class TFAPIAttrsParam: public TFParam {
   public:
@@ -652,35 +638,5 @@ class TFAPIAttrsParam: public TFParam {
     std::vector<std::string> gen_api_attrs_init() const;
 };
 
-class TFAPIOptionsParam: public TFParam {
-  public:
-    TFAPIOptionsParam(
-      std::string name_,
-      std::string api_optons_class_name_,
-      std::vector<std::unique_ptr<TFParam>> ctor_params_,
-      std::vector<std::unique_ptr<TFParam>> member_params_);
-
-    virtual std::string type() const override;
-    virtual std::string var() const override;
-    virtual std::string initializer() const override;
-
-    virtual std::vector<std::string> gen_arg_setup() const override;
-    virtual std::vector<std::string> gen_hard_constraint() const override;
-    virtual std::vector<std::string> gen_soft_constraint() const override;
-    virtual std::vector<std::string> gen_input_pass_condition() const override;
-    virtual std::vector<std::string> gen_arg_initialization() const override;
-    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
-
-    static bool classof(const TFParam *param);
-  private:
-    std::string api_optons_class_name;
-    std::vector<std::unique_ptr<TFParam>> ctor_params;
-    std::vector<std::unique_ptr<TFParam>> member_params;
-    std::vector<std::string> member_param_setters;
-
-    std::vector<std::string> gen_member_param_set() const;
-
-    std::vector<std::string> gen_api_options_init() const;
-};
 
 #endif
