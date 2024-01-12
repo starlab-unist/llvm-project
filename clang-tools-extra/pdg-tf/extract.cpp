@@ -3,8 +3,6 @@
 #include <iostream>
 #include <fstream>
 
-bool option_class_done;
-
 std::unique_ptr<TFParam> extractTFScope(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
 
@@ -53,16 +51,6 @@ std::unique_ptr<TFParam> extractTFStringPiece(clang::QualType t, std::string nam
         tf_param = std::make_unique<TFStringPieceParam>(name);
       }
     }
-
-  return tf_param;
-}
-
-std::unique_ptr<TFParam> extractTFDataFormat(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* tdtype = dyn_cast<TypedefType>(t))
-    if (tdtype->getDecl()->getNameAsString() == "StringPiece")
-      tf_param = std::make_unique<TFDataFormatParam>(name);
 
   return tf_param;
 }
@@ -120,7 +108,7 @@ std::unique_ptr<TFParam> extractTFDtype(clang::QualType t, std::string name, AST
   std::unique_ptr<TFParam> tf_param;
 
   if (const auto* etype = t->getAs<EnumType>())
-    if (etype->getDecl()->getNameAsString() == "ScalarType")
+    if (etype->getDecl()->getNameAsString() == "DataType")
       tf_param = std::make_unique<TFDtypeParam>(name);
 
   return tf_param;
@@ -596,8 +584,6 @@ clang::QualType get_base(clang::QualType t, ASTContext &Ctx) {
 }
 
 std::unique_ptr<TFParam> extractTFAPIAttrs(clang::QualType t, std::string name, ASTContext &Ctx) {
-  if (option_class_done) return nullptr;
-
   static std::string attrs_suffix = "Attrs";
   std::string api_attrs_class_name;
 
@@ -649,20 +635,19 @@ std::unique_ptr<TFParam> extractTFAPIAttrs(clang::QualType t, std::string name, 
         setter_name.length() - dataformat_suffix.length(),
         dataformat_suffix.length(), dataformat_suffix) == 0;
 
-    std::unique_ptr<TFParam> param;
-    if (is_dataformat_param) {
-      param = std::move(extractTFDataFormat(setter->parameters()[0]->getType(), setter->parameters()[0]->getNameAsString(), Ctx));
-    } else {
-      param = std::move(extractTFParam(setter->parameters()[0]->getType(), setter->parameters()[0]->getNameAsString(), Ctx));
-    }
-    
+    auto param_type = setter->parameters()[0]->getType();
+    auto param_name = setter->parameters()[0]->getNameAsString();
+    std::unique_ptr<TFParam> param = extractTFParam(param_type, param_name, Ctx);
     if (param == nullptr) {
       std::cerr <<
         "WARNING: Parsing fail on param `" << setter_name << "` in `" << api_attrs_class_name << "`.\n" <<
-        "         Type `" << setter->parameters()[0]->getType().getAsString() << "` is not supported." << std::endl;
+        "         Type `" << param_type.getAsString() << "` is not supported." << std::endl;
+      //param_type->dump();
       continue;
     }
-
+    if (is_dataformat_param && param->get_kind() == TFParam::TFPK_StringPiece)
+      param = std::make_unique<TFDataFormatParam>(param_name);
+    
     setters.push_back(
       std::move(std::make_tuple(setter_name, std::make_unique<TFBoolParam>("set_" + setter_name) ,std::move(param))));
   }

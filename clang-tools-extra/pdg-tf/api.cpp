@@ -81,8 +81,8 @@ std::vector<std::string> TFAPI::header() const {
     "#include \"tensorflow/core/public/session.h\"",
     "#include \"tensorflow/cc/ops/array_ops.h\"",
     "#include \"tensorflow/cc/ops/standard_ops.h\"",
+    "#include \"tensorflow/core/kernels/pathfinder/fuzzer_util.h\"",
     "#include \"src/pathfinder.h\"",
-    "#include \"fuzzer_util.h\"\n",
 
     "using namespace tensorflow;\n",
     "using namespace fuzzer_util;\n",

@@ -39,27 +39,23 @@ class Output {
         std::string fuzz_target_type = p0.first;
         auto groups = p0.second;
         make_dir("generated/" + fuzz_target_type);
-        cmake_contents0 += "add_subdirectory(" + fuzz_target_type + ")\n";
-        std::string cmake_contents1;
         for (auto& p1: groups) {
           std::string group_name = p1.first;
           auto apis = p1.second;
           make_dir("generated/" + fuzz_target_type + "/" + group_name);
-          cmake_contents1 += "add_subdirectory(" + group_name + ")\n";
-          std::string cmake_contents2;
+          std::string bazel_contents =
+            "load(\"//tensorflow/core/kernels/pathfinder:pathfinder.bzl\", \"pathfinder_fuzz_driver\")\n\n";
           for (auto& p2: apis) {
             std::string api_name = p2.first;
             auto code = p2.second;
             std::string file_name =
-              unique_name(fuzz_target_type + "_" + group_name + "_" + api_name, names_seen) + ".cpp";
+              unique_name(fuzz_target_type + "_" + group_name + "_" + api_name, names_seen) + ".cc";
             write_file("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name, code);
-            cmake_contents2 += "add_pathfinder_fuzz_target(" + strip_ext(file_name) + ")\n";
+            bazel_contents += "pathfinder_fuzz_driver(\"" + strip_ext(file_name) + "\")\n";
           }
-          write_file("generated/" + fuzz_target_type + "/" + group_name + "/CMakeLists.txt", cmake_contents2);
+          write_file("generated/" + fuzz_target_type + "/" + group_name + "/BUILD", bazel_contents);
         }
-        write_file("generated/" + fuzz_target_type + "/CMakeLists.txt", cmake_contents1);
       }
-      write_file("generated/CMakeLists.txt", cmake_contents0);
     }
   private:
     std::map<std::string, group> output;
@@ -90,7 +86,6 @@ public:
     //std::cout << "==============ctor===============" << std::endl;
     //ctor->dump();
 
-    option_class_done = false;
     std::vector<std::unique_ptr<TFParam>> params;
     for (const auto* param: ctor->parameters()) {
       //std::cout << "--------------param---------------" << std::endl;
@@ -172,8 +167,8 @@ public:
 
     std::string module_group_name = std::regex_replace(tf_module_list_file_name(), std::regex("::"), "_");
     output.add("basic", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Basic));
-    output.add("quantization", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Quantization));
-    output.add("sparse", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Sparse));
+    //output.add("quantization", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Quantization));
+    //output.add("sparse", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Sparse));
   }
 
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
