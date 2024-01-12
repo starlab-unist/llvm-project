@@ -122,25 +122,32 @@ void ListFilesInDir(const std::string& Dir, std::vector<std::string>& V) {
 std::string tf_api_list_dir_name() {
   return "tensorflow-api-list";
 }
-std::string tf_module_list_file_name() {
-  return "tensorflow::ops::nn_ops";
+
+std::vector<std::string> get_tf_api_groups() {
+  std::string tf_api_list_dir = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
+  std::vector<std::string> tf_api_groups;
+  ListFilesInDir(tf_api_list_dir, tf_api_groups);
+  return tf_api_groups;
 }
 
-std::set<std::string> read_tf_module_list() {
-  std::string tf_api_list_dir_path = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
-  std::string filepath = DirPlusFile(tf_api_list_dir_path, tf_module_list_file_name());
-  std::vector<std::string> lines = read_lines(filepath);
-  return std::set<std::string>(lines.begin(), lines.end());
-}
+const std::map<std::string, std::set<std::string>>& get_tf_api_list() {
+  static std::map<std::string, std::set<std::string>> tf_api_list;
 
-std::set<std::string> tf_module_list;
+  static bool initialized = false;
+  if (!initialized) {
+    for (auto& tf_api_group: get_tf_api_groups()) {
+      if (startswith(tf_api_group, "_"))
+        continue;
 
-void init_tf_api_list() {
-  tf_module_list = read_tf_module_list();
-}
+      std::string tf_api_list_dir = DirPlusFile(get_directory_path(), tf_api_list_dir_name());
+      std::string filepath = DirPlusFile(tf_api_list_dir, tf_api_group);
+      std::vector<std::string> lines = read_lines(filepath);
+      tf_api_list[tf_api_group] = std::set<std::string> (lines.begin(), lines.end());
+    }
+    initialized = true;
+  }
 
-const std::set<std::string>& get_tf_module_list() {
-  return tf_module_list;
+  return tf_api_list;
 }
 
 void make_dir(std::string dir) {

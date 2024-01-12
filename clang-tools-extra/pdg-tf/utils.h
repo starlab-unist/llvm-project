@@ -28,9 +28,7 @@ bool startswith(std::string base, std::string prefix);
 bool endswith(std::string base, std::string suffix);
 bool include(std::vector<std::string>& vec, std::string name);
 std::string strip_ext(std::string filename);
-std::string tf_module_list_file_name();
-void init_tf_api_list();
-const std::set<std::string>& get_tf_module_list();
+const std::map<std::string, std::set<std::string>>& get_tf_api_list();
 void make_dir(std::string dir);
 std::string unique_name(std::string name, std::set<std::string>& names_seen);
 

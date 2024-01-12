@@ -104,23 +104,6 @@ public:
     return params;
   }
 
-  Optional<std::vector<std::unique_ptr<TFParam>>> extractForward(CXXMethodDecl* forward) {
-    std::vector<std::unique_ptr<TFParam>> params;
-    for (const auto* param: forward->parameters()) {
-      clang::QualType t = param->getType();
-      std::string name = param->getNameAsString();
-      std::unique_ptr<TFParam> p = extractTFParam(t, name, *Context);
-      if (p == nullptr) {
-        std::cerr <<
-          "WARNING: Parsing fail on param `" << name << "`.\n" <<
-          "         Type `" << t.getAsString() << "` is not supported." << std::endl;
-        return std::nullopt;
-      }
-      params.push_back(std::move(p));
-    }
-    return params;
-  }
-
   std::vector<std::unique_ptr<TFParam>> pickBest(std::vector<std::vector<std::unique_ptr<TFParam>>> ctor_params_candidates) {
     assert(!ctor_params_candidates.empty());
 
@@ -140,7 +123,8 @@ public:
     return std::move(ctor_params_candidates[best_idx]);
   }
 
-  void extractModule(CXXRecordDecl* Declaration) {
+  //void extractModule(CXXRecordDecl* Declaration) {
+  Optional<TFAPI> extractModule(CXXRecordDecl* Declaration) {
     std::string module_name = Declaration->getNameAsString();
     std::string module_name_qualified = Declaration->getQualifiedNameAsString();
 
@@ -157,27 +141,29 @@ public:
 
     if (ctor_params_candidates.empty()) {
       std::cerr << "FAILED: Generating fuzz target of API `" << module_name_qualified << "` failed." << std::endl;
-      return;
+      return std::nullopt;
     }
     auto ctor_params = pickBest(std::move(ctor_params_candidates));
 
-    TFAPI tf_api(
-      module_name_qualified,
-      std::move(ctor_params));
-
-    std::string module_group_name = std::regex_replace(tf_module_list_file_name(), std::regex("::"), "_");
-    output.add("basic", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Basic));
-    //output.add("quantization", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Quantization));
-    //output.add("sparse", module_group_name, module_name, tf_api.gen_fuzz_target(FTT_Sparse));
+    return TFAPI(module_name_qualified, std::move(ctor_params));
   }
 
   bool VisitCXXRecordDecl(CXXRecordDecl* Declaration) {
     std::string class_name = Declaration->getNameAsString();
+    std::string class_name_qualified = Declaration->getQualifiedNameAsString();
 
-    auto tf_module_list = get_tf_module_list();
-
-    if (tf_module_list.find(Declaration->getQualifiedNameAsString()) != tf_module_list.end())
-      extractModule(Declaration);
+    for (auto& entry: get_tf_api_list()) {
+      auto& api_group = entry.first;
+      auto& apis = entry.second;
+      if (apis.find(class_name_qualified) != apis.end()) {
+        if (auto tf_api = extractModule(Declaration)) {
+          std::string api_group_name = std::regex_replace(api_group, std::regex("::"), "_");
+          output.add("basic", api_group_name, class_name, tf_api.value().gen_fuzz_target(FTT_Basic));
+          //output.add("quantization", api_group_name, class_name, tf_api.value().gen_fuzz_target(FTT_Quantization));
+          //output.add("sparse", api_group_name, class_name, tf_api.value().gen_fuzz_target(FTT_Sparse));
+        }
+      }
+    }
 
     return true;
   }
@@ -209,8 +195,6 @@ public:
 static llvm::cl::OptionCategory MyToolCategory("my-tool options");
 
 int main(int argc, const char **argv) {
-  init_tf_api_list();
-
   auto ExpectedParser =
       tooling::CommonOptionsParser::create(argc, argv, MyToolCategory);
   if (!ExpectedParser) {

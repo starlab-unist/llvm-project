@@ -1,0 +1,9 @@
+tensorflow::ops::Abort
+tensorflow::ops::ControlTrigger
+tensorflow::ops::LoopCond
+tensorflow::ops::Merge
+tensorflow::ops::NextIteration
+tensorflow::ops::RefNextIteration
+tensorflow::ops::RefSelect
+tensorflow::ops::RefSwitch
+tensorflow::ops::Switch

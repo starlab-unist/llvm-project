@@ -1,0 +1,9 @@
+tensorflow::ops::Multinomial
+tensorflow::ops::ParameterizedTruncatedNormal
+tensorflow::ops::RandomGamma
+tensorflow::ops::RandomNormal
+tensorflow::ops::RandomPoissonV2
+tensorflow::ops::RandomShuffle
+tensorflow::ops::RandomUniform
+tensorflow::ops::RandomUniformInt
+tensorflow::ops::TruncatedNormal

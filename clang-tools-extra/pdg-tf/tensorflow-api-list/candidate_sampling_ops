@@ -1,0 +1,6 @@
+tensorflow::ops::AllCandidateSampler
+tensorflow::ops::ComputeAccidentalHits
+tensorflow::ops::FixedUnigramCandidateSampler
+tensorflow::ops::LearnedUnigramCandidateSampler
+tensorflow::ops::LogUniformCandidateSampler
+tensorflow::ops::UniformCandidateSampler
