@@ -40,6 +40,7 @@ class TFParam {
       TFPK_SymInt,
       TFPK_UnsignedInt,
       TFPK_Dtype,
+      TFPK_InputList,
       
       // TFBoundedParam
       TFPK_Null,
@@ -556,6 +557,17 @@ class TFPairParam: public TFFixedArrayParam {
     TFPairParam(
       std::string name_,
       std::vector<std::unique_ptr<TFParam>> params_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TFParam *param);
+};
+
+class TFInputListParam: public TFParam {
+  public:
+    TFInputListParam(
+      std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;

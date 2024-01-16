@@ -216,6 +216,30 @@ std::unique_ptr<TFParam> extractTFPair(clang::QualType t, std::string name, ASTC
   return tf_param;
 }
 
+std::unique_ptr<TFParam> extractTFInputList(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TFParam> tf_param;
+
+  if (const auto* rtype = dyn_cast<RecordType>(t)) {
+    if (rtype->getDecl()->getNameAsString() == "InputList") {
+      // AST has no information about elements in the InputList
+      tf_param = std::make_unique<TFInputListParam>(name);
+    }
+  }
+  return tf_param;
+}
+
+std::unique_ptr<TFParam> extractTFPartialTensorShape(clang::QualType t, std::string name, ASTContext &Ctx) {
+  std::unique_ptr<TFParam> tf_param;
+
+  if (const auto* rtype = dyn_cast<RecordType>(t)) {
+    if (rtype->getDecl()->getNameAsString() == "PartialTensorShape") {
+      tf_param = nullptr;
+      // tf_param = std::make_unique<TFPartialTensorShapeParam>(name); // temporary implementation
+    }
+  }
+  return tf_param;
+}
+
 /* std::unique_ptr<TFParam> extractTFOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
 
@@ -385,6 +409,10 @@ std::unique_ptr<TFParam> extractTFParam(clang::QualType t, std::string name, AST
     return tuple_param;
   if (auto pair_param = extractTFPair(t, name, Ctx))
     return pair_param;
+  if (auto inputList_param = extractTFInputList(t, name, Ctx))
+    return inputList_param;
+  if (auto partialTensorShape_param = extractTFPartialTensorShape(t, name, Ctx))
+    return partialTensorShape_param;
 
   // Recursive case
   //if (auto optional_param = extractTFOptional(t, name, Ctx))

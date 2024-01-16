@@ -698,6 +698,21 @@ bool TFPairParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_Pair;
 }
 
+// temporary implementation
+TFInputListParam::TFInputListParam(std::string name_)
+  : TFParam(TFPK_InputList, name_) {}
+
+std::string TFInputListParam::type() const {
+  return "input_list";
+}
+std::string TFInputListParam::initializer() const {
+  return bracket(type()) + bracket(callback_var(name));
+}
+
+bool TFInputListParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_InputList;
+}
+
 TFTensorParam::TFTensorParam(std::string name_): TFParam(TFPK_Tensor, name_) {
   dtype = std::make_unique<TFDtypeParam>(name + "_dtype");
   rank = std::make_unique<TFBoundedIntParam>(name + "_rank", MAX_RANK + 1);
