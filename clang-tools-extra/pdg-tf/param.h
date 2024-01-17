@@ -72,8 +72,8 @@ class TFParam {
       TFPK_FixedArray_First = TFPK_Tuple,
       TFPK_FixedArray_Last = TFPK_Pair,
 
+      TFPK_PartialTensorShape,
       TFPK_Tensor,
-      //TFPK_Optional,
       TFPK_APIAttrs,
     };
 
@@ -465,28 +465,6 @@ class TFArraySliceParam: public TFParam {
     std::unique_ptr<TFVectorParam> vec;
 };
 
-class TFArrayRefParam: public TFParam {
-  public:
-    TFArrayRefParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_);
-    TFArrayRefParam(std::string name_, std::string base_type_str_);
-
-    virtual std::string type() const override;
-    virtual std::string var() const override;
-    virtual std::string initializer() const override;
-
-    virtual std::vector<std::string> gen_arg_setup() const override;
-    virtual std::vector<std::string> gen_hard_constraint() const override;
-    virtual std::vector<std::string> gen_soft_constraint() const override;
-    virtual std::vector<std::string> gen_arg_initialization() const override;
-    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
-
-    //virtual bool stable() const override;
-
-    static bool classof(const TFParam *param);
-  private:
-    std::unique_ptr<TFVectorParam> vec;
-};
-
 class TFFixedArrayParam: public TFParam {
   public:
     TFFixedArrayParam(
@@ -507,36 +485,6 @@ class TFFixedArrayParam: public TFParam {
   protected:
     size_t size;
     std::vector<std::unique_ptr<TFParam>> params;
-};
-
-class TFExpandingArrayParam: public TFFixedArrayParam {
-  public:
-    TFExpandingArrayParam(
-      std::string name_,
-      size_t size_,
-      std::vector<std::unique_ptr<TFParam>> params_);
-    virtual void set_default(Expr* default_expr) override;
-
-    virtual std::string type() const override;
-    virtual std::string initializer() const override;
-
-    static bool classof(const TFParam *param);
-};
-
-class TFExpandingArrayWithOptionalElemParam: public TFFixedArrayParam {
-  public:
-    TFExpandingArrayWithOptionalElemParam(
-      std::string name_,
-      size_t size_,
-      std::vector<std::unique_ptr<TFParam>> params_);
-    virtual void set_default(Expr* default_expr) override;
-
-    virtual std::string type() const override;
-    virtual std::string initializer() const override;
-
-    static bool classof(const TFParam *param);
-  private:
-    std::string base_type() const;
 };
 
 class TFTupleParam: public TFFixedArrayParam {
@@ -566,13 +514,40 @@ class TFPairParam: public TFFixedArrayParam {
 
 class TFInputListParam: public TFParam {
   public:
-    TFInputListParam(
-      std::string name_);
+    TFInputListParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_soft_constraint() const override;
+    virtual std::vector<std::string> gen_input_pass_condition() const override;
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    static bool classof(const TFParam *param);
+  private:
+    std::unique_ptr<TFArraySliceParam> inputlist;
+};
+
+class TFPartialTensorShapeParam: public TFParam {
+  public:
+    TFPartialTensorShapeParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_input_pass_condition() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
     static bool classof(const TFParam *param);
+  private:
+    std::unique_ptr<TFBoundedIntParam> rank;
+    std::vector<std::unique_ptr<TFIntParam>> dims;
 };
 
 class TFTensorParam: public TFParam {
@@ -592,37 +567,9 @@ class TFTensorParam: public TFParam {
     static bool classof(const TFParam *param);
   private:
     std::unique_ptr<TFDtypeParam> dtype;
-    //std::unique_ptr<TFLayoutParam> layout;
     std::unique_ptr<TFBoundedIntParam> rank;
     std::vector<std::unique_ptr<TFIntParam>> dims;
 };
-
-/* class TFOptionalParam: public TFParam {
-  public:
-    TFOptionalParam(std::string name_, std::unique_ptr<TFParam> param_);
-    TFOptionalParam(std::string name_, std::string base_type_str_);
-    virtual void set_default(Expr* default_expr) override;
-
-    virtual std::string type() const override;
-    virtual std::string var() const override;
-    virtual std::string initializer() const override;
-
-    virtual std::vector<std::string> gen_arg_setup() const override;
-    virtual std::vector<std::string> gen_hard_constraint() const override;
-    virtual std::vector<std::string> gen_soft_constraint() const override;
-    virtual std::vector<std::string> gen_input_pass_condition() const override;
-    virtual std::vector<std::string> gen_arg_initialization() const override;
-    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
-
-    virtual bool stable() const override;
-    std::string base_type() const;
-
-    static bool classof(const TFParam *param);
-  private:
-    std::unique_ptr<TFBoolParam> has_value;
-    std::unique_ptr<TFParam> param;
-    std::string base_type_str;
-}; */
 
 class TFAPIAttrsParam: public TFParam {
   public:

@@ -43,7 +43,7 @@ std::string TFScopeParam::var() const {
   return name;
 }
 std::string TFScopeParam::initializer() const {
-  return "Scope::DisabledShapeInferenceScope()";
+  return "Scope::NewRootScope()";
 }
 
 std::vector<std::string> TFScopeParam::gen_arg_initialization() const {
@@ -699,19 +699,102 @@ bool TFPairParam::classof(const TFParam *param) {
 }
 
 // temporary implementation
-TFInputListParam::TFInputListParam(std::string name_)
-  : TFParam(TFPK_InputList, name_) {}
+TFInputListParam::TFInputListParam(std::string name_) : TFParam(TFPK_InputList, name_) {
+  std::vector<std::unique_ptr<TFParam>> inputs;
+  for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
+    std::string input_name = name + "_" + std::to_string(i);
+    inputs.push_back(std::make_unique<TFTensorParam>(input_name));
+  }
+  inputlist = std::make_unique<TFArraySliceParam>(name + "_array", std::move(inputs));
+}
 
 std::string TFInputListParam::type() const {
-  return "input_list";
+  return "InputList";
+}
+std::string TFInputListParam::var() const {
+  return name;
 }
 std::string TFInputListParam::initializer() const {
-  return bracket(type()) + bracket(callback_var(name));
+  assert(false);
+}
+
+std::vector<std::string> TFInputListParam::gen_arg_setup() const {
+  return inputlist->gen_arg_setup();
+}
+std::vector<std::string> TFInputListParam::gen_hard_constraint() const {
+  return inputlist->gen_hard_constraint();
+}
+std::vector<std::string> TFInputListParam::gen_soft_constraint() const {
+  return inputlist->gen_soft_constraint();
+}
+std::vector<std::string> TFInputListParam::gen_input_pass_condition() const {
+  return inputlist->gen_input_pass_condition();
+}
+std::vector<std::string> TFInputListParam::gen_arg_initialization() const {
+  std::vector<std::string> arg_initialization;
+  concat(arg_initialization, inputlist->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + inputlist->expr() + semicolon + newline);
+  return arg_initialization;
+}
+void TFInputListParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  return inputlist->resolve_name_conflict(names_seen);
 }
 
 bool TFInputListParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_InputList;
 }
+
+
+TFPartialTensorShapeParam::TFPartialTensorShapeParam(std::string name_)
+  : TFParam(TFPK_PartialTensorShape, name_)
+{
+  rank = std::make_unique<TFBoundedIntParam>(name + "_rank", MAX_RANK + 1);
+  for (size_t i = 0; i < MAX_RANK; i++)
+    dims.push_back(std::make_unique<TFIntParam>(name + "_" + std::to_string(i), "long"));
+  for (auto&& dim: dims)
+    dim->set_default(1);
+}
+
+std::string TFPartialTensorShapeParam::type() const {
+  return "PartialTensorShape";
+}
+std::string TFPartialTensorShapeParam::initializer() const {
+  std::string shape;
+  for (size_t i = 0; i < dims.size(); i++) {
+    shape += dims[i]->expr();
+    if (i != dims.size() - 1)
+      shape += comma;
+  }
+  return curly(shape);
+}
+
+std::vector<std::string> TFPartialTensorShapeParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, rank->gen_arg_setup());
+  for (auto& dim: dims)
+    concat(arg_setup, dim->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TFPartialTensorShapeParam::gen_hard_constraint() const {
+  std::vector<std::string> hard_ctrs;
+  for (auto& dim: dims)
+    concat(hard_ctrs, dim->gen_soft_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TFPartialTensorShapeParam::gen_input_pass_condition() const {
+  return {"is_too_big" + bracket(rank->expr() + comma + to_string(dims))};
+}
+void TFPartialTensorShapeParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TFParam::resolve_name_conflict(names_seen);
+  rank->resolve_name_conflict(names_seen);
+  for (auto& dim: dims)
+    dim->resolve_name_conflict(names_seen);
+}
+
+bool TFPartialTensorShapeParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_PartialTensorShape;
+}
+
 
 TFTensorParam::TFTensorParam(std::string name_): TFParam(TFPK_Tensor, name_) {
   dtype = std::make_unique<TFDtypeParam>(name + "_dtype");
@@ -722,8 +805,12 @@ TFTensorParam::TFTensorParam(std::string name_): TFParam(TFPK_Tensor, name_) {
     dim->set_default(1);
 }
 
-std::string TFTensorParam::type() const { return "Input"; }
-std::string TFTensorParam::var() const { return name; }
+std::string TFTensorParam::type() const {
+  return "Input";
+}
+std::string TFTensorParam::var() const {
+  return name;
+}
 std::string TFTensorParam::initializer() const {
   std::string args =
     scope_var + comma + dtype->expr() + comma + rank->expr() + comma + to_string(dims);

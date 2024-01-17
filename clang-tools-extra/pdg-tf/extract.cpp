@@ -221,7 +221,6 @@ std::unique_ptr<TFParam> extractTFInputList(clang::QualType t, std::string name,
 
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
     if (rtype->getDecl()->getNameAsString() == "InputList") {
-      // AST has no information about elements in the InputList
       tf_param = std::make_unique<TFInputListParam>(name);
     }
   }
@@ -233,40 +232,11 @@ std::unique_ptr<TFParam> extractTFPartialTensorShape(clang::QualType t, std::str
 
   if (const auto* rtype = dyn_cast<RecordType>(t)) {
     if (rtype->getDecl()->getNameAsString() == "PartialTensorShape") {
-      tf_param = nullptr;
-      // tf_param = std::make_unique<TFPartialTensorShapeParam>(name); // temporary implementation
+      tf_param = std::make_unique<TFPartialTensorShapeParam>(name); // temporary implementation
     }
   }
   return tf_param;
 }
-
-/* std::unique_ptr<TFParam> extractTFOptional(clang::QualType t, std::string name, ASTContext &Ctx) {
-  std::unique_ptr<TFParam> tf_param;
-
-  if (const auto* tstype = dyn_cast<TemplateSpecializationType>(t)) {
-    if (tstype->isSugared()) {
-      if (const auto* rtype = dyn_cast<RecordType>(tstype->desugar())) {
-        if (rtype->getDecl()->getNameAsString() == "optional") {
-          auto targ = tstype->template_arguments();
-          assert(targ.size() == 1);
-          std::unique_ptr<TFParam> param =
-            extractTFParam(targ[0].getAsType(), name + "_base", Ctx);
-          if (param == nullptr) {
-            std::cerr <<
-              "WARNING: While extracting `optional` param `" << name << "`, failed to extract base type `" <<
-              targ[0].getAsType().getAsString() << "`.\n" <<
-              "         param `" << name << "` will be fixed to `nullopt`." << std::endl;
-            tf_param = std::make_unique<TFOptionalParam>(name, targ[0].getAsType().getAsString());
-          } else {
-            tf_param = std::make_unique<TFOptionalParam>(name, std::move(param));
-          }
-        }
-      }
-    }
-  }
-
-  return tf_param;
-} */
 
 std::unique_ptr<TFParam> extractTFVariant(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
@@ -409,14 +379,12 @@ std::unique_ptr<TFParam> extractTFParam(clang::QualType t, std::string name, AST
     return tuple_param;
   if (auto pair_param = extractTFPair(t, name, Ctx))
     return pair_param;
-  if (auto inputList_param = extractTFInputList(t, name, Ctx))
-    return inputList_param;
-  if (auto partialTensorShape_param = extractTFPartialTensorShape(t, name, Ctx))
-    return partialTensorShape_param;
+  if (auto input_list_param = extractTFInputList(t, name, Ctx))
+    return input_list_param;
+  if (auto partial_tensor_shape_param = extractTFPartialTensorShape(t, name, Ctx))
+    return partial_tensor_shape_param;
 
   // Recursive case
-  //if (auto optional_param = extractTFOptional(t, name, Ctx))
-  //  return optional_param;
   if (auto variant_param = extractTFVariant(t, name, Ctx))
     return variant_param;
   if (auto api_options_param = extractTFAPIAttrs(t, name, Ctx))
