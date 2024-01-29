@@ -103,12 +103,13 @@ std::unique_ptr<TFParam> extractTFVector(clang::QualType t, std::string name, AS
   return tf_param;
 }
 
-std::unique_ptr<TFParam> extractTFTensor(clang::QualType t, std::string name, ASTContext &Ctx) {
+std::unique_ptr<TFParam> extractTFInput(clang::QualType t, std::string name, ASTContext &Ctx) {
   std::unique_ptr<TFParam> tf_param;
 
   if (const auto* rtype = t->getAs<RecordType>())
     if (rtype->getDecl()->getQualifiedNameAsString() == "tensorflow::Input")
-      tf_param = std::make_unique<TFTensorParam>(name);
+      //tf_param = std::make_unique<TFInputParam>(name);
+    tf_param = std::make_unique<TFTensorParam>(name);
 
   return tf_param;
 }
@@ -371,7 +372,7 @@ std::unique_ptr<TFParam> extractTFParam(clang::QualType t, std::string name, AST
     return dtype_param;
   if (auto vector_param = extractTFVector(t, name, Ctx))
     return vector_param;
-  if (auto tensor_param = extractTFTensor(t, name, Ctx))
+  if (auto tensor_param = extractTFInput(t, name, Ctx))
     return tensor_param;
   if (auto array_slice_param = extractTFArraySlice(t, name, Ctx))
     return array_slice_param;

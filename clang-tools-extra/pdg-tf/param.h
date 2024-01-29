@@ -74,6 +74,7 @@ class TFParam {
 
       TFPK_PartialTensorShape,
       TFPK_Tensor,
+      TFPK_Input,
       TFPK_APIAttrs,
     };
 
@@ -568,6 +569,34 @@ class TFTensorParam: public TFParam {
   private:
     std::unique_ptr<TFDtypeParam> dtype;
     std::unique_ptr<TFBoundedIntParam> rank;
+    std::vector<std::unique_ptr<TFIntParam>> dims;
+};
+
+class TFInputParam: public TFParam {
+  public:
+    TFInputParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_soft_constraint() const override;
+    virtual std::vector<std::string> gen_input_pass_condition() const override;
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    static bool classof(const TFParam *param);
+  private:
+    std::unique_ptr<TFDtypeParam> dtype;
+    std::unique_ptr<TFBoundedIntParam> rank;
+    std::unique_ptr<TFIntParam> intval;
+    std::unique_ptr<TFFloatParam> floatval1;
+    std::unique_ptr<TFFloatParam> floatval2;
+    std::unique_ptr<TFBoolParam> boolval;
+    std::unique_ptr<TFBoundedIntParam> intvec_size;
+    std::vector<std::unique_ptr<TFIntParam>> intvec_base;
     std::vector<std::unique_ptr<TFIntParam>> dims;
 };
 

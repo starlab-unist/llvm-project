@@ -703,6 +703,7 @@ TFInputListParam::TFInputListParam(std::string name_) : TFParam(TFPK_InputList, 
   std::vector<std::unique_ptr<TFParam>> inputs;
   for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
     std::string input_name = name + "_" + std::to_string(i);
+    //inputs.push_back(std::make_unique<TFInputParam>(input_name));
     inputs.push_back(std::make_unique<TFTensorParam>(input_name));
   }
   inputlist = std::make_unique<TFArraySliceParam>(name + "_array", std::move(inputs));
@@ -847,6 +848,91 @@ void TFTensorParam::resolve_name_conflict(std::set<std::string>& names_seen) {
 
 bool TFTensorParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_Tensor;
+}
+
+
+TFInputParam::TFInputParam(std::string name_): TFParam(TFPK_Input, name_) {
+  dtype = std::make_unique<TFDtypeParam>(name + "_dtype");
+  rank = std::make_unique<TFBoundedIntParam>(name + "_rank", MAX_RANK + 1);
+  intval = std::make_unique<TFIntParam>(name + "_int", "long");
+  floatval1 = std::make_unique<TFFloatParam>(name + "_float1");
+  floatval2 = std::make_unique<TFFloatParam>(name + "_float2");
+  boolval = std::make_unique<TFBoolParam>(name + "_bool");
+  intvec_size = std::make_unique<TFBoundedIntParam>(name + "_intvec_size", MAX_VECTOR_SIZE + 1);
+  for (size_t i = 0; i < MAX_VECTOR_SIZE; i++)
+    intvec_base.push_back(std::make_unique<TFIntParam>(name + "_intvec_" + std::to_string(i), "long"));
+  for (size_t i = 0; i < MAX_RANK; i++)
+    dims.push_back(std::make_unique<TFIntParam>(name + "_" + std::to_string(i), "long"));
+  for (auto&& dim: dims)
+    dim->set_default(1);
+}
+
+std::string TFInputParam::type() const {
+  return "Input";
+}
+std::string TFInputParam::var() const {
+  return name;
+}
+std::string TFInputParam::initializer() const {
+  std::string args =
+    scope_var + comma + dtype->expr() + comma + rank->expr() + comma + 
+    intval->expr() + comma + floatval1->expr() + comma + floatval2->expr() + comma + boolval->expr() + comma +
+    intvec_size->expr() + comma + to_string(intvec_base) + comma +
+    to_string(dims);
+  return "tf_input" + bracket(args);
+}
+
+std::vector<std::string> TFInputParam::gen_arg_setup() const {
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, dtype->gen_arg_setup());
+  concat(arg_setup, rank->gen_arg_setup());
+  concat(arg_setup, intval->gen_arg_setup());
+  concat(arg_setup, floatval1->gen_arg_setup());
+  concat(arg_setup, floatval2->gen_arg_setup());
+  concat(arg_setup, boolval->gen_arg_setup());
+  concat(arg_setup, intvec_size->gen_arg_setup());
+  for (auto& n: intvec_base)
+    concat(arg_setup, n->gen_arg_setup());
+  for (auto& dim: dims)
+    concat(arg_setup, dim->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TFInputParam::gen_hard_constraint() const {
+  std::vector<std::string> hard_ctrs;
+  for (auto& dim: dims)
+    concat(hard_ctrs, dim->gen_soft_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TFInputParam::gen_soft_constraint() const {
+  std::vector<std::string> soft_ctrs;
+  concat(soft_ctrs, intval->gen_soft_constraint());
+  for (auto& n: intvec_base)
+    concat(soft_ctrs, n->gen_soft_constraint());
+  return soft_ctrs;
+}
+std::vector<std::string> TFInputParam::gen_input_pass_condition() const {
+  return {"is_too_big" + bracket(rank->expr() + comma + to_string(dims))};
+}
+std::vector<std::string> TFInputParam::gen_arg_initialization() const {
+  return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+void TFInputParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TFParam::resolve_name_conflict(names_seen);
+  dtype->resolve_name_conflict(names_seen);
+  rank->resolve_name_conflict(names_seen);
+  intval->resolve_name_conflict(names_seen);
+  floatval1->resolve_name_conflict(names_seen);
+  floatval2->resolve_name_conflict(names_seen);
+  boolval->resolve_name_conflict(names_seen);
+  intvec_size->resolve_name_conflict(names_seen);
+  for (auto& n: intvec_base)
+    n->resolve_name_conflict(names_seen);
+  for (auto& dim: dims)
+    dim->resolve_name_conflict(names_seen);
+}
+
+bool TFInputParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_Input;
 }
 
 
