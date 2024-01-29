@@ -28,11 +28,6 @@ std::vector<std::string> get_names(const std::vector<std::unique_ptr<TFParam>>& 
   return names;
 }
 
-static bool module_mode;
-void set_function_mode() { module_mode = false; }
-void set_module_mode() { module_mode = true; }
-bool is_module_mode() { return module_mode; }
-
 
 TFScopeParam::TFScopeParam(): TFParam(TFPK_Scope, scope_var) {}
 
@@ -83,8 +78,8 @@ std::vector<std::string> TFIntParam::gen_arg_setup() const {
 std::vector<std::string> TFIntParam::gen_soft_constraint() const {
   int min =
     default_value.has_value() ?
-    default_value.value() : 0;
-    //(is_module_mode() ? 1 : 0);
+    //default_value.value() : 0;
+    default_value.value() : 1;
   return { setup_var(name) + gte + std::to_string(min) };
 }
 
@@ -1035,7 +1030,8 @@ bool TFOptionalParam::classof(const TFParam *param) {
 TFAPIAttrsParam::TFAPIAttrsParam(
   std::string name_,
   std::string api_attrs_class_name_,
-  std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_)
+  //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_)
+  std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters_)
   : TFParam(TFPK_APIAttrs, name_)
 {
   api_attrs_class_name = api_attrs_class_name_;
@@ -1056,9 +1052,10 @@ std::vector<std::string> TFAPIAttrsParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
   for (auto& t: setters) {
     //auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    concat(arg_setup, setter_flag->gen_arg_setup());
+    //auto& setter_flag = std::get<1>(t);
+    //auto& setter_param = std::get<2>(t);
+    auto& setter_param = std::get<1>(t);
+    //concat(arg_setup, setter_flag->gen_arg_setup());
     concat(arg_setup, setter_param->gen_arg_setup());
   }
   return arg_setup;
@@ -1067,9 +1064,10 @@ std::vector<std::string> TFAPIAttrsParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
   for (auto& t: setters) {
     //auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    concat(hard_ctrs, setter_flag->gen_hard_constraint());
+    //auto& setter_flag = std::get<1>(t);
+    //auto& setter_param = std::get<2>(t);
+    auto& setter_param = std::get<1>(t);
+    //concat(hard_ctrs, setter_flag->gen_hard_constraint());
     concat(hard_ctrs, setter_param->gen_hard_constraint());
   }
   return hard_ctrs;
@@ -1078,9 +1076,10 @@ std::vector<std::string> TFAPIAttrsParam::gen_soft_constraint() const {
   std::vector<std::string> soft_ctrs;
   for (auto& t: setters) {
     //auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    concat(soft_ctrs, setter_flag->gen_soft_constraint());
+    //auto& setter_flag = std::get<1>(t);
+    //auto& setter_param = std::get<2>(t);
+    auto& setter_param = std::get<1>(t);
+    //concat(soft_ctrs, setter_flag->gen_soft_constraint());
     concat(soft_ctrs, setter_param->gen_soft_constraint());
   }
   return soft_ctrs;
@@ -1089,9 +1088,10 @@ std::vector<std::string> TFAPIAttrsParam::gen_input_pass_condition() const {
   std::vector<std::string> ignore_conds;
   for (auto& t: setters) {
     //auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    concat(ignore_conds, setter_flag->gen_input_pass_condition());
+    //auto& setter_flag = std::get<1>(t);
+    //auto& setter_param = std::get<2>(t);
+    auto& setter_param = std::get<1>(t);
+    //concat(ignore_conds, setter_flag->gen_input_pass_condition());
     concat(ignore_conds, setter_param->gen_input_pass_condition());
   }
   return ignore_conds;
@@ -1100,9 +1100,9 @@ std::vector<std::string> TFAPIAttrsParam::gen_arg_initialization() const {
   std::vector<std::string> arg_initialization;
   for (auto& t: setters) {
     //auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    concat(arg_initialization, setter_flag->gen_arg_initialization());
+    //auto& setter_flag = std::get<1>(t);
+    //auto& setter_param = std::get<2>(t);
+    auto& setter_param = std::get<1>(t);
     concat(arg_initialization, setter_param->gen_arg_initialization());
   }
   concat(arg_initialization, gen_api_attrs_init());
@@ -1114,9 +1114,10 @@ void TFAPIAttrsParam::resolve_name_conflict(std::set<std::string>& names_seen) {
   TFParam::resolve_name_conflict(names_seen);
   for (auto& t: setters) {
     //auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    setter_flag->resolve_name_conflict(names_seen);
+    //auto& setter_flag = std::get<1>(t);
+    //auto& setter_param = std::get<2>(t);
+    auto& setter_param = std::get<1>(t);
+    //setter_flag->resolve_name_conflict(names_seen);
     setter_param->resolve_name_conflict(names_seen);
   }
 }
@@ -1128,13 +1129,21 @@ bool TFAPIAttrsParam::classof(const TFParam *param) {
 std::vector<std::string> TFAPIAttrsParam::gen_api_attrs_init() const {
   std::vector<std::string> api_attrs_init;
 
-  api_attrs_init.push_back("auto " + name + assign + api_attrs_class_name + "();");
+  /* api_attrs_init.push_back("auto " + name + assign + api_attrs_class_name + "();");
   for (auto& t: setters) {
     auto& setter_name = std::get<0>(t);
     auto& setter_flag = std::get<1>(t);
     auto& setter_param = std::get<2>(t);
     api_attrs_init.push_back("if (" + setter_flag->expr() + ")");
     api_attrs_init.push_back("  " + name + assign + name + "." + setter_name + bracket(setter_param->expr()) + semicolon);
+  } */
+  api_attrs_init.push_back("auto " + name + assign);
+  api_attrs_init.push_back("  " + api_attrs_class_name + "()");
+  for (auto& t: setters) {
+    auto& setter_name = std::get<0>(t);
+    auto& setter_param = std::get<1>(t);
+    api_attrs_init.push_back("    ." + setter_name + bracket(setter_param->expr()));
   }
+  api_attrs_init.back() = api_attrs_init.back() + semicolon;
   return api_attrs_init;
 }

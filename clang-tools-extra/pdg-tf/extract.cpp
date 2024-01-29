@@ -306,7 +306,8 @@ std::unique_ptr<TFParam> extractTFAPIAttrs(clang::QualType t, std::string name, 
 
   //cdecl->dump();
 
-  std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
+  //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
+  std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters;
 
   bool default_ctor_available = false;
   for (auto ctordecl: cdecl->ctors())
@@ -349,7 +350,8 @@ std::unique_ptr<TFParam> extractTFAPIAttrs(clang::QualType t, std::string name, 
       param = std::make_unique<TFDataFormatParam>(param_name);
     
     setters.push_back(
-      std::move(std::make_tuple(setter_name, std::make_unique<TFBoolParam>("set_" + setter_name) ,std::move(param))));
+      //std::move(std::make_tuple(setter_name, std::make_unique<TFBoolParam>("set_" + setter_name) ,std::move(param))));
+      std::move(std::make_tuple(setter_name, std::move(param))));
   }
 
   std::unique_ptr<TFParam> tf_param =

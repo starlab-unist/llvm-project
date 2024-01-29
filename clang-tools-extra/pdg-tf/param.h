@@ -27,10 +27,6 @@ const std::string symbolic_int_var = "sym_int_arg";
 const std::string callback_input_var = "x";
 const std::string scope_var = "scope";
 
-void set_function_mode();
-void set_module_mode();
-bool is_module_mode();
-
 class TFParam {
   public:
     enum TFParamKind {
@@ -605,7 +601,8 @@ class TFAPIAttrsParam: public TFParam {
     TFAPIAttrsParam(
       std::string name_,
       std::string api_attrs_class_name_,
-      std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_);
+      //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_);
+      std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters_);
 
     virtual std::string type() const override;
     virtual std::string var() const override;
@@ -621,7 +618,8 @@ class TFAPIAttrsParam: public TFParam {
     static bool classof(const TFParam *param);
   private:
     std::string api_attrs_class_name;
-    std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
+    //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
+    std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters;
 
     std::vector<std::string> gen_api_attrs_init() const;
 };
