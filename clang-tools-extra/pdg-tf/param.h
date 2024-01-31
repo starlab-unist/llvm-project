@@ -63,9 +63,10 @@ class TFParam {
       TFPK_ArraySlice,
 
       // TFfixedArrayParam
+      TFPK_Array,
       TFPK_Tuple,
       TFPK_Pair,
-      TFPK_FixedArray_First = TFPK_Tuple,
+      TFPK_FixedArray_First = TFPK_Array,
       TFPK_FixedArray_Last = TFPK_Pair,
 
       TFPK_PartialTensorShape,
@@ -440,28 +441,6 @@ class TFVectorParam: public TFUnfixedArrayParam {
     std::string base_type_str;
 };
 
-class TFArraySliceParam: public TFParam {
-  public:
-    TFArraySliceParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_);
-    TFArraySliceParam(std::string name_, std::string base_type_str_);
-
-    virtual std::string type() const override;
-    virtual std::string var() const override;
-    virtual std::string initializer() const override;
-
-    virtual std::vector<std::string> gen_arg_setup() const override;
-    virtual std::vector<std::string> gen_hard_constraint() const override;
-    virtual std::vector<std::string> gen_soft_constraint() const override;
-    virtual std::vector<std::string> gen_arg_initialization() const override;
-    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
-
-    //virtual bool stable() const override;
-
-    static bool classof(const TFParam *param);
-  private:
-    std::unique_ptr<TFVectorParam> vec;
-};
-
 class TFFixedArrayParam: public TFParam {
   public:
     TFFixedArrayParam(
@@ -482,6 +461,24 @@ class TFFixedArrayParam: public TFParam {
   protected:
     size_t size;
     std::vector<std::unique_ptr<TFParam>> params;
+};
+
+class TFArrayParam: public TFFixedArrayParam {
+  public:
+    TFArrayParam(
+      std::string name_,
+      size_t size_,
+      std::vector<std::unique_ptr<TFParam>> params_);
+
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+
+    static bool classof(const TFParam *param);
+
+    std::string base_type() const;
 };
 
 class TFTupleParam: public TFFixedArrayParam {
@@ -507,6 +504,30 @@ class TFPairParam: public TFFixedArrayParam {
     virtual std::string initializer() const override;
 
     static bool classof(const TFParam *param);
+};
+
+class TFArraySliceParam: public TFParam {
+  public:
+    TFArraySliceParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_);
+    TFArraySliceParam(std::string name_, std::string base_type_str_);
+
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_soft_constraint() const override;
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    //virtual bool stable() const override;
+
+    static bool classof(const TFParam *param);
+  private:
+    std::unique_ptr<TFBoundedIntParam> size;
+    std::unique_ptr<TFArrayParam> array;
+    std::string base_type_str;
 };
 
 class TFInputListParam: public TFParam {
@@ -601,7 +622,6 @@ class TFAPIAttrsParam: public TFParam {
     TFAPIAttrsParam(
       std::string name_,
       std::string api_attrs_class_name_,
-      //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_);
       std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters_);
 
     virtual std::string type() const override;
@@ -618,7 +638,6 @@ class TFAPIAttrsParam: public TFParam {
     static bool classof(const TFParam *param);
   private:
     std::string api_attrs_class_name;
-    //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters;
     std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters;
 
     std::vector<std::string> gen_api_attrs_init() const;

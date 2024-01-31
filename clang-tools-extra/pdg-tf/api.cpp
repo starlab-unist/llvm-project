@@ -126,21 +126,20 @@ std::vector<std::string> TFAPI::callback() const {
   callback_code.push_back("  PathFinderExecuteTarget(");
   concat(callback_code, "    ", api_call_code());
 
+  callback_code.push_back("    Status " + status_var + ";");
   callback_code.push_back("    GraphDef " + graphdef_var + ";");
-  callback_code.push_back("    Status " + status_var + " = " + scope_var + ".ToGraphDef(&" + graphdef_var + ");");
-  callback_code.push_back("    if (!" + status_var + ".ok())");
-  callback_code.push_back("      return -2;\n");
-  callback_code.push_back("    " + status_var + " = " + session_var + "->Create(" + graphdef_var + ");");
-  callback_code.push_back("    if (!" + status_var + ".ok())");
-  callback_code.push_back("      return -2;\n");
-
-  callback_code.push_back("    std::vector<Tensor> " + outputs_var + ";");
-
-  
-  callback_code.push_back("    " + status_var + " = " + session_var + "->Run({}, {\"" + target_var + "\"}, {}, &" + outputs_var + ");");
-  callback_code.push_back("    if (!" + status_var + ".ok())");
-  callback_code.push_back("      return -2;");
+  callback_code.push_back("    " + status_var + " = " + scope_var + ".ToGraphDef(&" + graphdef_var + ");");
+  callback_code.push_back("    if (" + status_var + ".ok()) {");
+  callback_code.push_back("      " + status_var + " = " + session_var + "->Create(" + graphdef_var + ");");
+  callback_code.push_back("      if (" + status_var + ".ok()) {");
+  callback_code.push_back("        std::vector<Tensor> " + outputs_var + ";");
+  callback_code.push_back("        " + status_var + " = " + session_var + "->Run({}, {\"" + target_var + "\"}, {}, &" + outputs_var + ");");
+  callback_code.push_back("      }");
+  callback_code.push_back("    }");
   callback_code.push_back("  );\n");
+
+  callback_code.push_back("  if (!" + status_var + ".ok())");
+  callback_code.push_back("    return -2;\n");
 
   callback_code.push_back("  return 0;");
   callback_code.push_back("}\n");

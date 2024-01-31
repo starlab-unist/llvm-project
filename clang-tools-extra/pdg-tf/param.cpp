@@ -557,52 +557,6 @@ bool TFVectorParam::classof(const TFParam *param) {
 }
 
 
-TFArraySliceParam::TFArraySliceParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_)
-  : TFParam(TFPK_ArraySlice, name_)
-{
-  vec = std::make_unique<TFVectorParam>(name + "_vec", std::move(params_));
-}
-TFArraySliceParam::TFArraySliceParam(std::string name_, std::string base_type_str_)
-  : TFParam(TFPK_ArraySlice, name_)
-{
-  vec = std::make_unique<TFVectorParam>(name + "_vec", base_type_str_);
-}
-
-std::string TFArraySliceParam::type() const {
-  return "gtl::ArraySlice<" + vec->base_type() + ">";
-}
-std::string TFArraySliceParam::var() const {
-  return name;
-}
-std::string TFArraySliceParam::initializer() const {
-  return type() + bracket(vec->expr());
-}
-
-std::vector<std::string> TFArraySliceParam::gen_arg_setup() const {
-  return vec->gen_arg_setup();
-}
-std::vector<std::string> TFArraySliceParam::gen_hard_constraint() const {
-  return vec->gen_hard_constraint();
-}
-std::vector<std::string> TFArraySliceParam::gen_soft_constraint() const {
-  return vec->gen_soft_constraint();
-}
-std::vector<std::string> TFArraySliceParam::gen_arg_initialization() const {
-  std::vector<std::string> arg_initialization;
-  concat(arg_initialization, vec->gen_arg_initialization());
-  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
-  return arg_initialization;
-}
-void TFArraySliceParam::resolve_name_conflict(std::set<std::string>& names_seen) {
-  TFParam::resolve_name_conflict(names_seen);
-  vec->resolve_name_conflict(names_seen);
-}
-
-bool TFArraySliceParam::classof(const TFParam *param) {
-  return param->get_kind() == TFPK_ArraySlice;
-}
-
-
 TFFixedArrayParam::TFFixedArrayParam(
   TFParamKind kind_,
   std::string name_,
@@ -652,6 +606,43 @@ void TFFixedArrayParam::resolve_name_conflict(std::set<std::string>& names_seen)
 }
 
 
+TFArrayParam::TFArrayParam(
+  std::string name_,
+  size_t size_,
+  std::vector<std::unique_ptr<TFParam>> params_)
+  : TFFixedArrayParam(TFPK_Array, name_, size_, std::move(params_))
+{
+  assert(size > 0);
+}
+
+std::string TFArrayParam::type() const {
+  return base_type() + "*";
+}
+std::string TFArrayParam::var() const {
+  return name;
+}
+std::string TFArrayParam::initializer() const {
+  return to_string(params);
+}
+
+std::vector<std::string> TFArrayParam::gen_arg_initialization() const {
+  std::vector<std::string> arg_initialization;
+  for (auto& param: params)
+    concat(arg_initialization, param->gen_arg_initialization());
+  arg_initialization.push_back(base_type() + space + var() + "[]" + assign + initializer() + semicolon + newline);
+  return arg_initialization;
+}
+
+bool TFArrayParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_Array;
+}
+
+std::string TFArrayParam::base_type() const {
+  assert(params[0] != nullptr);
+  return params[0]->type();
+}
+
+
 TFTupleParam::TFTupleParam(
   std::string name_,
   size_t size_,
@@ -677,6 +668,7 @@ bool TFTupleParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_Tuple;
 }
 
+
 TFPairParam::TFPairParam(
   std::string name_,
   std::vector<std::unique_ptr<TFParam>> params_)
@@ -693,7 +685,85 @@ bool TFPairParam::classof(const TFParam *param) {
   return param->get_kind() == TFPK_Pair;
 }
 
-// temporary implementation
+
+TFArraySliceParam::TFArraySliceParam(std::string name_, std::vector<std::unique_ptr<TFParam>> params_)
+  : TFParam(TFPK_ArraySlice, name_)
+{
+  size = std::make_unique<TFBoundedIntParam>(name + "_size", params_.size() + 1);
+  array = std::make_unique<TFArrayParam>(name + "_array", params_.size(), std::move(params_));
+}
+TFArraySliceParam::TFArraySliceParam(std::string name_, std::string base_type_str_)
+  : TFParam(TFPK_ArraySlice, name_)
+{
+  base_type_str = base_type_str_;
+}
+
+std::string TFArraySliceParam::type() const {
+  if (array != nullptr)
+    return "gtl::ArraySlice<" + array->base_type() + ">";
+  else
+    return "gtl::ArraySlice<" + base_type_str + ">";
+}
+std::string TFArraySliceParam::var() const {
+  return name;
+}
+std::string TFArraySliceParam::initializer() const {
+  if (size != nullptr && array != nullptr)
+    return type() + bracket(array->expr() + comma + size->expr());
+  else
+    return type() + bracket();
+}
+
+std::vector<std::string> TFArraySliceParam::gen_arg_setup() const {
+  if (size == nullptr || array == nullptr)
+    return {};
+
+  std::vector<std::string> arg_setup;
+  concat(arg_setup, size->gen_arg_setup());
+  concat(arg_setup, array->gen_arg_setup());
+  return arg_setup;
+}
+std::vector<std::string> TFArraySliceParam::gen_hard_constraint() const {
+  if (size == nullptr || array == nullptr)
+    return {};
+
+  std::vector<std::string> hard_ctrs;
+  concat(hard_ctrs, size->gen_hard_constraint());
+  concat(hard_ctrs, array->gen_hard_constraint());
+  return hard_ctrs;
+}
+std::vector<std::string> TFArraySliceParam::gen_soft_constraint() const {
+  if (size == nullptr || array == nullptr)
+    return {};
+
+  std::vector<std::string> soft_ctrs;
+  concat(soft_ctrs, size->gen_soft_constraint());
+  concat(soft_ctrs, array->gen_soft_constraint());
+  return soft_ctrs;
+}
+std::vector<std::string> TFArraySliceParam::gen_arg_initialization() const {
+  if (size == nullptr || array == nullptr)
+    return {};
+
+  std::vector<std::string> arg_initialization;
+  concat(arg_initialization, size->gen_arg_initialization());
+  concat(arg_initialization, array->gen_arg_initialization());
+  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
+  return arg_initialization;
+}
+void TFArraySliceParam::resolve_name_conflict(std::set<std::string>& names_seen) {
+  TFParam::resolve_name_conflict(names_seen);
+  if (size != nullptr)
+    size->resolve_name_conflict(names_seen);
+  if (array != nullptr)
+    array->resolve_name_conflict(names_seen);
+}
+
+bool TFArraySliceParam::classof(const TFParam *param) {
+  return param->get_kind() == TFPK_ArraySlice;
+}
+
+
 TFInputListParam::TFInputListParam(std::string name_) : TFParam(TFPK_InputList, name_) {
   std::vector<std::unique_ptr<TFParam>> inputs;
   for (size_t i = 0; i < MAX_ARRAYREF_SIZE; i++) {
@@ -931,106 +1001,9 @@ bool TFInputParam::classof(const TFParam *param) {
 }
 
 
-/* TFOptionalParam::TFOptionalParam(std::string name_, std::unique_ptr<TFParam> param_)
-  : TFParam(TFPK_Optional, name_)
-{
-  has_value = std::make_unique<TFBoolParam>(name + "_hasValue");
-  param = std::move(param_);
-}
-TFOptionalParam::TFOptionalParam(std::string name_, std::string base_type_str_)
-  : TFParam(TFPK_Optional, name_), base_type_str(base_type_str_) {}
-void TFOptionalParam::set_default(Expr* default_expr) {
-  if (!stable())
-    return;
-  
-  param->set_default(default_expr);
-}
-
-std::string TFOptionalParam::type() const {
-  return "c10::optional<" + base_type() + ">";
-}
-std::string TFOptionalParam::var() const {
-  //if (!stable())
-  //  return "";
-
-  return name;
-}
-std::string TFOptionalParam::initializer() const {
-  if (!stable())
-    //return "c10::nullopt";
-    return type() + bracket("c10::nullopt");
-
-  return has_value->expr() + " ? " + type() + bracket(param->expr()) +  " : " + "c10::nullopt";
-}
-
-std::vector<std::string> TFOptionalParam::gen_arg_setup() const {
-  if (!stable())
-    return {};
-
-  std::vector<std::string> arg_setup;
-  concat(arg_setup, has_value->gen_arg_setup());
-  concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
-}
-std::vector<std::string> TFOptionalParam::gen_hard_constraint() const {
-  if (!stable())
-    return {};
-
-  return param->gen_hard_constraint();
-}
-std::vector<std::string> TFOptionalParam::gen_soft_constraint() const {
-  if (!stable())
-    return {};
-
-  return param->gen_soft_constraint();
-}
-std::vector<std::string> TFOptionalParam::gen_input_pass_condition() const {
-  if (!stable())
-    return {};
-
-  return param->gen_input_pass_condition();
-}
-std::vector<std::string> TFOptionalParam::gen_arg_initialization() const {
-  //if (!stable())
-  //  return {};
-
-  std::vector<std::string> arg_initialization;
-  if (stable())
-    concat(arg_initialization, param->gen_arg_initialization());
-  arg_initialization.push_back(type() + space + var() + assign + initializer() + semicolon + newline);
-  return arg_initialization;
-}
-void TFOptionalParam::resolve_name_conflict(std::set<std::string>& names_seen) {
-  //if (!stable())
-  //  return;
-
-  TFParam::resolve_name_conflict(names_seen);
-  if (stable()) {
-    has_value->resolve_name_conflict(names_seen);
-    param->resolve_name_conflict(names_seen);
-  }
-}
-
-bool TFOptionalParam::stable() const {
-  return param != nullptr; //&& param->stable();
-}
-
-std::string TFOptionalParam::base_type() const {
-  if (!stable())
-    return base_type_str;
-
-  return param->type();
-}
-
-bool TFOptionalParam::classof(const TFParam *param) {
-  return param->get_kind() == TFPK_Optional;
-} */
-
-
 TFAPIAttrsParam::TFAPIAttrsParam(
   std::string name_,
   std::string api_attrs_class_name_,
-  //std::vector<std::tuple<std::string, std::unique_ptr<TFBoolParam>, std::unique_ptr<TFParam>>> setters_)
   std::vector<std::tuple<std::string, std::unique_ptr<TFParam>>> setters_)
   : TFParam(TFPK_APIAttrs, name_)
 {
@@ -1051,11 +1024,7 @@ std::string TFAPIAttrsParam::initializer() const {
 std::vector<std::string> TFAPIAttrsParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
   for (auto& t: setters) {
-    //auto& setter_name = std::get<0>(t);
-    //auto& setter_flag = std::get<1>(t);
-    //auto& setter_param = std::get<2>(t);
     auto& setter_param = std::get<1>(t);
-    //concat(arg_setup, setter_flag->gen_arg_setup());
     concat(arg_setup, setter_param->gen_arg_setup());
   }
   return arg_setup;
@@ -1063,11 +1032,7 @@ std::vector<std::string> TFAPIAttrsParam::gen_arg_setup() const {
 std::vector<std::string> TFAPIAttrsParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
   for (auto& t: setters) {
-    //auto& setter_name = std::get<0>(t);
-    //auto& setter_flag = std::get<1>(t);
-    //auto& setter_param = std::get<2>(t);
     auto& setter_param = std::get<1>(t);
-    //concat(hard_ctrs, setter_flag->gen_hard_constraint());
     concat(hard_ctrs, setter_param->gen_hard_constraint());
   }
   return hard_ctrs;
@@ -1075,11 +1040,7 @@ std::vector<std::string> TFAPIAttrsParam::gen_hard_constraint() const {
 std::vector<std::string> TFAPIAttrsParam::gen_soft_constraint() const {
   std::vector<std::string> soft_ctrs;
   for (auto& t: setters) {
-    //auto& setter_name = std::get<0>(t);
-    //auto& setter_flag = std::get<1>(t);
-    //auto& setter_param = std::get<2>(t);
     auto& setter_param = std::get<1>(t);
-    //concat(soft_ctrs, setter_flag->gen_soft_constraint());
     concat(soft_ctrs, setter_param->gen_soft_constraint());
   }
   return soft_ctrs;
@@ -1087,11 +1048,7 @@ std::vector<std::string> TFAPIAttrsParam::gen_soft_constraint() const {
 std::vector<std::string> TFAPIAttrsParam::gen_input_pass_condition() const {
   std::vector<std::string> ignore_conds;
   for (auto& t: setters) {
-    //auto& setter_name = std::get<0>(t);
-    //auto& setter_flag = std::get<1>(t);
-    //auto& setter_param = std::get<2>(t);
     auto& setter_param = std::get<1>(t);
-    //concat(ignore_conds, setter_flag->gen_input_pass_condition());
     concat(ignore_conds, setter_param->gen_input_pass_condition());
   }
   return ignore_conds;
@@ -1099,9 +1056,6 @@ std::vector<std::string> TFAPIAttrsParam::gen_input_pass_condition() const {
 std::vector<std::string> TFAPIAttrsParam::gen_arg_initialization() const {
   std::vector<std::string> arg_initialization;
   for (auto& t: setters) {
-    //auto& setter_name = std::get<0>(t);
-    //auto& setter_flag = std::get<1>(t);
-    //auto& setter_param = std::get<2>(t);
     auto& setter_param = std::get<1>(t);
     concat(arg_initialization, setter_param->gen_arg_initialization());
   }
@@ -1113,11 +1067,7 @@ std::vector<std::string> TFAPIAttrsParam::gen_arg_initialization() const {
 void TFAPIAttrsParam::resolve_name_conflict(std::set<std::string>& names_seen) {
   TFParam::resolve_name_conflict(names_seen);
   for (auto& t: setters) {
-    //auto& setter_name = std::get<0>(t);
-    //auto& setter_flag = std::get<1>(t);
-    //auto& setter_param = std::get<2>(t);
     auto& setter_param = std::get<1>(t);
-    //setter_flag->resolve_name_conflict(names_seen);
     setter_param->resolve_name_conflict(names_seen);
   }
 }
@@ -1129,14 +1079,6 @@ bool TFAPIAttrsParam::classof(const TFParam *param) {
 std::vector<std::string> TFAPIAttrsParam::gen_api_attrs_init() const {
   std::vector<std::string> api_attrs_init;
 
-  /* api_attrs_init.push_back("auto " + name + assign + api_attrs_class_name + "();");
-  for (auto& t: setters) {
-    auto& setter_name = std::get<0>(t);
-    auto& setter_flag = std::get<1>(t);
-    auto& setter_param = std::get<2>(t);
-    api_attrs_init.push_back("if (" + setter_flag->expr() + ")");
-    api_attrs_init.push_back("  " + name + assign + name + "." + setter_name + bracket(setter_param->expr()) + semicolon);
-  } */
   api_attrs_init.push_back("auto " + name + assign);
   api_attrs_init.push_back("  " + api_attrs_class_name + "()");
   for (auto& t: setters) {
