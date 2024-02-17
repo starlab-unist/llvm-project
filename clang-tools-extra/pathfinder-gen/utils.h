@@ -18,6 +18,7 @@
   }
 
 static const std::string space = " ";
+static const std::string lte = " <= ";
 static const std::string gte = " >= ";
 static const std::string assign = " = ";
 static const std::string comma = ", ";

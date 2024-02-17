@@ -170,6 +170,7 @@ class TorchBoundedParam: public TorchParam {
     virtual std::string initializer() const override = 0;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
   protected:
     std::vector<std::string> value_names;
     Optional<size_t> size;
@@ -316,6 +317,7 @@ class TorchDtypeParam: public TorchParam {
     virtual std::string initializer() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     static bool classof(const TorchParam *param);
