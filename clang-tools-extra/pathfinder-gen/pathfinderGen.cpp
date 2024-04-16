@@ -118,7 +118,7 @@ public:
     }
 
     TorchFunction torch_function(function_name_qualified, std::move(params));
-    output.add("basic", function_group, function_name, torch_function.gen_fuzz_target(FTT_Basic));
+    output.add("default", function_group, function_name, torch_function.gen_fuzz_target(FTT_Basic));
     //output.add("sparse", function_group, function_name, torch_function.gen_fuzz_target(FTT_Sparse));
 
     return true;
@@ -267,7 +267,7 @@ public:
       std::move(forward_params));
 
     std::string module_group_name = std::regex_replace(torch_module_list_file_name(), std::regex("::"), "_");
-    output.add("basic", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Basic));
+    output.add("default", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Basic));
     //output.add("sparse", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Sparse));
   }
 
@@ -296,7 +296,7 @@ public:
       std::move(params));
 
     std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
-    output.add("basic", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));
+    output.add("default", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));
     //output.add("sparse", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Sparse));
 
     return true;
