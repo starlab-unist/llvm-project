@@ -15,7 +15,6 @@ using namespace clang;
 
 enum FuzzTargetType {
   FTT_Basic,
-  FTT_Quantization,
   FTT_Sparse,
 };
 void set_fuzz_target_type(FuzzTargetType ftt_);
@@ -53,7 +52,7 @@ class TorchParam {
       TPK_Layout,
       TPK_Device,
       TPK_BasicDtype,
-      TPK_ExtendedDtype,
+      TPK_SparseDtype,
       TPK_Variant,
       TPK_Bounded_First = TPK_Null,
       TPK_Bounded_Last = TPK_Variant,
@@ -298,9 +297,9 @@ class TorchBasicDtypeParam: public TorchBoundedParam {
     static bool classof(const TorchParam *param);
 };
 
-class TorchExtendedDtypeParam: public TorchBoundedParam {
+class TorchSparseDtypeParam: public TorchBoundedParam {
   public:
-    TorchExtendedDtypeParam(std::string name_);
+    TorchSparseDtypeParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -321,7 +320,7 @@ class TorchDtypeParam: public TorchParam {
     static bool classof(const TorchParam *param);
   private:
     std::unique_ptr<TorchBasicDtypeParam> basic;
-    std::unique_ptr<TorchExtendedDtypeParam> extended;
+    std::unique_ptr<TorchSparseDtypeParam> sparse;
 };
 
 class TorchVariantParam: public TorchBoundedParam {

@@ -345,47 +345,55 @@ bool TorchBasicDtypeParam::classof(const TorchParam *param) {
 }
 
 
-TorchExtendedDtypeParam::TorchExtendedDtypeParam(std::string name_)
-  : TorchBoundedParam(TPK_ExtendedDtype, name_, "qdtype_dict().size()") {}
+TorchSparseDtypeParam::TorchSparseDtypeParam(std::string name_)
+  : TorchBoundedParam(TPK_SparseDtype, name_, "sparse_dtype_dict().size()") {}
 
-std::string TorchExtendedDtypeParam::type() const {
+std::string TorchSparseDtypeParam::type() const {
   return "c10::ScalarType";
 }
-std::string TorchExtendedDtypeParam::initializer() const {
-  return "get_qdtype" + bracket(callback_var(name));
+std::string TorchSparseDtypeParam::initializer() const {
+  return "get_sparse_dtype" + bracket(callback_var(name));
 }
 
-bool TorchExtendedDtypeParam::classof(const TorchParam *param) {
-  return param->get_kind() == TPK_ExtendedDtype;
+bool TorchSparseDtypeParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_SparseDtype;
 }
 
 
 TorchDtypeParam::TorchDtypeParam(std::string name_): TorchParam(TPK_Dtype, name_) {
   basic = std::make_unique<TorchBasicDtypeParam>(name_);
-  extended = std::make_unique<TorchExtendedDtypeParam>(name_);
+  sparse = std::make_unique<TorchSparseDtypeParam>(name_);
 }
 
 std::string TorchDtypeParam::type() const {
   return "c10::ScalarType";
 }
 std::string TorchDtypeParam::initializer() const {
-  return
-    get_fuzz_target_type() == FTT_Quantization ?
-    extended->initializer() :
-    basic->initializer();
+  if (get_fuzz_target_type() == FTT_Basic) {
+    return basic->initializer();
+  } else if (get_fuzz_target_type() == FTT_Sparse) {
+    return sparse->initializer();
+  } else {
+    assert(false);
+  }
 }
 
 std::vector<std::string> TorchDtypeParam::gen_arg_setup() const {
-  return
-    get_fuzz_target_type() == FTT_Quantization ?
-    extended->gen_arg_setup() :
-    basic->gen_arg_setup();
+  if (get_fuzz_target_type() == FTT_Basic) {
+    return basic->gen_arg_setup();
+  } else if (get_fuzz_target_type() == FTT_Sparse) {
+    return sparse->gen_arg_setup();
+  } else {
+    assert(false);
+  }
 }
 void TorchDtypeParam::resolve_name_conflict(std::set<std::string>& names_seen) {
-  if (get_fuzz_target_type() == FTT_Quantization) {
-    extended->resolve_name_conflict(names_seen);
+  if (get_fuzz_target_type() == FTT_Basic) {
+    return basic->resolve_name_conflict(names_seen);
+  } else if (get_fuzz_target_type() == FTT_Sparse) {
+    return sparse->resolve_name_conflict(names_seen);
   } else {
-    basic->resolve_name_conflict(names_seen);
+    assert(false);
   }
 }
 

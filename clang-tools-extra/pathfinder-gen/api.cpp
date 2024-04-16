@@ -121,7 +121,7 @@ std::vector<std::string> TorchAPI::footer() const {
     "int main(int argc, char **argv) {",
     "  pathfinder::parse_arg(argc, argv);",
     "  return pathfinder::driver(PathFinderTestOneInput);",
-    "}",
+    "}\n",
   };
 }
 
@@ -218,9 +218,9 @@ std::vector<std::string> TorchModule::api_call_code() const {
   forward_call += ")";
 
   return {
-    module_init,
-    module_var + "->to" + bracket(module_dtype->expr()) + semicolon + newline,
     "PathFinderExecuteTarget(",
+    "  " + module_init,
+    "  " + module_var + "->to" + bracket(module_dtype->expr()) + semicolon + newline,
     "  " + forward_call + ");",
   };
 }

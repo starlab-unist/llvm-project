@@ -50,8 +50,10 @@ class Output {
           for (auto& p2: apis) {
             std::string api_name = p2.first;
             auto code = p2.second;
-            std::string file_name =
-              unique_name(fuzz_target_type + "_" + group_name + "_" + api_name, names_seen) + ".cpp";
+            std::string file_name = fuzz_target_type + "_" + group_name + "_" + api_name + ".cpp";
+            if ((names_seen.find(file_name) != names_seen.end()))
+              continue;
+            names_seen.insert(file_name);
             write_file("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name, code);
             cmake_contents2 += "add_pathfinder_fuzz_target(" + strip_ext(file_name) + ")\n";
           }
@@ -117,8 +119,7 @@ public:
 
     TorchFunction torch_function(function_name_qualified, std::move(params));
     output.add("basic", function_group, function_name, torch_function.gen_fuzz_target(FTT_Basic));
-    output.add("quantization", function_group, function_name, torch_function.gen_fuzz_target(FTT_Quantization));
-    output.add("sparse", function_group, function_name, torch_function.gen_fuzz_target(FTT_Sparse));
+    //output.add("sparse", function_group, function_name, torch_function.gen_fuzz_target(FTT_Sparse));
 
     return true;
   }
@@ -267,8 +268,7 @@ public:
 
     std::string module_group_name = std::regex_replace(torch_module_list_file_name(), std::regex("::"), "_");
     output.add("basic", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Basic));
-    output.add("quantization", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Quantization));
-    output.add("sparse", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Sparse));
+    //output.add("sparse", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Sparse));
   }
 
   bool extractTensorMethod(CXXMethodDecl* method) {
@@ -297,8 +297,7 @@ public:
 
     std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
     output.add("basic", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));
-    output.add("quantization", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Quantization));
-    output.add("sparse", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Sparse));
+    //output.add("sparse", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Sparse));
 
     return true;
   }
