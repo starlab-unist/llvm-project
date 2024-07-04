@@ -345,6 +345,21 @@ bool TorchBasicDtypeParam::classof(const TorchParam *param) {
 }
 
 
+TorchScalarDtypeParam::TorchScalarDtypeParam(std::string name_)
+  : TorchBoundedParam(TPK_ScalarDtype, name_, "scalar_dtype_dict().size()") {}
+
+std::string TorchScalarDtypeParam::type() const {
+  return "c10::ScalarType";
+}
+std::string TorchScalarDtypeParam::initializer() const {
+  return "get_scalar_dtype" + bracket(callback_var(name));
+}
+
+bool TorchScalarDtypeParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_ScalarDtype;
+}
+
+
 TorchSparseDtypeParam::TorchSparseDtypeParam(std::string name_)
   : TorchBoundedParam(TPK_SparseDtype, name_, "sparse_dtype_dict().size()") {}
 
@@ -896,7 +911,7 @@ bool TorchTensorParam::classof(const TorchParam *param) {
 }
 
 TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, name_) {
-  dtype = std::make_unique<TorchBasicDtypeParam>(name + "_dtype");
+  dtype = std::make_unique<TorchScalarDtypeParam>(name + "_dtype");
   intValue = std::make_unique<TorchIntParam>(name + "_int", "int");
   uintValue = std::make_unique<TorchUnsignedIntParam>(name + "_uint");
   bfloatValue = std::make_unique<TorchBFloatParam>(name + "_bfloat");

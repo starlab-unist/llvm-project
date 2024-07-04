@@ -52,6 +52,7 @@ class TorchParam {
       TPK_Layout,
       TPK_Device,
       TPK_BasicDtype,
+      TPK_ScalarDtype,
       TPK_SparseDtype,
       TPK_Variant,
       TPK_Bounded_First = TPK_Null,
@@ -290,6 +291,16 @@ class TorchDeviceParam: public TorchBoundedParam {
 class TorchBasicDtypeParam: public TorchBoundedParam {
   public:
     TorchBasicDtypeParam(std::string name_);
+
+    virtual std::string type() const override;
+    virtual std::string initializer() const override;
+
+    static bool classof(const TorchParam *param);
+};
+
+class TorchScalarDtypeParam: public TorchBoundedParam {
+  public:
+    TorchScalarDtypeParam(std::string name_);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
@@ -549,7 +560,7 @@ class TorchScalarParam: public TorchParam {
 
     static bool classof(const TorchParam *param);
   private:
-    std::unique_ptr<TorchBasicDtypeParam> dtype;
+    std::unique_ptr<TorchScalarDtypeParam> dtype;
     std::unique_ptr<TorchIntParam> intValue;
     std::unique_ptr<TorchUnsignedIntParam> uintValue;
     std::unique_ptr<TorchBFloatParam> bfloatValue;
