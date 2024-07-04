@@ -165,15 +165,22 @@ TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, co
 }
 
 std::vector<std::string> TorchBoundedParam::gen_arg_setup() const {
-  std::string setup_args;
-  if (!value_names.empty())
-    setup_args = quoted(name) + comma + curly(join_strs(value_names));
-  else if (size.hasValue())
-    setup_args = quoted(name) + comma + std::to_string(size.getValue());
-  else
-    setup_args = quoted(name) + comma + value_list_var;
-    
-  return {"PathFinderEnumArg" + bracket(setup_args) + semicolon};
+  return {"PathFinderIntArg" + bracket(quoted(name)) + semicolon};
+}
+std::vector<std::string> TorchBoundedParam::gen_hard_constraint() const {
+  std::string min = std::to_string(0);
+  std::string max;
+  if (!value_names.empty()) {
+    assert(!value_names.empty());
+    max = std::to_string(value_names.size() - 1);
+  } else if (size.hasValue()) {
+    (assert(size.getValue() > 0));
+    max = std::to_string(size.getValue() - 1);
+  } else {
+    max = value_list_var + " - 1";
+  }
+
+  return {min + lte + setup_var(name) + comma + setup_var(name) + lte + max};
 }
 
 
@@ -402,6 +409,15 @@ std::vector<std::string> TorchDtypeParam::gen_arg_setup() const {
     assert(false);
   }
 }
+std::vector<std::string> TorchDtypeParam::gen_hard_constraint() const {
+  if (get_fuzz_target_type() == FTT_Basic) {
+    return basic->gen_hard_constraint();
+  } else if (get_fuzz_target_type() == FTT_Sparse) {
+    return sparse->gen_hard_constraint();
+  } else {
+    assert(false);
+  }
+}
 void TorchDtypeParam::resolve_name_conflict(std::set<std::string>& names_seen) {
   if (get_fuzz_target_type() == FTT_Basic) {
     return basic->resolve_name_conflict(names_seen);
@@ -444,7 +460,7 @@ std::vector<std::string> TorchVariantParam::gen_arg_setup() const {
   return arg_setup;
 }
 std::vector<std::string> TorchVariantParam::gen_hard_constraint() const {
-  std::vector<std::string> hard_ctrs;
+  std::vector<std::string> hard_ctrs = TorchBoundedParam::gen_hard_constraint();
   for (auto& param: params)
     concat(hard_ctrs, param->gen_hard_constraint());
   return hard_ctrs;
@@ -566,6 +582,7 @@ std::vector<std::string> TorchUnfixedArrayParam::gen_hard_constraint() const {
     return {};
 
   std::vector<std::string> hard_ctrs;
+  concat(hard_ctrs, size->gen_hard_constraint());
   for (auto& param: params)
     concat(hard_ctrs, param->gen_hard_constraint());
   return hard_ctrs;
@@ -886,6 +903,10 @@ std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
 }
 std::vector<std::string> TorchTensorParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
+  concat(hard_ctrs, dtype->gen_hard_constraint());
+  if (get_fuzz_target_type() == FTT_Sparse)
+    concat(hard_ctrs, layout->gen_hard_constraint());
+  concat(hard_ctrs, rank->gen_hard_constraint());
   for (auto& dim: dims)
     concat(hard_ctrs, dim->gen_soft_constraint());
   return hard_ctrs;
@@ -1029,7 +1050,10 @@ std::vector<std::string> TorchOptionalParam::gen_hard_constraint() const {
   if (!stable())
     return {};
 
-  return param->gen_hard_constraint();
+  std::vector<std::string> hard_ctrs;
+  concat(hard_ctrs, has_value->gen_hard_constraint());
+  concat(hard_ctrs, param->gen_hard_constraint());
+  return hard_ctrs;
 }
 std::vector<std::string> TorchOptionalParam::gen_soft_constraint() const {
   if (!stable())
