@@ -55,7 +55,7 @@ class Output {
               continue;
             names_seen.insert(file_name);
             write_file("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name, code);
-            cmake_contents2 += "add_pathfinder_fuzz_target(" + strip_ext(file_name) + ")\n";
+            cmake_contents2 += "add_libfuzzer_fuzz_target(" + strip_ext(file_name) + ")\n";
           }
           write_file("generated/" + fuzz_target_type + "/" + group_name + "/CMakeLists.txt", cmake_contents2);
         }

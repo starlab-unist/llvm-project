@@ -8,9 +8,9 @@ std::string TorchAPI::gen_fuzz_target(FuzzTargetType ftt) {
   resolve_name_conflict();
   std::vector<std::string> lines;
   concat(lines, header());
-  concat(lines, setup());
+  //concat(lines, setup());
   concat(lines, callback());
-  concat(lines, footer());
+  //concat(lines, footer());
   return join_strs(lines, newline);
 }
 void TorchAPI::resolve_name_conflict() {
@@ -19,21 +19,20 @@ void TorchAPI::resolve_name_conflict() {
     param->resolve_name_conflict(names_seen);
 }
 std::vector<std::string> TorchAPI::arg_setup_code() const {
-  std::vector<std::string> arg_setup;
+  std::vector<std::string> arg_setups;
+  size_t index = 0;
   for (auto& param: params)
-    concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+    index = param->gen_arg_setup(arg_setups, index);
+  return arg_setups;
 }
 std::vector<std::string> TorchAPI::hard_constraint_code() const {
   std::vector<std::string> hard_constraint;
-  for (auto& param: params)
-    concat(hard_constraint, "  ", param->gen_hard_constraint(), comma);
-
-  if (hard_constraint.empty())
-    return {};
-
-  hard_constraint.insert(hard_constraint.begin(), "PathFinderAddHardConstraint({");
-  hard_constraint.push_back("});");
+  for (auto& param: params) {
+    for (auto& hard_ctr: param->gen_hard_constraint()) {
+      hard_constraint.push_back("if (!(" + hard_ctr + "))");
+      hard_constraint.push_back("  return -1;");
+    }
+  }
   return hard_constraint;
 }
 std::vector<std::string> TorchAPI::soft_constraint_code() const {
@@ -50,10 +49,12 @@ std::vector<std::string> TorchAPI::soft_constraint_code() const {
 }
 std::vector<std::string> TorchAPI::input_pass_condition_code() const {
   std::vector<std::string> input_pass_condition;
-  for (auto& param: params)
-    concat(
-      input_pass_condition,
-      "PathFinderPassIf(", param->gen_input_pass_condition(), ");");
+  for (auto& param: params) {
+    for (auto& input_pass_cond: param->gen_input_pass_condition()) {
+      input_pass_condition.push_back("if (" + input_pass_cond + ")");
+      input_pass_condition.push_back("  return -1;");
+    }
+  }
   return input_pass_condition;
 }
 std::vector<std::string> TorchAPI::arg_initialization_code() const {
@@ -71,12 +72,9 @@ std::vector<std::string> TorchAPI::header() const {
     "#include <cassert>",
     "#include <cstdlib>",
     "#include <torch/torch.h>",
-    "#include \"pathfinder.h\"",
     "#include \"fuzzer_util.h\"\n",
 
     "using namespace fuzzer_util;\n",
-
-    "extern \"C\" {\n",
   };
 }
 std::vector<std::string> TorchAPI::setup() const {
@@ -96,11 +94,24 @@ std::vector<std::string> TorchAPI::callback() const {
   std::vector<std::string> callback_code;
 
   callback_code.push_back(
-    "int PathFinderTestOneInput(const pathfinder::Input& " + callback_input_var + ") {");
+    "extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {");
+
+  std::vector<std::string> arg_setups = arg_setup_code();
+  callback_code.push_back(
+    "  if (Size < " + std::to_string(arg_setups.size()) + " * sizeof (size_t)) return -1;");
+  callback_code.push_back(
+    "  const int* args = reinterpret_cast<const int*>(Data);");
+  concat(callback_code, "  ", arg_setups, ";");
+
+  callback_code.push_back("");
+  concat(callback_code, "  ", hard_constraint_code());
+
+  callback_code.push_back("");
+  concat(callback_code, "  ", input_pass_condition_code());
+
+  callback_code.push_back("");
   callback_code.push_back(
     "  torch::set_num_threads(1);\n");
-
-  concat(callback_code, "  ", input_pass_condition_code());
 
   callback_code.push_back("\n  try {");
   concat(callback_code, "    ", arg_initialization_code());
@@ -117,7 +128,6 @@ std::vector<std::string> TorchAPI::callback() const {
 }
 std::vector<std::string> TorchAPI::footer() const {
   return {
-    "}  // extern \"C\"\n",
     "int main(int argc, char **argv) {",
     "  pathfinder::parse_arg(argc, argv);",
     "  return pathfinder::driver(PathFinderTestOneInput);",
@@ -141,12 +151,9 @@ std::vector<std::string> TorchFunction::api_call_code() const {
     if (i != params.size() - 1)
       api_call += comma;
   }
-  api_call += ")";
+  api_call += ");";
   
-  return {
-    "PathFinderExecuteTarget(",
-    "  " + api_call + ");",
-  };
+  return {api_call};
 }
 
 
@@ -169,12 +176,9 @@ std::vector<std::string> TorchTensorMethod::api_call_code() const {
     if (i != params.size() - 1)
       api_call += comma;
   }
-  api_call += ")";
+  api_call += ");";
   
-  return {
-    "PathFinderExecuteTarget(",
-    "  " + api_call + ");",
-  };
+  return {api_call};
 }
 
 
@@ -215,12 +219,11 @@ std::vector<std::string> TorchModule::api_call_code() const {
     if (i != forward_params.size() - 1)
       forward_call += comma;
   }
-  forward_call += ")";
+  forward_call += ");";
 
   return {
-    "PathFinderExecuteTarget(",
-    "  " + module_init,
-    "  " + module_var + "->to" + bracket(module_dtype->expr()) + semicolon + newline,
-    "  " + forward_call + ");",
+    module_init,
+    module_var + "->to" + bracket(module_dtype->expr()) + semicolon + newline,
+    forward_call,
   };
 }

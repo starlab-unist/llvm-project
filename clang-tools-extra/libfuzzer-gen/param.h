@@ -23,7 +23,7 @@ extern const size_t MAX_VECTOR_SIZE;
 extern const size_t MAX_ARRAYREF_SIZE;
 
 const std::string symbolic_int_var = "sym_int_arg";
-const std::string callback_input_var = "x";
+const std::string callback_input_var = "args";
 
 void set_function_mode();
 void set_module_mode();
@@ -89,7 +89,7 @@ class TorchParam {
       return var() != "" ? var() : initializer();
     };
 
-    virtual std::vector<std::string> gen_arg_setup() const { return {}; }
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const { return index; }
     virtual std::vector<std::string> gen_hard_constraint() const { return {}; }
     virtual std::vector<std::string> gen_soft_constraint() const { return {}; }
     virtual std::vector<std::string> gen_input_pass_condition() const { return {}; }
@@ -116,7 +116,7 @@ class TorchIntParam: public TorchParam {
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
 
     static bool classof(const TorchParam *param);
@@ -134,7 +134,8 @@ class TorchSymIntParam: public TorchParam {
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
 
     static bool classof(const TorchParam *param);
@@ -151,7 +152,7 @@ class TorchUnsignedIntParam: public TorchParam {
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
 
@@ -169,7 +170,8 @@ class TorchBoundedParam: public TorchParam {
     virtual std::string type() const override = 0;
     virtual std::string initializer() const override = 0;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
   protected:
     std::vector<std::string> value_names;
     Optional<size_t> size;
@@ -325,7 +327,8 @@ class TorchDtypeParam: public TorchParam {
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
 
     static bool classof(const TorchParam *param);
@@ -344,7 +347,7 @@ class TorchVariantParam: public TorchBoundedParam {
     virtual std::string type() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
@@ -386,7 +389,7 @@ class TorchUnfixedArrayParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override = 0;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
@@ -432,7 +435,7 @@ class TorchArrayRefParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
@@ -457,7 +460,7 @@ class TorchFixedArrayParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override = 0;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
@@ -530,7 +533,7 @@ class TorchTensorParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
@@ -552,7 +555,7 @@ class TorchScalarParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
@@ -587,7 +590,7 @@ class TorchOptionalParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;
@@ -618,7 +621,7 @@ class TorchAPIOptionsParam: public TorchParam {
     virtual std::string var() const override;
     virtual std::string initializer() const override;
 
-    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual size_t gen_arg_setup(std::vector<std::string>& arg_setups, size_t index) const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_input_pass_condition() const override;

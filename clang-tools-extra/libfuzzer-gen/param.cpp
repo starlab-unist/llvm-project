@@ -18,7 +18,7 @@ std::string setup_var(std::string param_name) {
   return symbolic_int_var + sq_quoted(param_name);
 }
 std::string callback_var(std::string param_name) {
-  return callback_input_var + sq_quoted(param_name);
+  return param_name + "__";
 }
 
 std::vector<std::string> get_names(const std::vector<std::unique_ptr<TorchParam>>& params) {
@@ -57,15 +57,19 @@ std::string TorchIntParam::initializer() const {
   return  bracket(type()) + bracket(callback_var(name));
 }
 
-std::vector<std::string> TorchIntParam::gen_arg_setup() const {
-  return { "PathFinderIntArg" + bracket(quoted(name)) + semicolon  };
+size_t TorchIntParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  std::string arg_setup
+    = type() + " " + callback_var(name) + " = " + callback_input_var + square(std::to_string(index));
+  arg_setups.push_back(arg_setup);
+  return ++index;
 }
 std::vector<std::string> TorchIntParam::gen_soft_constraint() const {
   int min =
     default_value.hasValue() ?
     default_value.getValue() :
     (is_module_mode() ? 1 : 0);
-  return { setup_var(name) + gte + std::to_string(min) };
+  return { callback_var(name) + gte + std::to_string(min) };
 }
 
 bool TorchIntParam::classof(const TorchParam *param) {
@@ -92,8 +96,12 @@ std::string TorchSymIntParam::initializer() const {
   return  type() + bracket(intparam->expr());
 }
 
-std::vector<std::string> TorchSymIntParam::gen_arg_setup() const {
-  return intparam->gen_arg_setup();
+size_t TorchSymIntParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  return intparam->gen_arg_setup(arg_setups, index);
+}
+std::vector<std::string> TorchSymIntParam::gen_hard_constraint() const {
+  return intparam->gen_hard_constraint();
 }
 std::vector<std::string> TorchSymIntParam::gen_soft_constraint() const {
   return intparam->gen_soft_constraint();
@@ -126,11 +134,15 @@ std::string TorchUnsignedIntParam::initializer() const {
   return callback_var(name);
 }
 
-std::vector<std::string> TorchUnsignedIntParam::gen_arg_setup() const {
-  return { "PathFinderIntArg" + bracket(quoted(name)) + semicolon };
+size_t TorchUnsignedIntParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  std::string arg_setup
+    = type() + " " + callback_var(name) + " = " + callback_input_var + square(std::to_string(index));
+  arg_setups.push_back(arg_setup);
+  return ++index;
 }
 std::vector<std::string> TorchUnsignedIntParam::gen_hard_constraint() const {
-  return { setup_var(name) + gte + std::to_string(0) };
+  return {callback_var(name) + gte + std::to_string(0)};
 }
 std::vector<std::string> TorchUnsignedIntParam::gen_soft_constraint() const {
   if (default_value.hasValue())
@@ -164,16 +176,32 @@ TorchBoundedParam::TorchBoundedParam(TorchParamKind kind_, std::string name_, co
   value_list_var = value_list_var_;
 }
 
-std::vector<std::string> TorchBoundedParam::gen_arg_setup() const {
-  std::string setup_args;
-  if (!value_names.empty())
-    setup_args = quoted(name) + comma + curly(join_strs(value_names));
-  else if (size.hasValue())
-    setup_args = quoted(name) + comma + std::to_string(size.getValue());
-  else
-    setup_args = quoted(name) + comma + value_list_var;
+size_t TorchBoundedParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  std::string arg_setup
+    = "size_t " + callback_var(name) + " = " + callback_input_var + square(std::to_string(index));
+  arg_setups.push_back(arg_setup);
+  return ++index;
+
+  // std::string setup_args;
+  // if (!value_names.empty())
+  //   setup_args = quoted(name) + comma + curly(join_strs(value_names));
+  // else if (size.hasValue())
+  //   setup_args = quoted(name) + comma + std::to_string(size.getValue());
+  // else
+  //   setup_args = quoted(name) + comma + value_list_var;
     
-  return {"PathFinderEnumArg" + bracket(setup_args) + semicolon};
+  // return {"PathFinderEnumArg" + bracket(setup_args) + semicolon};
+}
+std::vector<std::string> TorchBoundedParam::gen_hard_constraint() const {
+  std::string size_literal;
+  if (!value_names.empty())
+    size_literal = std::to_string(value_names.size());
+  else if (size.hasValue())
+    size_literal = std::to_string(size.getValue());
+  else
+    size_literal = value_list_var;
+  return {"0 <= " + callback_var(name) + " && " + callback_var(name) + " < " + size_literal};
 }
 
 
@@ -393,11 +421,21 @@ std::string TorchDtypeParam::initializer() const {
   }
 }
 
-std::vector<std::string> TorchDtypeParam::gen_arg_setup() const {
+size_t TorchDtypeParam::gen_arg_setup(
+  std::vector<std::string>& arg_setups, size_t index) const {
   if (get_fuzz_target_type() == FTT_Basic) {
-    return basic->gen_arg_setup();
+    return basic->gen_arg_setup(arg_setups, index);
   } else if (get_fuzz_target_type() == FTT_Sparse) {
-    return sparse->gen_arg_setup();
+    return sparse->gen_arg_setup(arg_setups, index);
+  } else {
+    assert(false);
+  }
+}
+std::vector<std::string> TorchDtypeParam::gen_hard_constraint() const {
+  if (get_fuzz_target_type() == FTT_Basic) {
+    return basic->gen_hard_constraint();
+  } else if (get_fuzz_target_type() == FTT_Sparse) {
+    return sparse->gen_hard_constraint();
   } else {
     assert(false);
   }
@@ -436,15 +474,15 @@ std::string TorchVariantParam::initializer() const {
   return name + square(callback_var(name));
 }
 
-std::vector<std::string> TorchVariantParam::gen_arg_setup() const {
-  std::vector<std::string> arg_setup;
-  concat(arg_setup, TorchBoundedParam::gen_arg_setup());
+size_t TorchVariantParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  size_t index_next = TorchBoundedParam::gen_arg_setup(arg_setups, index);
   for (auto& param: params)
-    concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+    index_next = param->gen_arg_setup(arg_setups, index_next);
+  return index_next;
 }
 std::vector<std::string> TorchVariantParam::gen_hard_constraint() const {
-  std::vector<std::string> hard_ctrs;
+  std::vector<std::string> hard_ctrs = TorchBoundedParam::gen_hard_constraint();
   for (auto& param: params)
     concat(hard_ctrs, param->gen_hard_constraint());
   return hard_ctrs;
@@ -551,21 +589,21 @@ std::string TorchUnfixedArrayParam::var() const {
   return name;
 }
 
-std::vector<std::string> TorchUnfixedArrayParam::gen_arg_setup() const {
+size_t TorchUnfixedArrayParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
   if (!stable())
-    return {};
+    return index;
 
-  std::vector<std::string> arg_setup;
-  concat(arg_setup, size->gen_arg_setup());
+  size_t index_next = size->gen_arg_setup(arg_setups, index);
   for (auto& param: params)
-    concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+    index_next = param->gen_arg_setup(arg_setups, index_next);
+  return index_next;
 }
 std::vector<std::string> TorchUnfixedArrayParam::gen_hard_constraint() const {
   if (!stable())
     return {};
 
-  std::vector<std::string> hard_ctrs;
+  std::vector<std::string> hard_ctrs = size->gen_hard_constraint();
   for (auto& param: params)
     concat(hard_ctrs, param->gen_hard_constraint());
   return hard_ctrs;
@@ -674,8 +712,9 @@ std::string TorchArrayRefParam::initializer() const {
   return type() + bracket(vec->expr());
 }
 
-std::vector<std::string> TorchArrayRefParam::gen_arg_setup() const {
-  return vec->gen_arg_setup();
+size_t TorchArrayRefParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  return vec->gen_arg_setup(arg_setups, index);
 }
 std::vector<std::string> TorchArrayRefParam::gen_hard_constraint() const {
   return vec->gen_hard_constraint();
@@ -725,11 +764,11 @@ std::string TorchFixedArrayParam::var() const {
   return name;
 }
 
-std::vector<std::string> TorchFixedArrayParam::gen_arg_setup() const {
-  std::vector<std::string> arg_setup;
+size_t TorchFixedArrayParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
   for (auto& param: params)
-    concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+    index = param->gen_arg_setup(arg_setups, index);
+  return index;
 }
 std::vector<std::string> TorchFixedArrayParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
@@ -874,18 +913,22 @@ std::string TorchTensorParam::initializer() const {
   return "torch_tensor" + bracket(args);
 }
 
-std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
-  std::vector<std::string> arg_setup;
-  concat(arg_setup, dtype->gen_arg_setup());
+size_t TorchTensorParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
+  size_t index_next = dtype->gen_arg_setup(arg_setups, index);
   if (get_fuzz_target_type() == FTT_Sparse)
-    concat(arg_setup, layout->gen_arg_setup());
-  concat(arg_setup, rank->gen_arg_setup());
+    index_next = layout->gen_arg_setup(arg_setups, index_next);
+  index_next = rank->gen_arg_setup(arg_setups, index_next);
   for (auto& dim: dims)
-    concat(arg_setup, dim->gen_arg_setup());
-  return arg_setup;
+    index_next = dim->gen_arg_setup(arg_setups, index_next);
+  return index_next;
 }
 std::vector<std::string> TorchTensorParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
+  concat(hard_ctrs, dtype->gen_hard_constraint());
+  if (get_fuzz_target_type() == FTT_Sparse)
+    concat(hard_ctrs, layout->gen_hard_constraint());
+  concat(hard_ctrs, rank->gen_hard_constraint());
   for (auto& dim: dims)
     concat(hard_ctrs, dim->gen_soft_constraint());
   return hard_ctrs;
@@ -953,11 +996,11 @@ std::string TorchScalarParam::initializer() const {
   return "torch_scalar" + bracket(candidates);
 }
 
-std::vector<std::string> TorchScalarParam::gen_arg_setup() const {
-  std::vector<std::string> arg_setup;
+size_t TorchScalarParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
   for (auto& param: params)
-    concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+    index = param->gen_arg_setup(arg_setups, index);
+  return index;
 }
 std::vector<std::string> TorchScalarParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
@@ -1016,20 +1059,22 @@ std::string TorchOptionalParam::initializer() const {
   return has_value->expr() + " ? " + type() + bracket(param->expr()) +  " : " + "c10::nullopt";
 }
 
-std::vector<std::string> TorchOptionalParam::gen_arg_setup() const {
+size_t TorchOptionalParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
   if (!stable())
     return {};
 
-  std::vector<std::string> arg_setup;
-  concat(arg_setup, has_value->gen_arg_setup());
-  concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+  index = has_value->gen_arg_setup(arg_setups, index);
+  index = param->gen_arg_setup(arg_setups, index);
+  return index;
 }
 std::vector<std::string> TorchOptionalParam::gen_hard_constraint() const {
   if (!stable())
     return {};
 
-  return param->gen_hard_constraint();
+  std::vector<std::string> hard_ctrs = has_value->gen_hard_constraint();
+  concat(hard_ctrs, param->gen_hard_constraint());
+  return hard_ctrs;
 }
 std::vector<std::string> TorchOptionalParam::gen_soft_constraint() const {
   if (!stable())
@@ -1104,13 +1149,13 @@ std::string TorchAPIOptionsParam::initializer() const {
   assert(false);
 }
 
-std::vector<std::string> TorchAPIOptionsParam::gen_arg_setup() const {
-  std::vector<std::string> arg_setup;
+size_t TorchAPIOptionsParam::gen_arg_setup(
+    std::vector<std::string>& arg_setups, size_t index) const {
   for (auto& param: ctor_params)
-    concat(arg_setup, param->gen_arg_setup());
+    index = param->gen_arg_setup(arg_setups, index);
   for (auto& param: member_params)
-    concat(arg_setup, param->gen_arg_setup());
-  return arg_setup;
+    index = param->gen_arg_setup(arg_setups, index);
+  return index;
 }
 std::vector<std::string> TorchAPIOptionsParam::gen_hard_constraint() const {
   std::vector<std::string> hard_ctrs;
