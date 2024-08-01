@@ -55,7 +55,12 @@ class Output {
               continue;
             names_seen.insert(file_name);
             write_file("generated/" + fuzz_target_type + "/" + group_name + "/" + file_name, code);
-            cmake_contents2 += "add_libfuzzer_fuzz_target(" + strip_ext(file_name) + ")\n";
+            std::string cmake_fn;
+            if (get_gen_covrunner())
+              cmake_fn = "add_libfuzzer_covrunner";
+            else
+              cmake_fn = "add_libfuzzer_fuzz_target";
+            cmake_contents2 += cmake_fn + "(" + strip_ext(file_name) + ")\n";
           }
           write_file("generated/" + fuzz_target_type + "/" + group_name + "/CMakeLists.txt", cmake_contents2);
         }
@@ -348,6 +353,8 @@ static llvm::cl::OptionCategory MyToolCategory("my-tool options");
 
 int main(int argc, const char **argv) {
   init_torch_api_list();
+
+  set_gen_covrunner();
 
   CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
   ClangTool Tool(OptionsParser.getCompilations(),

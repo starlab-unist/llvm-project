@@ -10,7 +10,8 @@ std::string TorchAPI::gen_fuzz_target(FuzzTargetType ftt) {
   concat(lines, header());
   //concat(lines, setup());
   concat(lines, callback());
-  //concat(lines, footer());
+  if (get_gen_covrunner())
+    concat(lines, footer());
   return join_strs(lines, newline);
 }
 void TorchAPI::resolve_name_conflict() {
@@ -65,17 +66,20 @@ std::vector<std::string> TorchAPI::arg_initialization_code() const {
 }
 
 std::vector<std::string> TorchAPI::header() const {
-  return {
+  std::vector<std::string> lines = {
     "#include <stdint.h>",
     "#include <stddef.h>",
     "#include <c10/util/irange.h>",
     "#include <cassert>",
     "#include <cstdlib>",
     "#include <torch/torch.h>",
-    "#include \"fuzzer_util.h\"\n",
-
-    "using namespace fuzzer_util;\n",
+    "#include \"fuzzer_util.h\"",
   };
+  if (get_gen_covrunner())
+    lines.push_back("#include <string>");
+  lines.push_back("");
+  lines.push_back("using namespace fuzzer_util;\n");
+  return lines;
 }
 std::vector<std::string> TorchAPI::setup() const {
   std::vector<std::string> setup_code;
@@ -93,8 +97,13 @@ std::vector<std::string> TorchAPI::setup() const {
 std::vector<std::string> TorchAPI::callback() const {
   std::vector<std::string> callback_code;
 
-  callback_code.push_back(
-    "extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {");
+  if (get_gen_covrunner()) {
+    callback_code.push_back(
+      "int run_one_unit(const uint8_t *Data, size_t Size) {");
+  } else {
+    callback_code.push_back(
+      "extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {");
+  }
 
   std::vector<std::string> arg_setups = arg_setup_code();
   callback_code.push_back(
@@ -128,9 +137,20 @@ std::vector<std::string> TorchAPI::callback() const {
 }
 std::vector<std::string> TorchAPI::footer() const {
   return {
-    "int main(int argc, char **argv) {",
-    "  pathfinder::parse_arg(argc, argv);",
-    "  return pathfinder::driver(PathFinderTestOneInput);",
+    "int main(int argc, char* argv[]) {",
+    "  std::string corpus_path = std::string(argv[1]);",
+    "  std::string itv_mode = std::string(argv[2]);",
+    "  size_t itv_start = atoi(argv[3]);",
+    "  size_t itv_end = atoi(argv[4]);\n",
+
+    "  std::vector<std::string> seed_paths = get_seed_paths(corpus_path, itv_mode, itv_start, itv_end);",
+    "  for (auto& seed_path: seed_paths) {",
+    "    std::cout << seed_path << std::endl;",
+    "    Unit unit = FileToVector(seed_path);",
+    "    run_one_unit(unit.data(), unit.size());",
+    "  }\n",
+
+    "  return 0;",
     "}\n",
   };
 }

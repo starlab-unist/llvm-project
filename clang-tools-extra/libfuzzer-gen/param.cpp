@@ -14,6 +14,15 @@ FuzzTargetType get_fuzz_target_type() {
   return ftt;
 }
 
+static bool gen_convrunner = false;
+void set_gen_covrunner() {
+  gen_convrunner = true;
+}
+bool get_gen_covrunner() {
+  return gen_convrunner;
+}
+
+
 std::string setup_var(std::string param_name) {
   return symbolic_int_var + sq_quoted(param_name);
 }

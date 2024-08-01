@@ -18,6 +18,8 @@ enum FuzzTargetType {
   FTT_Sparse,
 };
 void set_fuzz_target_type(FuzzTargetType ftt_);
+void set_gen_covrunner();
+bool get_gen_covrunner();
 
 extern const size_t MAX_VECTOR_SIZE;
 extern const size_t MAX_ARRAYREF_SIZE;
