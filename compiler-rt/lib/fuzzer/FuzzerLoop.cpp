@@ -20,6 +20,8 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <sstream>
+#include <iomanip>
 
 #if defined(__has_include)
 #if __has_include(<sanitizer / lsan_interface.h>)
@@ -614,7 +616,17 @@ std::string Fuzzer::WriteToOutputCorpus(const Unit &U) {
     assert(IsASCII(U));
   if (Options.OutputCorpus.empty())
     return "";
-  std::string Path = DirPlusFile(Options.OutputCorpus, Hash(U));
+  //std::string Path = DirPlusFile(Options.OutputCorpus, Hash(U));
+  
+  std::stringstream ss_time;
+  ss_time << std::setw(10) << std::setfill('0') << secondsSinceProcessStartUp();
+  std::string time = ss_time.str();
+  std::stringstream ss_gen;
+  ss_gen << std::setw(10) << std::setfill('0') << TotalNumberOfRuns;
+  std::string gen = ss_gen.str();
+  std::string filename = "time" + time + "_gen" + gen;
+
+  std::string Path = DirPlusFile(Options.OutputCorpus, filename);
   WriteToFile(U, Path);
   if (Options.Verbosity >= 2)
     Printf("Written %zd bytes to %s\n", U.size(), Path.c_str());
