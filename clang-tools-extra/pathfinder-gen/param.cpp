@@ -57,6 +57,10 @@ std::string TorchIntParam::initializer() const {
   return  bracket(type()) + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchIntParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 std::vector<std::string> TorchIntParam::gen_arg_setup() const {
   return { "PathFinderIntArg" + bracket(quoted(name)) + semicolon  };
 }
@@ -92,6 +96,10 @@ std::string TorchSymIntParam::initializer() const {
   return  type() + bracket(intparam->expr());
 }
 
+std::unique_ptr<TorchParam> TorchSymIntParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 std::vector<std::string> TorchSymIntParam::gen_arg_setup() const {
   return intparam->gen_arg_setup();
 }
@@ -124,6 +132,10 @@ std::string TorchUnsignedIntParam::type() const {
 }
 std::string TorchUnsignedIntParam::initializer() const {
   return callback_var(name);
+}
+
+std::unique_ptr<TorchParam> TorchUnsignedIntParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 std::vector<std::string> TorchUnsignedIntParam::gen_arg_setup() const {
@@ -187,6 +199,10 @@ std::string TorchBoundedIntParam::initializer() const {
   return bracket(type()) + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchBoundedIntParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchBoundedIntParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_BoundedInt;
 }
@@ -200,6 +216,10 @@ std::string TorchBoolParam::type() const {
 }
 std::string TorchBoolParam::initializer() const {
   return bracket(type()) + bracket(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchBoolParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 bool TorchBoolParam::classof(const TorchParam *param) {
@@ -220,6 +240,10 @@ std::string TorchStringParam::initializer() const {
   return "get_string" + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchStringParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchStringParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_String;
 }
@@ -233,6 +257,10 @@ std::string TorchBFloatParam::type() const {
 }
 std::string TorchBFloatParam::initializer() const {
   return "get_bfloat" + bracket(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchBFloatParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 bool TorchBFloatParam::classof(const TorchParam *param) {
@@ -250,6 +278,10 @@ std::string TorchHalfParam::initializer() const {
   return "get_half" + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchHalfParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchHalfParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Half;
 }
@@ -263,6 +295,10 @@ std::string TorchFloatParam::type() const {
 }
 std::string TorchFloatParam::initializer() const {
   return "get_float" + bracket(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchFloatParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 bool TorchFloatParam::classof(const TorchParam *param) {
@@ -280,6 +316,10 @@ std::string TorchDoubleParam::initializer() const {
   return "get_double" + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchDoubleParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchDoubleParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Double;
 }
@@ -293,6 +333,10 @@ std::string TorchMemoryFormatParam::type() const {
 }
 std::string TorchMemoryFormatParam::initializer() const {
   return "get_memory_format" + bracket(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchMemoryFormatParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 bool TorchMemoryFormatParam::classof(const TorchParam *param) {
@@ -310,6 +354,10 @@ std::string TorchLayoutParam::initializer() const {
   return "get_layout" + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchLayoutParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchLayoutParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Layout;
 }
@@ -323,6 +371,10 @@ std::string TorchDeviceParam::type() const {
 }
 std::string TorchDeviceParam::initializer() const {
   return "get_device" + bracket(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchDeviceParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 bool TorchDeviceParam::classof(const TorchParam *param) {
@@ -340,6 +392,10 @@ std::string TorchBasicDtypeParam::initializer() const {
   return "get_dtype" + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchBasicDtypeParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchBasicDtypeParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_BasicDtype;
 }
@@ -355,6 +411,10 @@ std::string TorchScalarDtypeParam::initializer() const {
   return "get_scalar_dtype" + bracket(callback_var(name));
 }
 
+std::unique_ptr<TorchParam> TorchScalarDtypeParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchScalarDtypeParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_ScalarDtype;
 }
@@ -368,6 +428,10 @@ std::string TorchSparseDtypeParam::type() const {
 }
 std::string TorchSparseDtypeParam::initializer() const {
   return "get_sparse_dtype" + bracket(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchSparseDtypeParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 bool TorchSparseDtypeParam::classof(const TorchParam *param) {
@@ -391,6 +455,10 @@ std::string TorchDtypeParam::initializer() const {
   } else {
     assert(false);
   }
+}
+
+std::unique_ptr<TorchParam> TorchDtypeParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 std::vector<std::string> TorchDtypeParam::gen_arg_setup() const {
@@ -434,6 +502,15 @@ std::string TorchVariantParam::type() const {
 }
 std::string TorchVariantParam::initializer() const {
   return name + square(callback_var(name));
+}
+
+std::unique_ptr<TorchParam> TorchVariantParam::to_cuda() const {
+  // std::vector<std::unique_ptr<TorchParam>> cuda_params;
+  // for(const auto& param: params){
+  //   cuda_params.push_back(param->to_cuda());
+  // }
+  // return std::make_unique<TorchVariantParam>(name + "_cuda", std::move(cuda_params));
+  return std::make_unique<TorchNonTensorParam>(this);
 }
 
 std::vector<std::string> TorchVariantParam::gen_arg_setup() const {
@@ -520,6 +597,10 @@ std::string TorchEnumParam::initializer() const {
   return "torch::" + enum_name;
 }
 
+std::unique_ptr<TorchParam> TorchEnumParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 bool TorchEnumParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Enum;
 }
@@ -542,6 +623,18 @@ TorchUnfixedArrayParam::TorchUnfixedArrayParam(
   : TorchParam(kind_, name_), base_type_str(base_type_str_)
 {
   assert(TPK_UnfixedArray_First <= get_kind() && get_kind() <= TPK_UnfixedArray_Last);
+}
+
+TorchUnfixedArrayParam::TorchUnfixedArrayParam(
+  TorchParamKind kind_,
+  std::string name_,
+  std::vector<std::unique_ptr<TorchParam>> params_,
+  std::string prev_name)
+  : TorchParam(kind_, name_)
+{
+  assert(TPK_UnfixedArray_First <= get_kind() && get_kind() <= TPK_UnfixedArray_Last);
+  params = std::move(params_);
+  size = std::make_unique<TorchBoundedIntParam>(prev_name + "_size", params.size() + 1);
 }
 
 std::string TorchUnfixedArrayParam::var() const {
@@ -616,6 +709,8 @@ TorchVectorParam::TorchVectorParam(std::string name_, std::vector<std::unique_pt
   : TorchUnfixedArrayParam(TPK_Vector, name_, std::move(params_)) {}
 TorchVectorParam::TorchVectorParam(std::string name_, std::string base_type_str_)
   : TorchUnfixedArrayParam(TPK_Vector, name_, base_type_str_) {}
+TorchVectorParam::TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_, std::string prev_name)
+  : TorchUnfixedArrayParam(TPK_Vector, name_, std::move(params_), prev_name) {}
 
 std::string TorchVectorParam::type() const {
   return "std::vector<" + TorchUnfixedArrayParam::base_type() + ">";
@@ -625,6 +720,23 @@ std::string TorchVectorParam::initializer() const {
     return type() + "({})";
 
   return "vector_init<" + params[0]->type() + ">" + bracket(size->expr() + comma + to_string(params));
+}
+
+std::unique_ptr<TorchParam> TorchVectorParam::to_cuda() const {
+    if(params.empty()) return std::make_unique<TorchVectorParam>(name + "_cuda", base_type_str);
+    std::vector<std::unique_ptr<TorchParam>> cuda_params;
+    for (const auto& param : params) {
+        cuda_params.push_back(param->to_cuda());
+    }
+    return std::make_unique<TorchVectorParam>(name + "_cuda", std::move(cuda_params), name);
+}
+
+std::vector<std::string> TorchVectorParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: params) {
+    concat(res, param->all_tensors());
+  }
+  return res;
 }
 
 bool TorchVectorParam::classof(const TorchParam *param) {
@@ -658,6 +770,12 @@ TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::string base_type_
   vec = std::make_unique<TorchVectorParam>(name + "_vec", base_type_str_);
 }
 
+TorchArrayRefParam::TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_, std::string prev_name)
+  : TorchParam(TPK_ArrayRef, name_)
+{
+  vec = std::make_unique<TorchVectorParam>(prev_name + "_cuda_vec", std::move(params_), prev_name + "_vec");
+}
+
 std::string TorchArrayRefParam::type() const {
   return "c10::ArrayRef<" + vec->base_type() + ">";
 }
@@ -672,6 +790,23 @@ std::string TorchArrayRefParam::initializer() const {
   //  return type() + "({})";
 
   return type() + bracket(vec->expr());
+}
+
+std::unique_ptr<TorchParam> TorchArrayRefParam::to_cuda() const {
+  if(vec->get_params().empty()) return std::make_unique<TorchArrayRefParam>(name + "_cuda", vec->base_type());
+  std::vector<std::unique_ptr<TorchParam>> cuda_params;
+  for(const auto& param: vec->get_params()){
+    cuda_params.push_back(param->to_cuda());
+  }
+  return std::make_unique<TorchArrayRefParam>(name + "_cuda", std::move(cuda_params), name);
+}
+
+std::vector<std::string> TorchArrayRefParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: vec->get_params()) {
+    concat(res, param->all_tensors());
+  }
+  return res;
 }
 
 std::vector<std::string> TorchArrayRefParam::gen_arg_setup() const {
@@ -774,6 +909,22 @@ std::string TorchExpandingArrayParam::initializer() const {
   return type() + bracket(to_string(params));
 }
 
+std::unique_ptr<TorchParam> TorchExpandingArrayParam::to_cuda() const {
+  std::vector<std::unique_ptr<TorchParam>> cuda_params;
+  for(const auto& param: params){
+    cuda_params.push_back(param->to_cuda());
+  }
+  return std::make_unique<TorchExpandingArrayParam>(name + "_cuda", size, std::move(cuda_params));
+}
+
+std::vector<std::string> TorchExpandingArrayParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: params) {
+    concat(res, param->all_tensors());
+  }
+  return res;
+}
+
 bool TorchExpandingArrayParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_ExpandingArray;
 }
@@ -801,6 +952,22 @@ std::string TorchExpandingArrayWithOptionalElemParam::initializer() const {
     "expandingarray_with_optional_elem<" +
       std::to_string(size) + comma + base_type() +
     ">" + bracket(to_string(params));
+}
+
+std::unique_ptr<TorchParam> TorchExpandingArrayWithOptionalElemParam::to_cuda() const {
+  std::vector<std::unique_ptr<TorchParam>> cuda_params;
+  for(const auto& param: params){
+    cuda_params.push_back(param->to_cuda());
+  }
+  return std::make_unique<TorchExpandingArrayWithOptionalElemParam>(name + "_cuda", size, std::move(cuda_params));
+}
+
+std::vector<std::string> TorchExpandingArrayWithOptionalElemParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: params) {
+    concat(res, param->all_tensors());
+  }
+  return res;
 }
 
 bool TorchExpandingArrayWithOptionalElemParam::classof(const TorchParam *param) {
@@ -834,6 +1001,22 @@ std::string TorchTupleParam::initializer() const {
   return type() + bracket(to_string(params));
 }
 
+std::unique_ptr<TorchParam> TorchTupleParam::to_cuda() const {
+  std::vector<std::unique_ptr<TorchParam>> cuda_params;
+  for(const auto& param: params){
+    cuda_params.push_back(param->to_cuda());
+  }
+  return std::make_unique<TorchTupleParam>(name + "_cuda", size, std::move(cuda_params));
+}
+
+std::vector<std::string> TorchTupleParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: params) {
+    concat(res, param->all_tensors());
+  }
+  return res;
+}
+
 bool TorchTupleParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Tuple;
 }
@@ -848,6 +1031,22 @@ std::string TorchPairParam::type() const {
 }
 std::string TorchPairParam::initializer() const {
   return type() + bracket(to_string(params));
+}
+
+std::unique_ptr<TorchParam> TorchPairParam::to_cuda() const {
+  std::vector<std::unique_ptr<TorchParam>> cuda_params;
+  for(const auto& param: params){
+    cuda_params.push_back(param->to_cuda());
+  }
+  return std::make_unique<TorchPairParam>(name + "_cuda", std::move(cuda_params));
+}
+
+std::vector<std::string> TorchPairParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: params) {
+    concat(res, param->all_tensors());
+  }
+  return res;
 }
 
 bool TorchPairParam::classof(const TorchParam *param) {
@@ -872,6 +1071,14 @@ std::string TorchTensorParam::initializer() const {
   std::string args =
     dtype->expr() + comma + layout_expr + rank->expr() + comma + to_string(dims);
   return "torch_tensor" + bracket(args);
+}
+
+std::unique_ptr<TorchParam> TorchTensorParam::to_cuda() const {
+  return std::make_unique<TorchCudaTensorParam>(this);
+}
+
+std::vector<std::string> TorchTensorParam::all_tensors() const {
+  return {var()};
 }
 
 std::vector<std::string> TorchTensorParam::gen_arg_setup() const {
@@ -908,6 +1115,71 @@ void TorchTensorParam::resolve_name_conflict(std::set<std::string>& names_seen) 
 
 bool TorchTensorParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_Tensor;
+}
+
+TorchCudaTensorParam::TorchCudaTensorParam(const TorchTensorParam* tensor_param): TorchParam(TPK_CudaTensor, tensor_param->get_name() + "_cuda"), tensor_param(tensor_param)  {}
+
+std::string TorchCudaTensorParam::type() const {
+  return tensor_param->type();
+}
+std::string TorchCudaTensorParam::var() const {
+  return tensor_param->var() + "_cuda";
+}
+std::string TorchCudaTensorParam::initializer() const {
+  return tensor_param->var() + ".cuda()";
+}
+
+std::unique_ptr<TorchParam> TorchCudaTensorParam::to_cuda() const {
+  return std::make_unique<TorchCudaTensorParam>(tensor_param);
+}
+
+std::vector<std::string> TorchCudaTensorParam::all_tensors() const {
+  return { var() };
+}
+
+std::vector<std::string> TorchCudaTensorParam::gen_arg_setup() const {
+  return tensor_param->gen_arg_setup();
+}
+
+std::vector<std::string> TorchCudaTensorParam::gen_hard_constraint() const {
+  return tensor_param->gen_hard_constraint();
+}
+
+std::vector<std::string> TorchCudaTensorParam::gen_input_pass_condition() const {
+  return tensor_param->gen_input_pass_condition();
+}
+
+std::vector<std::string> TorchCudaTensorParam::gen_arg_initialization() const {
+  return {type() + space + var() + assign + initializer() + semicolon + newline};
+}
+
+void TorchCudaTensorParam::resolve_name_conflict(std::set<std::string>& names_seen)  {
+  // tensor_param->resolve_name_conflict(names_seen);
+  name = unique_name(name, names_seen);
+}
+
+bool TorchCudaTensorParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_CudaTensor;
+}
+
+TorchNonTensorParam::TorchNonTensorParam(const TorchParam* nontensor_param): TorchParam(TPK_NonTensor, nontensor_param->get_name()), nontensor_param(nontensor_param) {}
+
+std::string TorchNonTensorParam::type() const {
+  return nontensor_param->type();
+}
+std::string TorchNonTensorParam::var() const {
+  return nontensor_param->var();
+}
+std::string TorchNonTensorParam::initializer() const {
+  return nontensor_param->initializer();
+}
+
+std::unique_ptr<TorchParam> TorchNonTensorParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(nontensor_param);
+}
+
+bool TorchNonTensorParam::classof(const TorchParam *param) {
+  return param->get_kind() == TPK_NonTensor;
 }
 
 TorchScalarParam::TorchScalarParam(std::string name_): TorchParam(TPK_Scalar, name_) {
@@ -953,6 +1225,10 @@ std::string TorchScalarParam::initializer() const {
   return "torch_scalar" + bracket(candidates);
 }
 
+std::unique_ptr<TorchParam> TorchScalarParam::to_cuda() const {
+  return std::make_unique<TorchNonTensorParam>(this);
+}
+
 std::vector<std::string> TorchScalarParam::gen_arg_setup() const {
   std::vector<std::string> arg_setup;
   for (auto& param: params)
@@ -990,6 +1266,12 @@ TorchOptionalParam::TorchOptionalParam(std::string name_, std::unique_ptr<TorchP
   has_value = std::make_unique<TorchBoolParam>(name + "_hasValue");
   param = std::move(param_);
 }
+TorchOptionalParam::TorchOptionalParam(std::string name_, std::unique_ptr<TorchParam> param_, std::string prev_name)
+  : TorchParam(TPK_Optional, name_)
+{
+  has_value = std::make_unique<TorchBoolParam>(prev_name + "_hasValue");
+  param = std::move(param_);
+}
 TorchOptionalParam::TorchOptionalParam(std::string name_, std::string base_type_str_)
   : TorchParam(TPK_Optional, name_), base_type_str(base_type_str_) {}
 void TorchOptionalParam::set_default(Expr* default_expr) {
@@ -1014,6 +1296,18 @@ std::string TorchOptionalParam::initializer() const {
     return type() + bracket("c10::nullopt");
 
   return has_value->expr() + " ? " + type() + bracket(param->expr()) +  " : " + "c10::nullopt";
+}
+
+std::unique_ptr<TorchParam> TorchOptionalParam::to_cuda() const {
+  if(!param) return std::make_unique<TorchNonTensorParam>(this);
+  // if(param->get_kind() <= TPK_Bounded_Last) return std::make_unique<TorchNonTensorParam>(this);
+  std::unique_ptr<TorchParam> cuda_param = param->to_cuda();
+  return std::make_unique<TorchOptionalParam>(name + "_cuda", std::move(cuda_param), name);
+}
+
+std::vector<std::string> TorchOptionalParam::all_tensors() const {
+  if(!param) return {};
+  return param->all_tensors();
 }
 
 std::vector<std::string> TorchOptionalParam::gen_arg_setup() const {
@@ -1093,6 +1387,19 @@ TorchAPIOptionsParam::TorchAPIOptionsParam(
   for (auto& member_param: member_params)
     member_param_setters.push_back(member_param->get_name());
 }
+TorchAPIOptionsParam::TorchAPIOptionsParam(
+  std::string name_,
+  std::string api_optons_class_name_,
+  std::vector<std::unique_ptr<TorchParam>> ctor_params_,
+  std::vector<std::unique_ptr<TorchParam>> member_params_,
+  std::vector<std::string> member_param_names)
+  : TorchParam(TPK_APIOptions, name_)
+{
+  api_optons_class_name = api_optons_class_name_;
+  ctor_params = std::move(ctor_params_);
+  member_params = std::move(member_params_);
+  member_param_setters = member_param_names;
+}
 
 std::string TorchAPIOptionsParam::type() const {
   return api_optons_class_name;
@@ -1102,6 +1409,29 @@ std::string TorchAPIOptionsParam::var() const {
 }
 std::string TorchAPIOptionsParam::initializer() const {
   assert(false);
+}
+
+std::unique_ptr<TorchParam> TorchAPIOptionsParam::to_cuda() const {
+  std::vector<std::unique_ptr<TorchParam>> cuda_member_params;
+  std::vector<std::unique_ptr<TorchParam>> cuda_ctor_params;
+  for(const auto& param: member_params){
+    cuda_member_params.push_back(param->to_cuda());
+  }
+  for(const auto& param: ctor_params){
+    cuda_ctor_params.push_back(param->to_cuda());
+  }
+  return std::make_unique<TorchAPIOptionsParam>(name + "_cuda", api_optons_class_name, std::move(cuda_ctor_params), std::move(cuda_member_params), member_param_setters);
+}
+
+std::vector<std::string> TorchAPIOptionsParam::all_tensors() const {
+  std::vector<std::string> res;
+  for(const auto& param: member_params) {
+    concat(res, param->all_tensors());
+  }
+  for(const auto& param: ctor_params){
+    concat(res, param->all_tensors());
+  }
+  return res;
 }
 
 std::vector<std::string> TorchAPIOptionsParam::gen_arg_setup() const {
@@ -1157,7 +1487,7 @@ void TorchAPIOptionsParam::resolve_name_conflict(std::set<std::string>& names_se
 bool TorchAPIOptionsParam::classof(const TorchParam *param) {
   return param->get_kind() == TPK_APIOptions;
 }
-
+//
 std::vector<std::string> TorchAPIOptionsParam::gen_member_param_set() const {
   std::vector<std::string> member_param_set;
   assert(member_params.size() == member_param_setters.size());

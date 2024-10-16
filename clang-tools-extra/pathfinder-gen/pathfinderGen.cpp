@@ -83,7 +83,7 @@ class FindNamedClassVisitor
 public:
   explicit FindNamedClassVisitor(ASTContext *Context)
     : Context(Context) {}
-
+//
   bool VisitFunctionDecl(FunctionDecl *Declaration) {
     std::string function_name = Declaration->getNameAsString();
     std::string function_name_qualified = Declaration->getQualifiedNameAsString();
@@ -117,7 +117,7 @@ public:
       params.push_back(std::move(p));
     }
 
-    TorchFunction torch_function(function_name_qualified, std::move(params));
+    TorchFunction torch_function(function_name_qualified, std::move(params), Declaration->getReturnType()->isVoidType());
     output.add("default", function_group, function_name, torch_function.gen_fuzz_target(FTT_Basic));
     //output.add("sparse", function_group, function_name, torch_function.gen_fuzz_target(FTT_Sparse));
 
@@ -204,11 +204,13 @@ public:
     std::vector<std::vector<std::unique_ptr<TorchParam>>> ctor_params_candidates;
     std::vector<std::unique_ptr<TorchParam>> forward_params;
 
+    bool is_void;
     for (auto ctor: class_decl->ctors())
       if (auto extracted = extractModuleCtor(ctor))
         ctor_params_candidates.push_back(std::move(extracted.getValue()));
     for (auto method: class_decl->methods()) {
       if (method->getNameAsString() == "forward") {
+        is_void = method->getReturnType()->isVoidType();
         if (auto extracted = extractForward(method)) {
           forward_params = std::move(extracted.getValue());
           break;
@@ -264,7 +266,8 @@ public:
       module_name_qualified,
       std::make_unique<TorchDtypeParam>("module_dtype"),
       std::move(ctor_params),
-      std::move(forward_params));
+      std::move(forward_params),
+      is_void);
 
     std::string module_group_name = std::regex_replace(torch_module_list_file_name(), std::regex("::"), "_");
     output.add("default", module_group_name, module_name, torch_module.gen_fuzz_target(FTT_Basic));
@@ -293,7 +296,9 @@ public:
     TorchTensorMethod torch_tensor_method(
       method_name,
       std::make_unique<TorchTensorParam>(tensor_method_self_var),
-      std::move(params));
+      std::move(params),
+      method->getReturnType()->isVoidType());
+
 
     std::string tensor_method_group_name = std::regex_replace(torch_tensor_method_list_file_name(), std::regex("::"), "_");
     output.add("default", tensor_method_group_name, method_name, torch_tensor_method.gen_fuzz_target(FTT_Basic));

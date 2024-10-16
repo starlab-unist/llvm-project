@@ -77,6 +77,9 @@ class TorchParam {
       TPK_Scalar,
       TPK_Optional,
       TPK_APIOptions,
+
+      TPK_CudaTensor, // Have a pointer to a `TorchTensorParam` only, not the dimension, dtype information
+      TPK_NonTensor
     };
 
     TorchParam(TorchParamKind kind_, std::string name_): kind(kind_), name(name_) {}
@@ -88,6 +91,9 @@ class TorchParam {
     std::string expr() const {
       return var() != "" ? var() : initializer();
     };
+
+    virtual std::unique_ptr<TorchParam> to_cuda() const = 0; // Returns a copy, substituting TorchTensorParam to TorchCudaTensorParam
+    virtual std::vector<std::string> all_tensors() const = 0;
 
     virtual std::vector<std::string> gen_arg_setup() const { return {}; }
     virtual std::vector<std::string> gen_hard_constraint() const { return {}; }
@@ -115,6 +121,8 @@ class TorchIntParam: public TorchParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
@@ -133,6 +141,8 @@ class TorchSymIntParam: public TorchParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
@@ -150,6 +160,8 @@ class TorchUnsignedIntParam: public TorchParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -168,6 +180,8 @@ class TorchBoundedParam: public TorchParam {
 
     virtual std::string type() const override = 0;
     virtual std::string initializer() const override = 0;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override = 0;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     virtual std::vector<std::string> gen_arg_setup() const override;
   protected:
@@ -192,6 +206,8 @@ class TorchBoundedIntParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -202,6 +218,8 @@ class TorchBoolParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -212,6 +230,8 @@ class TorchStringParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
   private:
@@ -224,6 +244,8 @@ class TorchBFloatParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -234,6 +256,8 @@ class TorchHalfParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -244,6 +268,8 @@ class TorchFloatParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -254,6 +280,8 @@ class TorchDoubleParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -264,6 +292,8 @@ class TorchMemoryFormatParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -274,6 +304,8 @@ class TorchLayoutParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -284,6 +316,8 @@ class TorchDeviceParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -294,6 +328,8 @@ class TorchBasicDtypeParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -304,6 +340,8 @@ class TorchScalarDtypeParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -314,6 +352,8 @@ class TorchSparseDtypeParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
 };
@@ -324,6 +364,8 @@ class TorchDtypeParam: public TorchParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
@@ -343,6 +385,8 @@ class TorchVariantParam: public TorchBoundedParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -365,6 +409,8 @@ class TorchEnumParam: public TorchParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; }
 
     static bool classof(const TorchParam *param);
   private:
@@ -381,16 +427,25 @@ class TorchUnfixedArrayParam: public TorchParam {
       TorchParamKind kind_,
       std::string name_,
       std::string base_type_str_);
+    TorchUnfixedArrayParam(
+      TorchParamKind kind_,
+      std::string name_,
+      std::vector<std::unique_ptr<TorchParam>> params_,
+      std::string prev_name);
 
     virtual std::string type() const override = 0;
     virtual std::string var() const override;
     virtual std::string initializer() const override = 0;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override = 0;
+    virtual std::vector<std::string> all_tensors() const override = 0;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
     virtual std::vector<std::string> gen_soft_constraint() const override;
     virtual std::vector<std::string> gen_arg_initialization() const override;
     virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+    
+    const std::vector<std::unique_ptr<TorchParam>>& get_params() const { return params; };
 
     virtual bool stable() const override;
     std::string base_type() const;
@@ -404,9 +459,12 @@ class TorchVectorParam: public TorchUnfixedArrayParam {
   public:
     TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
     TorchVectorParam(std::string name_, std::string base_type_str_);
+    TorchVectorParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_, std::string prev_name);
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     static bool classof(const TorchParam *param);
   private:
@@ -427,10 +485,14 @@ class TorchArrayRefParam: public TorchParam {
   public:
     TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_);
     TorchArrayRefParam(std::string name_, std::string base_type_str_);
+    TorchArrayRefParam(std::string name_, std::vector<std::unique_ptr<TorchParam>> params_, std::string prev_name);
+    TorchArrayRefParam(std::string name_, std::string base_type_str_, std::string prev_name);
 
     virtual std::string type() const override;
     virtual std::string var() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -456,6 +518,8 @@ class TorchFixedArrayParam: public TorchParam {
     virtual std::string type() const override = 0;
     virtual std::string var() const override;
     virtual std::string initializer() const override = 0;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override = 0;
+    virtual std::vector<std::string> all_tensors() const override = 0;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -477,6 +541,8 @@ class TorchExpandingArrayParam: public TorchFixedArrayParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     static bool classof(const TorchParam *param);
 };
@@ -491,6 +557,8 @@ class TorchExpandingArrayWithOptionalElemParam: public TorchFixedArrayParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     static bool classof(const TorchParam *param);
   private:
@@ -506,6 +574,8 @@ class TorchTupleParam: public TorchFixedArrayParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     static bool classof(const TorchParam *param);
 };
@@ -518,6 +588,8 @@ class TorchPairParam: public TorchFixedArrayParam {
 
     virtual std::string type() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     static bool classof(const TorchParam *param);
 };
@@ -529,6 +601,9 @@ class TorchTensorParam: public TorchParam {
     virtual std::string type() const override;
     virtual std::string var() const override;
     virtual std::string initializer() const override;
+
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -544,6 +619,52 @@ class TorchTensorParam: public TorchParam {
     std::vector<std::unique_ptr<TorchIntParam>> dims;
 };
 
+class TorchCudaTensorParam: public TorchParam {
+  public:
+    TorchCudaTensorParam(const TorchTensorParam* tensor_param);
+
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
+
+    virtual std::vector<std::string> gen_arg_setup() const override;
+    virtual std::vector<std::string> gen_hard_constraint() const override;
+    virtual std::vector<std::string> gen_input_pass_condition() const override;
+    virtual std::vector<std::string> gen_arg_initialization() const override;
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) override;
+
+    static bool classof(const TorchParam *param);
+  private:
+    const TorchTensorParam* tensor_param;
+};
+
+class TorchNonTensorParam: public TorchParam {
+  public:
+    TorchNonTensorParam(const TorchParam* nontensor_param);
+
+    virtual std::string type() const override;
+    virtual std::string var() const override;
+    virtual std::string initializer() const override;
+
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; };
+
+    virtual std::vector<std::string> gen_arg_setup() const { return {}; };
+    virtual std::vector<std::string> gen_hard_constraint() const { return {}; };
+    virtual std::vector<std::string> gen_input_pass_condition() const { return {}; };
+    virtual std::vector<std::string> gen_arg_initialization() const { return {}; };
+    virtual void resolve_name_conflict(std::set<std::string>& names_seen) {
+      name = unique_name(name, names_seen);
+    }
+
+    static bool classof(const TorchParam *param);
+  private:
+    const TorchParam* nontensor_param;
+};
+
 class TorchScalarParam: public TorchParam {
   public:
     TorchScalarParam(std::string name_);
@@ -551,6 +672,8 @@ class TorchScalarParam: public TorchParam {
     virtual std::string type() const override;
     virtual std::string var() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const { return {}; };
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -581,11 +704,14 @@ class TorchOptionalParam: public TorchParam {
   public:
     TorchOptionalParam(std::string name_, std::unique_ptr<TorchParam> param_);
     TorchOptionalParam(std::string name_, std::string base_type_str_);
+    TorchOptionalParam(std::string name_, std::unique_ptr<TorchParam> param_, std::string prev_name);
     virtual void set_default(Expr* default_expr) override;
 
     virtual std::string type() const override;
     virtual std::string var() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;
@@ -613,10 +739,18 @@ class TorchAPIOptionsParam: public TorchParam {
       std::string api_optons_class_name_,
       std::vector<std::unique_ptr<TorchParam>> ctor_params_,
       std::vector<std::unique_ptr<TorchParam>> member_params_);
+    TorchAPIOptionsParam(
+      std::string name_,
+      std::string api_optons_class_name_,
+      std::vector<std::unique_ptr<TorchParam>> ctor_params_,
+      std::vector<std::unique_ptr<TorchParam>> member_params_,
+      std::vector<std::string> member_param_names);
 
     virtual std::string type() const override;
     virtual std::string var() const override;
     virtual std::string initializer() const override;
+    virtual std::unique_ptr<TorchParam> to_cuda() const override;
+    virtual std::vector<std::string> all_tensors() const override;
 
     virtual std::vector<std::string> gen_arg_setup() const override;
     virtual std::vector<std::string> gen_hard_constraint() const override;

@@ -13,6 +13,7 @@ class TorchAPI {
   protected:
     std::string api_name;
     std::vector<std::unique_ptr<TorchParam>> params;
+    bool is_void;
   private:
     void resolve_name_conflict();
     std::vector<std::string> arg_setup_code() const;
@@ -32,7 +33,8 @@ class TorchFunction: public TorchAPI {
   public:
     TorchFunction(
       std::string func_name,
-      std::vector<std::unique_ptr<TorchParam>> params_);
+      std::vector<std::unique_ptr<TorchParam>> params_,
+      bool is_void);
   private:
     virtual std::vector<std::string> api_call_code() const override;
 };
@@ -44,7 +46,8 @@ class TorchTensorMethod: public TorchAPI {
     TorchTensorMethod(
       std::string method_name,
       std::unique_ptr<TorchTensorParam> self_,
-      std::vector<std::unique_ptr<TorchParam>> params_);
+      std::vector<std::unique_ptr<TorchParam>> params_,
+      bool is_void);
   private:
     TorchParam* self;
 
@@ -57,7 +60,8 @@ class TorchModule: public TorchAPI {
       std::string module_name,
       std::unique_ptr<TorchParam> module_dtype_,
       std::vector<std::unique_ptr<TorchParam>> ctor_params_,
-      std::vector<std::unique_ptr<TorchParam>> forward_params_);
+      std::vector<std::unique_ptr<TorchParam>> forward_params_,
+      bool is_void);
   private:
     TorchParam* module_dtype;
     std::vector<TorchParam*> ctor_params;
