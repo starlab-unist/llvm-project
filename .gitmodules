@@ -1,0 +1,3 @@
+[submodule "clang-tools-extra/torch-api-signature-extractor/json"]
+	path = clang-tools-extra/torch-api-signature-extractor/json
+	url = git@github.com:nlohmann/json.git
