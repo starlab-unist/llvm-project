@@ -124,7 +124,7 @@ json TorchStringType::to_json() const {
 TorchFloatType::TorchFloatType(): TorchType(TTK_Float) {}
 
 
-TorchDoubleType::TorchDoubleType(): TorchType(TTK_Float) {}
+TorchDoubleType::TorchDoubleType(): TorchType(TTK_Double) {}
 
 
 TorchMemoryFormatType::TorchMemoryFormatType(): TorchType(TTK_MemoryFormat) {}
