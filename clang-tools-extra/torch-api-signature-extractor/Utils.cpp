@@ -1,27 +1,28 @@
 #include "Utils.h"
+
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <vector>
+
+#include <cassert>
+#include <cstring>
+#include <fstream>
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
-#include <dirent.h>
-#include <fstream>
-#include <cstring>
-#include <iostream>
-#include <cassert>
+#include <vector>
 
-bool include(std::vector<std::string>& vec, std::string name) {
-  for (auto n: vec) {
-    if (n == name)
-      return true;
+bool include(std::vector<std::string> &vec, std::string name) {
+  for (auto n : vec) {
+    if (n == name) return true;
   }
 
   return false;
 }
 
 std::string strip_ext(std::string filename) {
-  return filename.substr(0,filename.find_last_of("."));
+  return filename.substr(0, filename.find_last_of("."));
 }
 
 bool startswith(std::string base, std::string prefix) {
@@ -29,16 +30,16 @@ bool startswith(std::string base, std::string prefix) {
 }
 
 bool endswith(std::string base, std::string suffix) {
-  return
-    base.length() >= suffix.length() &&
-    base.compare(base.length() - suffix.length(), suffix.length(), suffix) == 0;
+  return base.length() >= suffix.length() &&
+         base.compare(base.length() - suffix.length(), suffix.length(),
+                      suffix) == 0;
 }
 
 std::string get_directory_path() {
-    std::string file_path = __FILE__;
-    std::string dir_path = file_path.substr(0, file_path.rfind("/"));
+  std::string file_path = __FILE__;
+  std::string dir_path = file_path.substr(0, file_path.rfind("/"));
 
-    return dir_path;
+  return dir_path;
 }
 
 bool is_space(char c) {
@@ -46,33 +47,27 @@ bool is_space(char c) {
 }
 
 std::string strip(std::string str) {
-  if (str.size() == 0)
-    return str;
+  if (str.size() == 0) return str;
 
   size_t pos_right = str.size() - 1;
   for (; pos_right > 0; pos_right--)
-    if (!is_space(str[pos_right]))
-      break;
+    if (!is_space(str[pos_right])) break;
 
   size_t pos_left = 0;
   for (; pos_left <= pos_right; pos_left++)
-    if (!is_space(str[pos_left]))
-      break;
+    if (!is_space(str[pos_left])) break;
 
   return str.substr(pos_left, pos_right - pos_left + 1);
 }
-
-
 
 std::vector<std::string> read_lines(std::string filepath) {
   std::vector<std::string> contents;
   std::string buffer;
 
   std::ifstream f(filepath);
-  while (getline (f, buffer)) {
+  while (getline(f, buffer)) {
     std::string line = strip(buffer);
-    if (line == "" || startswith(line, "#"))
-      continue;
+    if (line == "" || startswith(line, "#")) continue;
     contents.push_back(line);
   }
   f.close();
@@ -81,14 +76,11 @@ std::vector<std::string> read_lines(std::string filepath) {
 
 long GetEpoch(const std::string &Path) {
   struct stat St;
-  if (stat(Path.c_str(), &St))
-    return 0;  // Can't stat, be conservative.
+  if (stat(Path.c_str(), &St)) return 0;  // Can't stat, be conservative.
   return St.st_mtime;
 }
 
-char GetSeparator() {
-  return '/';
-}
+char GetSeparator() { return '/'; }
 
 std::string DirPlusFile(const std::string &DirPath,
                         const std::string &FileName) {
@@ -97,12 +89,11 @@ std::string DirPlusFile(const std::string &DirPath,
 
 bool IsFile(const std::string &Path) {
   struct stat St;
-  if (stat(Path.c_str(), &St))
-    return false;
+  if (stat(Path.c_str(), &St)) return false;
   return S_ISREG(St.st_mode);
 }
 
-void ListFilesInDir(const std::string& Dir, std::vector<std::string>& V) {
+void ListFilesInDir(const std::string &Dir, std::vector<std::string> &V) {
   GetEpoch(Dir);
 
   DIR *D = opendir(Dir.c_str());
@@ -119,18 +110,13 @@ void ListFilesInDir(const std::string& Dir, std::vector<std::string>& V) {
   closedir(D);
 }
 
-std::string torch_api_list_dir_name() {
-  return "torch-api-list";
-}
-std::string torch_tensor_method_list_file_name() {
-  return "torch::Tensor";
-}
-std::string torch_module_list_file_name() {
-  return "torch::nn";
-}
+std::string torch_api_list_dir_name() { return "torch-api-list"; }
+std::string torch_tensor_method_list_file_name() { return "torch::Tensor"; }
+std::string torch_module_list_file_name() { return "torch::nn"; }
 
 std::vector<std::string> get_torch_api_groups() {
-  std::string torch_api_list_dir = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
+  std::string torch_api_list_dir =
+      DirPlusFile(get_directory_path(), torch_api_list_dir_name());
   std::vector<std::string> torch_api_groups;
   ListFilesInDir(torch_api_list_dir, torch_api_groups);
   return torch_api_groups;
@@ -138,30 +124,36 @@ std::vector<std::string> get_torch_api_groups() {
 
 std::map<std::string, std::set<std::string>> read_torch_function_list() {
   std::map<std::string, std::set<std::string>> torch_function_list;
-  for (auto& torch_api_group: get_torch_api_groups()) {
+  for (auto &torch_api_group : get_torch_api_groups()) {
     if (torch_api_group == torch_tensor_method_list_file_name() ||
         torch_api_group == torch_module_list_file_name() ||
         startswith(torch_api_group, "_"))
       continue;
 
-    std::string torch_api_list_dir = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
+    std::string torch_api_list_dir =
+        DirPlusFile(get_directory_path(), torch_api_list_dir_name());
     std::string filepath = DirPlusFile(torch_api_list_dir, torch_api_group);
     std::vector<std::string> lines = read_lines(filepath);
-    torch_function_list[torch_api_group] = std::set<std::string>(lines.begin(), lines.end());
+    torch_function_list[torch_api_group] =
+        std::set<std::string>(lines.begin(), lines.end());
   }
   return torch_function_list;
 }
 
 std::set<std::string> read_torch_tensor_method_list() {
-  std::string torch_api_list_dir_path = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
-  std::string filepath = DirPlusFile(torch_api_list_dir_path, torch_tensor_method_list_file_name());
+  std::string torch_api_list_dir_path =
+      DirPlusFile(get_directory_path(), torch_api_list_dir_name());
+  std::string filepath = DirPlusFile(torch_api_list_dir_path,
+                                     torch_tensor_method_list_file_name());
   std::vector<std::string> lines = read_lines(filepath);
   return std::set<std::string>(lines.begin(), lines.end());
 }
 
 std::set<std::string> read_torch_module_list() {
-  std::string torch_api_list_dir_path = DirPlusFile(get_directory_path(), torch_api_list_dir_name());
-  std::string filepath = DirPlusFile(torch_api_list_dir_path, torch_module_list_file_name());
+  std::string torch_api_list_dir_path =
+      DirPlusFile(get_directory_path(), torch_api_list_dir_name());
+  std::string filepath =
+      DirPlusFile(torch_api_list_dir_path, torch_module_list_file_name());
   std::vector<std::string> lines = read_lines(filepath);
   return std::set<std::string>(lines.begin(), lines.end());
 }
@@ -176,15 +168,15 @@ void init_torch_api_list() {
   torch_module_list = read_torch_module_list();
 }
 
-const std::map<std::string, std::set<std::string>>& get_torch_function_list() {
+const std::map<std::string, std::set<std::string>> &get_torch_function_list() {
   return torch_function_list;
 }
 
-const std::set<std::string>& get_torch_tensor_method_list() {
+const std::set<std::string> &get_torch_tensor_method_list() {
   return torch_tensor_method_list;
 }
 
-const std::set<std::string>& get_torch_module_list() {
+const std::set<std::string> &get_torch_module_list() {
   return torch_module_list;
 }
 
